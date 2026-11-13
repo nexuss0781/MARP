@@ -296,4 +296,4 @@ TEST(E1BigInt, KnuthDivmod) {
     EXPECT_EQ(check, rx.value());
 }
 
-} // namespace//
+} // namespace
