@@ -18,7 +18,8 @@ BigInt::BigInt() noexcept {
 }
 
 BigInt::BigInt(uint64_t v) noexcept {
-    small_.fill(0);
+    small_[0] = static_cast<Limb>(v & LIMB_MAX);
+    small_[1] = 0;
     if (v == 0) {
         count_ = 0;
         on_heap_ = false;
@@ -26,7 +27,6 @@ BigInt::BigInt(uint64_t v) noexcept {
         capacity_ = 0;
         return;
     }
-    small_[0] = static_cast<Limb>(v & LIMB_MAX);
     uint64_t hi = v >> 32;
     if (hi != 0) {
         small_[1] = static_cast<Limb>(hi);
