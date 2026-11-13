@@ -1,8 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cstddef>
-#include <variant>
-#include <optional>
+#include <utility>
 
 namespace mapr {
 
@@ -15,24 +14,26 @@ enum class ErrCode : uint8_t {
 };
 
 // Result<T> = T | ErrCode. No exceptions.
-// Use std::variant with a helper for ergonomics.
+// Simple tag-based implementation to avoid std::variant ambiguity issues.
 template <typename T>
 class Result {
-    std::variant<T, ErrCode> storage_;
+    T value_{};
+    ErrCode err_ = ErrCode::Invalid;
+    bool has_value_ = false;
 
 public:
-    constexpr Result() noexcept : storage_(ErrCode::Invalid) {} // default to invalid
-    constexpr Result(const T& value) noexcept : storage_(value) {}
-    constexpr Result(T&& value) noexcept : storage_(std::move(value)) {}
-    constexpr Result(ErrCode err) noexcept : storage_(err) {}
+    constexpr Result() noexcept : has_value_(false), err_(ErrCode::Invalid) {}
+    constexpr Result(const T& value) noexcept : value_(value), has_value_(true) {}
+    constexpr Result(T&& value) noexcept : value_(std::move(value)), has_value_(true) {}
+    constexpr Result(ErrCode err) noexcept : has_value_(false), err_(err) {}
 
-    constexpr bool ok() const noexcept { return std::holds_alternative<T>(storage_); }
-    constexpr bool is_err() const noexcept { return std::holds_alternative<ErrCode>(storage_); }
-    constexpr ErrCode error() const noexcept { return std::get<ErrCode>(storage_); }
-    constexpr T& value() & noexcept { return std::get<T>(storage_); }
-    constexpr const T& value() const& noexcept { return std::get<T>(storage_); }
-    constexpr T&& value() && noexcept { return std::get<T>(std::move(storage_)); }
-    constexpr const T&& value() const&& noexcept { return std::get<T>(std::move(storage_)); }
+    constexpr bool ok() const noexcept { return has_value_; }
+    constexpr bool is_err() const noexcept { return !has_value_; }
+    constexpr ErrCode error() const noexcept { return err_; }
+    constexpr T& value() & noexcept { return value_; }
+    constexpr const T& value() const& noexcept { return value_; }
+    constexpr T&& value() && noexcept { return std::move(value_); }
+    constexpr const T&& value() const&& noexcept { return std::move(value_); }
 
     constexpr explicit operator bool() const noexcept { return ok(); }
 };
