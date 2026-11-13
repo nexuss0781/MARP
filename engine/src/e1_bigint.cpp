@@ -131,12 +131,12 @@ void BigInt::trim() noexcept {
 void BigInt::ensure_capacity(size_t n) {
     if (n <= SBO_LIMBS) {
         if (on_heap_) {
+            std::copy(heap_, heap_ + count_, small_.begin());
             delete[] heap_;
             heap_ = nullptr;
             on_heap_ = false;
             capacity_ = 0;
         }
-        small_.fill(0);
         return;
     }
     if (!on_heap_ || capacity_ < n) {
