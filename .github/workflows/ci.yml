@@ -15,6 +15,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Verify commit
+      run: |
+        echo "Current commit: $(git rev-parse HEAD)"
+        echo "File tail:"
+        tail -15 tests/e1_bigint_test.cpp
+
     - name: Install dependencies
       run: |
         sudo apt-get update
