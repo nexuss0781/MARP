@@ -217,20 +217,13 @@ Result<BigInt> BigInt::from_decimal(std::string_view s) noexcept {
         if (c < '0' || c > '9') return ErrCode::Invalid;
     }
     BigInt result = BigInt::zero();
-    constexpr Limb CHUNK_BASE = 1000000000; // 10^9
-    size_t i = 0;
-    while (i < s.size()) {
-        size_t take = std::min<size_t>(9, s.size() - i);
-        Limb chunk = 0;
-        for (size_t j = 0; j < take; ++j) {
-            chunk = chunk * 10 + (s[i + j] - '0');
-        }
-        i += take;
-        auto mul_res = result.mul(BigInt(CHUNK_BASE));
+    for (char c : s) {
+        uint8_t digit = c - '0';
+        auto mul_res = result.mul(BigInt(10));
         if (!mul_res.ok()) return mul_res.error();
         result = std::move(mul_res.value());
-        if (chunk != 0) {
-            auto add_res = result.add(BigInt(chunk));
+        if (digit != 0) {
+            auto add_res = result.add(BigInt(digit));
             if (!add_res.ok()) return add_res.error();
             result = std::move(add_res.value());
         }

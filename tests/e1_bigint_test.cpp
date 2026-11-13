@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <array>
 
 using namespace mapr;
 
@@ -29,7 +30,7 @@ std::vector<std::pair<BigInt, BigInt>> make_pairs() {
 
 const auto ARITH_PAIRS = make_pairs();
 
-// Remove the early namespace close - all tests go inside
+} // anonymous namespace
 
 TEST(E1BigInt, Construction) {
     EXPECT_TRUE(BigInt().is_zero());
@@ -58,22 +59,32 @@ TEST(E1BigInt, FromLimbs) {
 }
 
 TEST(E1BigInt, FromLEBytes) {
-    auto r = BigInt::from_le_bytes("\x01\x00\x00\x00");
-    ASSERT_TRUE(r.ok());
-    EXPECT_EQ(r.value(), BigInt(1));
-
-    r = BigInt::from_le_bytes("\x00\x00\x00\x01");
-    ASSERT_TRUE(r.ok());
-    EXPECT_EQ(r.value(), BigInt(0x1000000));
-
-    r = BigInt::from_le_bytes("");
-    ASSERT_TRUE(r.ok());
-    EXPECT_TRUE(r.value().is_zero());
-
-    // Trailing zeros trimmed
-    r = BigInt::from_le_bytes("\x01\x00\x00\x00\x00\x00\x00\x00");
-    ASSERT_TRUE(r.ok());
-    EXPECT_EQ(r.value(), BigInt(1));
+    // Use explicit byte arrays to avoid null-terminator issues
+    {
+        std::array<uint8_t, 4> bytes = {0x01, 0x00, 0x00, 0x00};
+        auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
+        ASSERT_TRUE(r.ok());
+        EXPECT_EQ(r.value(), BigInt(1));
+    }
+    {
+        std::array<uint8_t, 4> bytes = {0x00, 0x00, 0x00, 0x01};
+        auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
+        ASSERT_TRUE(r.ok());
+        auto val = r.value();
+        EXPECT_EQ(val, BigInt(0x1000000));
+    }
+    {
+        std::array<uint8_t, 0> bytes = {};
+        auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
+        ASSERT_TRUE(r.ok());
+        EXPECT_TRUE(r.value().is_zero());
+    }
+    {
+        std::array<uint8_t, 8> bytes = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
+        ASSERT_TRUE(r.ok());
+        EXPECT_EQ(r.value(), BigInt(1));
+    }
 }
 
 TEST(E1BigInt, FromDecimal) {
@@ -87,9 +98,10 @@ TEST(E1BigInt, FromDecimal) {
 
     r = BigInt::from_decimal("4294967296"); // 2^32
     ASSERT_TRUE(r.ok());
-    EXPECT_EQ(r.value().limb_count(), static_cast<size_t>(2));
-    EXPECT_EQ(r.value().limb(0), static_cast<Limb>(0));
-    EXPECT_EQ(r.value().limb(1), static_cast<Limb>(1));
+    auto val = r.value();
+    EXPECT_EQ(val.limb_count(), static_cast<size_t>(2));
+    EXPECT_EQ(val.limb(0), static_cast<Limb>(0));
+    EXPECT_EQ(val.limb(1), static_cast<Limb>(1));
 
     // Leading zeros invalid
     r = BigInt::from_decimal("00");
@@ -218,17 +230,18 @@ TEST(E1BigInt, DecimalRoundtrip_O1_3) {
 }
 
 TEST(E1BigInt, ByteRoundtrip_O1_4) {
-    const std::vector<std::string> BYTE_CORPUS = {
-        "", "\x00", "\x01", "\xFF", "\x01\x02\x03\x04",
-        "\x00\x00\x00\x01", "\xFF\xFF\xFF\xFF",
-        "\x01\x00\x00\x00\x00", // 2^32
+    const std::vector<std::vector<uint8_t>> BYTE_CORPUS = {
+        {}, {0x00}, {0x01}, {0xFF}, {0x01, 0x02, 0x03, 0x04},
+        {0x00, 0x00, 0x00, 0x01}, {0xFF, 0xFF, 0xFF, 0xFF},
+        {0x01, 0x00, 0x00, 0x00, 0x00}, // 2^32
     };
     for (const auto& b : BYTE_CORPUS) {
-        auto r = BigInt::from_le_bytes(b);
+        std::string_view sv(reinterpret_cast<const char*>(b.data()), b.size());
+        auto r = BigInt::from_le_bytes(sv);
         ASSERT_TRUE(r.ok()) << "Failed to parse bytes";
         auto rt = r.value().to_le_bytes();
         // Trim trailing zeros from original
-        std::vector<uint8_t> trimmed(b.begin(), b.end());
+        std::vector<uint8_t> trimmed = b;
         while (!trimmed.empty() && trimmed.back() == 0) trimmed.pop_back();
         EXPECT_EQ(rt, trimmed) << "Roundtrip failed for bytes";
     }
@@ -240,7 +253,7 @@ TEST(E1BigInt, Shifts) {
     EXPECT_EQ(BigInt(1).shl(1).value(), BigInt(2));
     EXPECT_EQ(BigInt(1).shl(31).value(), BigInt(1ull << 31));
     EXPECT_EQ(BigInt(1).shl(32).value(), BigInt(0x100000000ull));
-    EXPECT_EQ(BigInt(1).shl(64).value().limb_count(), 3); // 2^64 = 3 limbs in base 2^32
+    EXPECT_EQ(BigInt(1).shl(64).value().limb_count(), static_cast<size_t>(3)); // 2^64 = 3 limbs in base 2^32
 
     // shr
     EXPECT_EQ(BigInt(16).shr(0).value(), BigInt(16));
