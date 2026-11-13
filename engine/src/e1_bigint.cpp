@@ -18,8 +18,12 @@ BigInt::BigInt() noexcept {
 }
 
 BigInt::BigInt(uint64_t v) noexcept {
+    small_.fill(0);
     if (v == 0) {
-        count_ = 0; on_heap_ = false; heap_ = nullptr; capacity_ = 0;
+        count_ = 0;
+        on_heap_ = false;
+        heap_ = nullptr;
+        capacity_ = 0;
         return;
     }
     small_[0] = static_cast<Limb>(v & LIMB_MAX);
@@ -30,7 +34,9 @@ BigInt::BigInt(uint64_t v) noexcept {
     } else {
         count_ = 1;
     }
-    on_heap_ = false; heap_ = nullptr; capacity_ = 0;
+    on_heap_ = false;
+    heap_ = nullptr;
+    capacity_ = 0;
 }
 
 BigInt::~BigInt() noexcept {
