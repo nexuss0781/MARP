@@ -1,10 +1,10 @@
 CXX      := g++
-CXXFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O3 -pthread -I../include
+CXXFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O3 -pthread -I../include -I/home/nexuss0781/.local/include
 SANFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -I../include
 
 # Use pkg-config for gtest flags if available
-GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null || echo "-I/usr/local/include")
-GTEST_LIBS := $(shell pkg-config --libs gtest gtest_main 2>/dev/null || echo "-L/usr/local/lib -lgtest -lgtest_main")
+GTEST_LIBS := $(shell pkg-config --libs gtest gtest_main 2>/dev/null || echo "-L/tmp/googletest/build/lib -lgtest -lgtest_main")
+GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null || echo "-I/usr/local/include -I/tmp/googletest/googletest/include")
 
 # E1 Foundation sources
 E1_SRCS := \
