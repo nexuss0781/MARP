@@ -30,12 +30,17 @@ jobs:
         make -j4
         sudo make install
         sudo ldconfig
+        echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+        sudo ldconfig
 
     - name: Configure and Build E1
       run: |
         cd engine
         make clean
         make -j4
+      env:
+        LD_LIBRARY_PATH: /usr/local/lib:${LD_LIBRARY_PATH}
+        PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}
 
     - name: Run E1 Tests (Gate E1-G)
       run: |
