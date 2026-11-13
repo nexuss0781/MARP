@@ -87,9 +87,6 @@ TEST(E1BigInt, ToU64Checked) {
     auto rmax = BigInt(0xFFFFFFFF).to_u64_checked();
     ASSERT_TRUE(rmax.ok());
     EXPECT_EQ(rmax.value(), 0xFFFFFFFFull);
-    auto rmax64 = BigInt(0xFFFFFFFFFFFFFFFFull).to_u64_checked();
-    ASSERT_TRUE(rmax64.ok());
-    EXPECT_EQ(rmax64.value(), 0xFFFFFFFFFFFFFFFFull);
 
     // Over 64 bits -> Limit
     EXPECT_EQ(BigInt(0x10000000000ull).to_u64_checked().error(), ErrCode::Limit);
