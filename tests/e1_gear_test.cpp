@@ -65,14 +65,12 @@ TEST(E1Gear, Window64Bytes) {
 }
 
 TEST(E1Gear, WindowDifferentLengths) {
-    // If lengths differ, seed*2^n differs even mod 2^64
-    std::string tail(64, 'x');
-    std::string prefix1(100, 'a');
-    std::string prefix2(99, 'b');
-
-    uint64_t h1 = gear_hash(prefix1 + tail);
-    uint64_t h2 = gear_hash(prefix2 + tail);
-    // Lengths differ (164 vs 163), so seed*2^n differs
+    // If lengths differ AND are < 64, seed*2^n differs mod 2^64
+    // (for lengths >= 64, seed*2^n mod 2^64 = 0, so length doesn't matter)
+    std::string msg1(40, 'a');
+    std::string msg2(39, 'b');
+    uint64_t h1 = gear_hash(msg1);
+    uint64_t h2 = gear_hash(msg2);
     EXPECT_NE(h1, h2);
 }
 
