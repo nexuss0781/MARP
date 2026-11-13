@@ -1,6 +1,10 @@
 CXX      := g++
-CXXFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O3 -pthread -I../include -I/home/nexuss0781/.local/include
-SANFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -I../include -I/home/nexuss0781/.local/include
+CXXFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O3 -pthread -I../include
+SANFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -I../include
+
+# Use pkg-config for gtest flags if available
+GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null || echo "-I/usr/local/include")
+GTEST_LIBS := $(shell pkg-config --libs gtest gtest_main 2>/dev/null || echo "-L/usr/local/lib -lgtest -lgtest_main")
 
 # E1 Foundation sources
 E1_SRCS := \
@@ -30,20 +34,20 @@ all: bin/mapr_tests
 
 obj/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) -c $< -o $@
 
 obj/tests/%.o: ../tests/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) -c $< -o $@
 
 # Only build the test binary for E1
 bin/mapr_tests: $(LIB_OBJS) $(TEST_OBJS)
 	@mkdir -p bin
-	$(CXX) $(CXXFLAGS) -o bin/mapr_tests $(LIB_OBJS) $(TEST_OBJS) -lgtest -lgtest_main -lz -lpthread
+	$(CXX) $(CXXFLAGS) -o bin/mapr_tests $(LIB_OBJS) $(TEST_OBJS) $(GTEST_LIBS) -lz -lpthread
 
 bin/mapr_tests_san: $(E1_SRCS) $(TEST_SRCS)
 	@mkdir -p bin
-	$(CXX) $(SANFLAGS) -o bin/mapr_tests_san $(E1_SRCS) $(TEST_SRCS) -lgtest -lgtest_main -lz -lpthread
+	$(CXX) $(SANFLAGS) -o bin/mapr_tests_san $(E1_SRCS) $(TEST_SRCS) $(GTEST_LIBS) -lz -lpthread
 
 test: bin/mapr_tests
 	./bin/mapr_tests
