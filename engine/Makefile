@@ -39,11 +39,11 @@ obj/tests/%.o: ../tests/%.cpp
 # Only build the test binary for E1
 bin/mapr_tests: $(LIB_OBJS) $(TEST_OBJS)
 	@mkdir -p bin
-	$(CXX) $(CXXFLAGS) $(LIB_OBJS) $(TEST_OBJS) -o bin/mapr_tests -lgtest -lgtest_main -lpthread
+	$(CXX) $(CXXFLAGS) -o bin/mapr_tests $(LIB_OBJS) $(TEST_OBJS) -lgtest -lgtest_main -lz -lpthread
 
 bin/mapr_tests_san: $(E1_SRCS) $(TEST_SRCS)
 	@mkdir -p bin
-	$(CXX) $(SANFLAGS) $(E1_SRCS) $(TEST_SRCS) -o bin/mapr_tests_san -lgtest -lgtest_main -lpthread
+	$(CXX) $(SANFLAGS) -o bin/mapr_tests_san $(E1_SRCS) $(TEST_SRCS) -lgtest -lgtest_main -lz -lpthread
 
 test: bin/mapr_tests
 	./bin/mapr_tests
