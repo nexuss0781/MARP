@@ -17,15 +17,15 @@ enum class ErrCode : uint8_t {
 // Simple tag-based implementation to avoid std::variant ambiguity issues.
 template <typename T>
 class Result {
-    T value_{};
-    ErrCode err_ = ErrCode::Invalid;
-    bool has_value_ = false;
+    bool has_value_;
+    T value_;
+    ErrCode err_;
 
 public:
-    constexpr Result() noexcept : has_value_(false), err_(ErrCode::Invalid) {}
-    constexpr Result(const T& value) noexcept : value_(value), has_value_(true) {}
-    constexpr Result(T&& value) noexcept : value_(std::move(value)), has_value_(true) {}
-    constexpr Result(ErrCode err) noexcept : has_value_(false), err_(err) {}
+    constexpr Result() noexcept : has_value_(false), value_(), err_(ErrCode::Invalid) {}
+    constexpr Result(const T& value) noexcept : has_value_(true), value_(value), err_(ErrCode::Invalid) {}
+    constexpr Result(T&& value) noexcept : has_value_(true), value_(std::move(value)), err_(ErrCode::Invalid) {}
+    constexpr Result(ErrCode err) noexcept : has_value_(false), value_(), err_(err) {}
 
     constexpr bool ok() const noexcept { return has_value_; }
     constexpr bool is_err() const noexcept { return !has_value_; }
