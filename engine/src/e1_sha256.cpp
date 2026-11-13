@@ -94,28 +94,28 @@ ErrCode Sha256::update(std::string_view data) noexcept {
 }
 
 Result<std::array<uint8_t, 32>> Sha256::finish() noexcept {
-    // Padding (Math-SPECS C2): 0x80, zeros, 64-bit length in bits (big-endian)
-    size_t pad_len = (56 - (buffer_len_ + 1) % 64) % 64;
-
-    // First, append 0x80
+    // Padding (FIPS 180-4): append 0x80, then zeros until length ≡ 56 mod 64,
+    // then append 64-bit big-endian length
     buffer_[buffer_len_] = 0x80;
     buffer_len_++;
 
-    // Append zeros
-    if (buffer_len_ + pad_len > 64) {
-        std::fill(buffer_.data() + buffer_len_, buffer_.data() + 64, 0);
+    if (buffer_len_ > 56) {
+        // Fill rest of block with zeros and compress
+        while (buffer_len_ < 64) {
+            buffer_[buffer_len_] = 0;
+            buffer_len_++;
+        }
         compress(state_, buffer_.data());
         buffer_len_ = 0;
-        if (pad_len > 0) {
-            std::fill(buffer_.data(), buffer_.data() + pad_len, 0);
-            buffer_len_ = pad_len;
-        }
-    } else {
-        std::fill(buffer_.data() + buffer_len_, buffer_.data() + buffer_len_ + pad_len, 0);
-        buffer_len_ += pad_len;
     }
 
-    // Append 64-bit length (big-endian)
+    // Fill with zeros up to 56 bytes
+    while (buffer_len_ < 56) {
+        buffer_[buffer_len_] = 0;
+        buffer_len_++;
+    }
+
+    // Append 64-bit length in big-endian
     for (int i = 7; i >= 0; --i) {
         buffer_[buffer_len_++] = static_cast<uint8_t>((total_bits_ >> (8 * i)) & 0xFF);
     }
