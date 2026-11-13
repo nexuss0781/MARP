@@ -78,10 +78,20 @@ TEST(E1BigInt, FromDecimal) {
 }
 
 TEST(E1BigInt, ToU64Checked) {
-    EXPECT_EQ(BigInt(0).to_u64_checked().value(), 0ull);
-    EXPECT_EQ(BigInt(42).to_u64_checked().value(), 42ull);
-    EXPECT_EQ(BigInt(0xFFFFFFFF).to_u64_checked().value(), 0xFFFFFFFFull);
-    EXPECT_EQ(BigInt(0xFFFFFFFFFFFFFFFFull).to_u64_checked().value(), 0xFFFFFFFFFFFFFFFFull);
+    auto r0 = BigInt(0).to_u64_checked();
+    ASSERT_TRUE(r0.ok());
+    EXPECT_EQ(r0.value(), 0ull);
+    auto r42 = BigInt(42).to_u64_checked();
+    ASSERT_TRUE(r42.ok());
+    EXPECT_EQ(r42.value(), 42ull);
+    auto rmax = BigInt(0xFFFFFFFF).to_u64_checked();
+    ASSERT_TRUE(rmax.ok());
+    EXPECT_EQ(rmax.value(), 0xFFFFFFFFull);
+    auto rmax64 = BigInt(0xFFFFFFFFFFFFFFFFull).to_u64_checked();
+    ASSERT_TRUE(rmax64.ok());
+    EXPECT_EQ(rmax64.value(), 0xFFFFFFFFFFFFFFFFull);
+
+    // Over 64 bits -> Limit
     EXPECT_EQ(BigInt(0x10000000000ull).to_u64_checked().error(), ErrCode::Limit);
 }
 
