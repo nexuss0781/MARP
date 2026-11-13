@@ -110,7 +110,7 @@ TEST(E1Gear, ClosedFormMatchesIterative) {
 
 TEST(E1Gear, Forgetfulness) {
     // Bytes older than 64 cannot matter (Corollary C13)
-    std::mt19937 rng(0xBADFOODu);
+    std::mt19937 rng(0xBADFOOD);
     std::uniform_int_distribution<uint8_t> dist(0, 255);
 
     for (int iter = 0; iter < 50; ++iter) {
