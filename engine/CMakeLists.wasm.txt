@@ -1,0 +1,68 @@
+# WebAssembly build configuration for MAPR
+# This file is included by the main CMakeLists.txt when building with Emscripten
+
+# ──────────────────────────────────────────────────────────────
+# Emscripten-specific settings
+# ──────────────────────────────────────────────────────────────
+
+if(EMSCRIPTEN)
+    message(STATUS "Configuring for WebAssembly (Emscripten)")
+
+    # Set WASM-specific compiler flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s WASM=1 -s ALLOW_MEMORY_GROWTH=1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s MODULARIZE=1 -s EXPORT_NAME=Module")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s EXPORT_ES6=1 -s ENVIRONMENT=web,node")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s EXPORTED_RUNTIME_METHODS=ccall,cwrap,getValue,setValue,HEAPU8,HEAPU32")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s EXPORTED_FUNCTIONS=_malloc,_free")
+    
+    # Enable pthreads for multi-threading support (optional)
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4")
+    
+    # Memory settings
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s INITIAL_MEMORY=64MB -s MAXIMUM_MEMORY=512MB")
+    
+    # Disable features not available in WASM
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_POSIX_MEMALIGN=0")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_MMAP=0")
+    
+    # Optimize for size
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Oz")
+    
+    # Link settings
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s WASM=1")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -s WASM=1")
+    
+    # Output names
+    set(CMAKE_EXECUTABLE_SUFFIX ".js")
+    set(CMAKE_SHARED_LIBRARY_SUFFIX ".wasm")
+    
+    # Disable SIMD for WASM (we'll enable SIMD128 explicitly if needed)
+    set(MAPR_BUILD_SIMD OFF)
+    
+    # Build only static library for WASM (no shared libs)
+    set(MAPR_BUILD_SHARED OFF)
+    set(MAPR_BUILD_STATIC ON)
+    set(MAPR_BUILD_TOOLS OFF)
+    set(MAPR_BUILD_TESTS OFF)
+    
+    message(STATUS "WASM build configured: static library only, SIMD disabled")
+endif()
+
+# ──────────────────────────────────────────────────────────────
+# WASI (WebAssembly System Interface) build configuration
+# ──────────────────────────────────────────────────────────────
+
+if(WASI_SDK)
+    message(STATUS "Configuring for WASI (WebAssembly System Interface)")
+    
+    # WASI-specific compiler flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS")
+    
+    # Build only static library for WASI
+    set(MAPR_BUILD_SHARED OFF)
+    set(MAPR_BUILD_STATIC ON)
+    set(MAPR_BUILD_TOOLS ON)  # CLI tools work in WASI
+    set(MAPR_BUILD_TESTS OFF)
+    
+    message(STATUS "WASI build configured: static library + CLI tools")
+endif()

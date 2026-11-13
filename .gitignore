@@ -1,0 +1,46 @@
+# Build artifacts
+engine/obj/
+engine/bin/
+
+# Test files (generated)
+*.mapr
+*.zip
+test_*.mapr
+test_*.zip
+archive*.mapr
+small*.mapr
+small*.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Distribution
+dist/
+build/
+*.egg-info/
+*.whl
+
+# Node
+node_modules/
+
+# Rust
+target/
+Cargo.lock
+
+# Local config
+*.local

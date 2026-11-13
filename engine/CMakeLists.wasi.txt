@@ -1,0 +1,81 @@
+# WASI (WebAssembly System Interface) build configuration for MAPR
+# This file is included by the main CMakeLists.txt when building with WASI SDK
+
+# ──────────────────────────────────────────────────────────────
+# WASI SDK detection
+# ──────────────────────────────────────────────────────────────
+
+if(WASI_SDK_PATH)
+    set(WASI_SDK_ROOT $ENV{WASI_SDK_PATH})
+else()
+    # Try common locations
+    find_path(WASI_SDK_ROOT wasi-sdk/bin/clang
+        PATHS
+        $ENV{HOME}/wasi-sdk
+        /opt/wasi-sdk
+        /usr/local/wasi-sdk
+        /wasi-sdk
+    )
+endif()
+
+if(WASI_SDK_ROOT)
+    message(STATUS "Found WASI SDK at: ${WASI_SDK_ROOT}")
+    
+    # Set WASI compiler
+    set(CMAKE_C_COMPILER ${WASI_SDK_ROOT}/bin/clang)
+    set(CMAKE_CXX_COMPILER ${WASI_SDK_ROOT}/bin/clang++)
+    set(CMAKE_AR ${WASI_SDK_ROOT}/bin/llvm-ar)
+    set(CMAKE_RANLIB ${WASI_SDK_ROOT}/bin/llvm-ranlib)
+    set(CMAKE_NM ${WASI_SDK_ROOT}/bin/llvm-nm)
+    
+    # WASI target
+    set(CMAKE_SYSTEM_NAME Generic)
+    set(CMAKE_SYSTEM_PROCESSOR wasm32)
+    
+    # WASI-specific flags
+    set(WASI_CFLAGS
+        "--target=wasm32-wasi"
+        "-D_WASI_EMULATED_SIGNAL"
+        "-D_WASI_EMULATED_PROCESS_CLOCKS"
+        "-D__wasi__"
+        "-D_WASI_EMULATED_GETPID"
+        "-D_WASI_EMULATED_THREADS"
+    )
+    
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WASI_CFLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WASI_CFLAGS}")
+    
+    # Linker flags
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --target=wasm32-wasi")
+    
+    # Disable features not available in WASI
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_POSIX_MEMALIGN=0")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_MMAP=0")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_PTHREAD=0")
+    
+    # Optimize for size
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Oz")
+    
+    # Build configuration
+    set(MAPR_BUILD_SHARED OFF)
+    set(MAPR_BUILD_STATIC ON)
+    set(MAPR_BUILD_TOOLS ON)  # CLI tools work in WASI
+    set(MAPR_BUILD_TESTS OFF)
+    set(MAPR_BUILD_SIMD OFF)
+    
+    message(STATUS "WASI build configured: static library + CLI tools")
+    
+else()
+    message(WARNING "WASI SDK not found. Set WASI_SDK_PATH environment variable.")
+    message(WARNING "Install from: https://github.com/WebAssembly/wasi-sdk/releases")
+endif()
+
+# ──────────────────────────────────────────────────────────────
+# WASI Preview 2 (Component Model) - Experimental
+# ──────────────────────────────────────────────────────────────
+
+if(WASI_PREVIEW2)
+    message(STATUS "Enabling WASI Preview 2 (Component Model)")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WASI_PREVIEW2")
+    # Component model requires additional tooling (wit-bindgen, etc.)
+endif()

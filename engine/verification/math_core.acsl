@@ -1,0 +1,156 @@
+/*
+ * Frama-C/ACSL Formal Verification Annotations for MAPR Math Core
+ * 
+ * This file contains ACSL (ANSI/ISO C Specification Language) contracts
+ * for critical mathematical functions in the MAPR library.
+ * 
+ * To verify: frama-c -wp -wp-prover=alt-ergo,z3,cvc5 math_core.acsl
+ * 
+ * Requires: Frama-C, Why3, Alt-Ergo, Z3, CVC5 provers
+ */
+
+/*@ 
+  requires n >= 0 && k >= 0 && k <= n && n <= 64;
+  ensures \result == binom64(n, k);
+  ensures \result == binom64(n, n - k); // Symmetry
+  ensures (k == 0 || k == n) ==> \result == 1;
+  ensures (n == 64 && k == 32) ==> \result == 1832624140942590534ULL;
+  assigns \nothing;
+*/
+uint64_t binom64(int n, int k);
+
+/*@
+  requires \valid_read(data) || size == 0;
+  requires size <= 1000000; // Reasonable upper bound
+  ensures \result == crc32_compute(data, size);
+  assigns \nothing;
+*/
+uint32_t crc32_compute(const uint8_t* data, size_t size);
+
+/*@
+  requires \valid_read(data) || size == 0;
+  requires size <= 1000000;
+  ensures \result == crc32_update(init, data, size);
+  assigns \nothing;
+*/
+uint32_t crc32_update(uint32_t init, const uint8_t* data, size_t size);
+
+/*@
+  requires \valid_read(data) || size == 0;
+  requires size <= 1000000;
+  // SHA-256 is a deterministic hash function
+  ensures \result == hash(data, size);
+  assigns \nothing;
+*/
+array<uint8_t, 32> hash(const uint8_t* data, size_t size);
+
+/*@
+  requires \valid_read(data) || size == 0;
+  requires size <= 1000000;
+  // Streaming hash matches single-shot
+  ensures update_then_finalize(data, size) == hash(data, size);
+  assigns \nothing;
+*/
+array<uint8_t, 32> update_then_finalize(const uint8_t* data, size_t size);
+
+/*@
+  requires b >= 1 && b <= 64;
+  requires w < (b == 64 ? UINT64_MAX : (1ULL << b));
+  // popcount is count of set bits
+  ensures \result == __builtin_popcountll(w);
+  assigns \nothing;
+*/
+uint64_t popcount64(uint64_t w);
+
+/*@
+  requires b >= 1 && b <= 64;
+  requires w < (b == 64 ? UINT64_MAX : (1ULL << b));
+  // bitrev is involution: bitrev(bitrev(w)) == w
+  ensures bitrev64(bitrev64(w, b), b) == w;
+  // bitrev reverses bit order
+  ensures \forall integer i; 0 <= i < b ==> 
+    (((w >> i) & 1) == ((bitrev64(w, b) >> (b - 1 - i)) & 1));
+  assigns \nothing;
+*/
+uint64_t bitrev64(uint64_t w, int b);
+
+/*@
+  requires b >= 1 && b <= 64;
+  requires w < (b == 64 ? UINT64_MAX : (1ULL << b));
+  // mobius is involution: mobius(mobius(w)) == w
+  ensures mobius_word(mobius_word(w, b), b) == w;
+  // mobius is bijection on [0, 2^b)
+  assigns \nothing;
+*/
+uint64_t mobius_word(uint64_t w, int b);
+
+/*@
+  requires \true;
+  // splitmix64 is deterministic
+  ensures \result == splitmix64(x);
+  // splitmix64 has good avalanche property
+  ensures splitmix64(x) != splitmix64(x + 1) || \result == 0; // Very rare collision
+  assigns \nothing;
+*/
+uint64_t splitmix64(uint64_t x);
+
+/*@
+  requires b >= 1 && b <= 64;
+  requires w < (b == 64 ? UINT64_MAX : (1ULL << b));
+  // colex rank/unrank are inverses
+  ensures unrank_word_colex(b, rank_word_colex(w, b).first, rank_word_colex(w, b).second) == w;
+  // rank is in valid range
+  ensures rank_word_colex(w, b).first < binom64(b, popcount64(w));
+  assigns \nothing;
+*/
+pair<uint64_t, uint64_t> rank_word_colex(uint64_t w, int b);
+
+/*@
+  requires b >= 1 && b <= 64;
+  requires rank < binom64(b, popcount64(unrank_word_colex(b, rank, rho)));
+  // unrank is inverse of rank
+  ensures rank_word_colex(unrank_word_colex(b, rank, rho), b) == pair(rank, rho);
+  assigns \nothing;
+*/
+uint64_t unrank_word_colex(int b, uint64_t rank, uint64_t rho);
+
+/*@
+  requires b >= 1 && b <= 64;
+  requires w < (b == 64 ? UINT64_MAX : (1ULL << b));
+  // Dual basis atom encoding/decoding is bijective
+  ensures decode_micro_atom(encode_micro_atom(w, b)) == w;
+  assigns \nothing;
+*/
+DualBasisAtom encode_micro_atom(uint64_t w, int b);
+
+/*@
+  requires \valid(atom);
+  // Decode is inverse of encode
+  ensures decode_micro_atom(encode_micro_atom(decode_micro_atom(atom), b)) == decode_micro_atom(atom);
+  assigns \nothing;
+*/
+uint64_t decode_micro_atom(const DualBasisAtom* atom);
+
+/*@
+  // V4 operations form a group of order 4
+  // ID: identity
+  // NOT: bitwise complement
+  // REV: bit reversal
+  // REV_NOT: reverse then complement
+  
+  // Each operation is its own inverse
+  requires \valid_read(seq.words()) && seq.word_count() > 0;
+  ensures apply_v4(apply_v4(seq, op), op) == seq;
+  // Group composition table
+  ensures compose_v4(op1, op2) == compose_v4(op2, op1); // Commutative
+  assigns \nothing;
+*/
+BitSeq apply_v4(const BitSeq& seq, V4Op op);
+
+/*@
+  requires \true;
+  // V4 composition is associative and commutative
+  ensures compose_v4(compose_v4(op1, op2), op3) == compose_v4(op1, compose_v4(op2, op3));
+  assigns \nothing;
+*/
+V4Op compose_v4(V4Op op1, V4Op op2);

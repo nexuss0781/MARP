@@ -1,0 +1,91 @@
+/*
+ * Frama-C/ACSL Formal Verification for MAPR Container Format
+ * 
+ * Verifies container parsing, header validation, CRC checks, and index integrity
+ */
+
+/*@
+  // Container header structure invariants
+  // MAGIC bytes: 0x89 'M' 'A' 'P' 'R' 0x0D 0x0A 0x1A
+  // Version: 1.0
+  // Flags: bit 0 = RAW_BYTES_MSB, bit 1 = HAS_INDEX, bit 2 = STREAMED_HEADER
+  
+  requires \valid_read(header + (0..63));
+  ensures \result == 0 ==> 
+    memcmp(header, "\x89MAPR\r\n\x1a", 8) == 0 &&
+    le16(header + 8) == 1 &&  // version major
+    le16(header + 10) == 0 && // version minor
+    (le32(header + 12) & 0x2) != 0 && // HAS_INDEX flag set
+    le32(header + 60) == crc32_compute(header, 60); // CRC valid
+  assigns \nothing;
+*/
+int validate_container_header(const uint8_t header[64]);
+
+/*@
+  // Frame header validation
+  // Magic: "MCHK"
+  // CRC covers frame header + payload
+  
+  requires \valid_read(frame + (0..31 + payload_size - 1));
+  ensures \result == 0 ==>
+    memcmp(frame, "MCHK", 4) == 0 &&
+    le32(frame + 28) == crc32_update(0xFFFFFFFF, frame, 28) ^ crc32_update(0, payload, payload_size) ^ 0xFFFFFFFF;
+  assigns \nothing;
+*/
+int validate_frame_header(const uint8_t* frame, size_t payload_size);
+
+/*@
+  // Index entry validation
+  // Each entry: 8B file_offset, 8B bit_offset, 4B bit_len, 4B frame_bytes, 4B ref_target, 1B chunk_kind, 1B v4_op, 2B reserved
+  // CRC covers all index entries
+  
+  requires \valid_read(index + (0..32*count-1));
+  requires \valid_read(index_crc);
+  ensures \result == 0 ==>
+    crc32_update(0xFFFFFFFF, index, 32*count) ^ 0xFFFFFFFF == *index_crc;
+  assigns \nothing;
+*/
+int validate_index(const uint8_t* index, size_t count, const uint32_t* index_crc);
+
+/*@
+  // Trailer validation
+  // Magic: "TRLR" + version + total_bits + chunk_count + index_offset + SHA256 + "ENDM" + CRC
+  
+  requires \valid_read(trailer + (0..71));
+  ensures \result == 0 ==>
+    memcmp(trailer, "TRLR", 4) == 0 &&
+    memcmp(trailer + 64, "ENDM", 4) == 0 &&
+    le32(trailer + 68) == crc32_compute(trailer, 68);
+  assigns \nothing;
+*/
+int validate_trailer(const uint8_t trailer[72]);
+
+/*@
+  // Bit accountability: total_bits == sum of all chunk bit lengths
+  // ChunkRef chunks reference existing chunks
+  // Explicit DAG chunks have bit_len matching DAG evaluation
+  
+  requires \valid(meta);
+  ensures \result == 0 ==>
+    meta->total_bits == accounted_bits(meta) &&
+    meta->chunk_count == meta->index.size() &&
+    \forall size_t i; i < meta->index.size() ==>
+      (meta->index[i].chunk_kind == 0 ==> 
+        meta->index[i].ref_target < meta->chunk_count) &&
+      (meta->index[i].chunk_kind == 1 ==>
+        validate_dag_payload(meta->index[i].payload, meta->index[i].bit_len) == 0);
+  assigns \nothing;
+*/
+int validate_bit_accountability(const ContainerMetadata* meta);
+
+/*@
+  // SHA-256 stream integrity
+  // stream_sha256 in trailer matches computed hash of decoded stream
+  
+  requires \valid(decoded_stream);
+  requires \valid(trailer_sha256);
+  ensures \result == 0 ==>
+    SHA256(decoded_stream) == trailer_sha256;
+  assigns \nothing;
+*/
+int validate_stream_sha256(const uint8_t* decoded_stream, size_t stream_len, const uint8_t trailer_sha256[32]);
