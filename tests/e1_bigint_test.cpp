@@ -79,17 +79,17 @@ TEST(E1BigInt, FromDecimal) {
 
 TEST(E1BigInt, ToU64Checked) {
     auto r0 = BigInt(0).to_u64_checked();
-    ASSERT_TRUE(r0.ok());
-    EXPECT_EQ(r0.value(), 0ull);
+    ASSERT_TRUE(r0.has_value());
+    EXPECT_EQ(*r0, 0ull);
     auto r42 = BigInt(42).to_u64_checked();
-    ASSERT_TRUE(r42.ok());
-    EXPECT_EQ(r42.value(), 42ull);
+    ASSERT_TRUE(r42.has_value());
+    EXPECT_EQ(*r42, 42ull);
     auto rmax = BigInt(0xFFFFFFFF).to_u64_checked();
-    ASSERT_TRUE(rmax.ok());
-    EXPECT_EQ(rmax.value(), 0xFFFFFFFFull);
+    ASSERT_TRUE(rmax.has_value());
+    EXPECT_EQ(*rmax, 0xFFFFFFFFull);
 
-    // Over 64 bits -> Limit
-    EXPECT_EQ(BigInt(0x10000000000ull).to_u64_checked().error(), ErrCode::Limit);
+    // Over 64 bits -> nullopt
+    EXPECT_FALSE(BigInt(0x10000000000ull).to_u64_checked().has_value());
 }
 
 TEST(E1BigInt, ToDecimal) {

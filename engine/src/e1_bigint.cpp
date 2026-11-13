@@ -231,12 +231,12 @@ Result<BigInt> BigInt::from_decimal(std::string_view s) noexcept {
     return result;
 }
 
-Result<uint64_t> BigInt::to_u64_checked() const noexcept {
-    if (count_ == 0) return Result<uint64_t>(static_cast<uint64_t>(0));
-    if (count_ > 2) return ErrCode::Limit;
+std::optional<uint64_t> BigInt::to_u64_checked() const noexcept {
+    if (count_ == 0) return static_cast<uint64_t>(0);
+    if (count_ > 2) return std::nullopt;
     uint64_t lo = limb(0);
     uint64_t hi = (count_ == 2) ? static_cast<uint64_t>(limb(1)) : 0ull;
-    return Result<uint64_t>((hi << 32) | lo);
+    return (hi << 32) | lo;
 }
 
 std::string BigInt::to_decimal() const {

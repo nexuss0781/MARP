@@ -25,7 +25,7 @@ public:
     int bit_length() const noexcept;                // Math-SPECS A14
 
     // Conversions (exact, Math-SPECS A16, A18)
-    Result<uint64_t> to_u64_checked() const noexcept;         // Err::Limit if ≥ 2^64
+    std::optional<uint64_t> to_u64_checked() const noexcept;         // nullopt if ≥ 2^64
     std::string to_decimal() const;                           // canonical, no leading zeros
     std::vector<uint8_t> to_le_bytes() const noexcept;                 // trimmed trailing zeros
 
