@@ -234,7 +234,6 @@ Result<BigInt> BigInt::from_decimal(std::string_view s) noexcept {
 Result<uint64_t> BigInt::to_u64_checked() const noexcept {
     if (count_ == 0) return Result<uint64_t>(static_cast<uint64_t>(0));
     if (count_ > 2) return ErrCode::Limit;
-    if (count_ == 2 && limb(1) != 0) return ErrCode::Limit;
     uint64_t lo = limb(0);
     uint64_t hi = (count_ == 2) ? static_cast<uint64_t>(limb(1)) : 0ull;
     return Result<uint64_t>((hi << 32) | lo);
@@ -251,7 +250,7 @@ std::string BigInt::to_decimal() const {
         Limb rem = dm.value().second;
         temp = std::move(dm.value().first);
         if (temp.is_zero()) {
-            result = std::to_string(rem);
+            result = std::to_string(rem) + result;
         } else {
             char buf[10];
             std::snprintf(buf, sizeof(buf), "%09u", rem);
