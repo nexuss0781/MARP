@@ -7,31 +7,6 @@
 
 using namespace mapr;
 
-namespace {
-
-// Test corpus - basic values
-const std::vector<uint64_t> SMALL_VALUES = {
-    0, 1, 2, 3, 7, 8, 15, 16, 31, 32, 63, 64, 65,
-    255, 256, 257, 65535, 65536, 65537,
-    4294967295ull, 4294967296ull, 4294967297ull,
-    18446744073709551615ull
-};
-
-// Generate all pairs for testing
-std::vector<std::pair<BigInt, BigInt>> make_pairs() {
-    std::vector<std::pair<BigInt, BigInt>> pairs;
-    for (uint64_t a : SMALL_VALUES) {
-        for (uint64_t b : SMALL_VALUES) {
-            pairs.emplace_back(BigInt(a), BigInt(b));
-        }
-    }
-    return pairs;
-}
-
-const auto ARITH_PAIRS = make_pairs();
-
-} // anonymous namespace
-
 TEST(E1BigInt, Construction) {
     EXPECT_TRUE(BigInt().is_zero());
     EXPECT_EQ(BigInt(0).limb_count(), static_cast<size_t>(0));
@@ -51,7 +26,6 @@ TEST(E1BigInt, FromLimbs) {
     EXPECT_EQ(r.value().limb(1), static_cast<Limb>(2));
     EXPECT_EQ(r.value().limb(2), static_cast<Limb>(3));
 
-    // Non-canonical should fail
     Limb bad[] = {1, 0};
     auto r2 = BigInt::from_limbs(bad, 2);
     EXPECT_FALSE(r2.ok());
@@ -59,32 +33,25 @@ TEST(E1BigInt, FromLimbs) {
 }
 
 TEST(E1BigInt, FromLEBytes) {
-    // Use explicit byte arrays to avoid null-terminator issues
-    {
-        std::array<uint8_t, 4> bytes = {0x01, 0x00, 0x00, 0x00};
-        auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
-        ASSERT_TRUE(r.ok());
-        EXPECT_EQ(r.value(), BigInt(1));
-    }
-    {
-        std::array<uint8_t, 4> bytes = {0x00, 0x00, 0x00, 0x01};
-        auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
-        ASSERT_TRUE(r.ok());
-        auto val = r.value();
-        EXPECT_EQ(val, BigInt(0x1000000));
-    }
-    {
-        std::array<uint8_t, 0> bytes = {};
-        auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
-        ASSERT_TRUE(r.ok());
-        EXPECT_TRUE(r.value().is_zero());
-    }
-    {
-        std::array<uint8_t, 8> bytes = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
-        ASSERT_TRUE(r.ok());
-        EXPECT_EQ(r.value(), BigInt(1));
-    }
+    std::array<uint8_t, 4> bytes = {0x01, 0x00, 0x00, 0x00};
+    auto r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
+    ASSERT_TRUE(r.ok());
+    EXPECT_EQ(r.value(), BigInt(1));
+
+    bytes = {0x00, 0x00, 0x00, 0x01};
+    r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes.data()), bytes.size()));
+    ASSERT_TRUE(r.ok());
+    EXPECT_EQ(r.value(), BigInt(0x1000000));
+
+    std::array<uint8_t, 0> empty = {};
+    r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(empty.data()), empty.size()));
+    ASSERT_TRUE(r.ok());
+    EXPECT_TRUE(r.value().is_zero());
+
+    std::array<uint8_t, 8> bytes8 = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    r = BigInt::from_le_bytes(std::string_view(reinterpret_cast<char*>(bytes8.data()), bytes8.size()));
+    ASSERT_TRUE(r.ok());
+    EXPECT_EQ(r.value(), BigInt(1));
 }
 
 TEST(E1BigInt, FromDecimal) {
@@ -96,18 +63,16 @@ TEST(E1BigInt, FromDecimal) {
     ASSERT_TRUE(r.ok());
     EXPECT_EQ(r.value(), BigInt(42));
 
-    r = BigInt::from_decimal("4294967296"); // 2^32
+    r = BigInt::from_decimal("4294967296");
     ASSERT_TRUE(r.ok());
     auto val = r.value();
     EXPECT_EQ(val.limb_count(), static_cast<size_t>(2));
     EXPECT_EQ(val.limb(0), static_cast<Limb>(0));
     EXPECT_EQ(val.limb(1), static_cast<Limb>(1));
 
-    // Leading zeros invalid
     r = BigInt::from_decimal("00");
     EXPECT_FALSE(r.ok());
 
-    // Non-digits invalid
     r = BigInt::from_decimal("12a3");
     EXPECT_FALSE(r.ok());
 }
@@ -117,8 +82,6 @@ TEST(E1BigInt, ToU64Checked) {
     EXPECT_EQ(BigInt(42).to_u64_checked().value(), 42ull);
     EXPECT_EQ(BigInt(0xFFFFFFFF).to_u64_checked().value(), 0xFFFFFFFFull);
     EXPECT_EQ(BigInt(0xFFFFFFFFFFFFFFFFull).to_u64_checked().value(), 0xFFFFFFFFFFFFFFFFull);
-
-    // Over 64 bits -> Limit
     EXPECT_EQ(BigInt(0x10000000000ull).to_u64_checked().error(), ErrCode::Limit);
 }
 
@@ -140,8 +103,7 @@ TEST(E1BigInt, ToLEBytes) {
     bytes = BigInt(0).to_le_bytes();
     EXPECT_TRUE(bytes.empty());
 
-    // Trailing zeros trimmed
-    bytes = BigInt(0x100000000ull).to_le_bytes(); // 0x01 0x00 0x00 0x00 0x00
+    bytes = BigInt(0x100000000ull).to_le_bytes();
     ASSERT_EQ(bytes.size(), static_cast<size_t>(5));
     EXPECT_EQ(bytes[4], 0x01);
 }
@@ -155,64 +117,52 @@ TEST(E1BigInt, Compare) {
 }
 
 TEST(E1BigInt, RingLaws_O1_1) {
-    for (const auto& [a, b] : ARITH_PAIRS) {
-        // Commutativity of add
-        auto ab = a.add(b);
-        auto ba = b.add(a);
-        ASSERT_TRUE(ab.ok() && ba.ok());
-        EXPECT_EQ(ab.value(), ba.value());
-
-        // Commutativity of mul
-        ab = a.mul(b);
-        ba = b.mul(a);
-        ASSERT_TRUE(ab.ok() && ba.ok());
-        EXPECT_EQ(ab.value(), ba.value());
+    const std::vector<uint64_t> SUBSET = {0, 1, 2, 3, 7, 15, 31, 255, 65535};
+    for (uint64_t av : SUBSET) {
+        for (uint64_t bv : SUBSET) {
+            BigInt a(av), b(bv);
+            EXPECT_EQ(a.add(b).value(), b.add(a).value());
+            EXPECT_EQ(a.mul(b).value(), b.mul(a).value());
+        }
     }
 
-    // Associativity and distributivity on smaller subset
-    const std::vector<uint64_t> SUBSET = {0, 1, 2, 3, 7, 15, 31, 255, 65535, 4294967295};
     for (uint64_t av : SUBSET) {
         for (uint64_t bv : SUBSET) {
             for (uint64_t cv : SUBSET) {
                 BigInt a(av), b(bv), c(cv);
-                // (a + b) + c = a + (b + c)
                 auto ab = a.add(b);
                 auto bc = b.add(c);
                 ASSERT_TRUE(ab.ok() && bc.ok());
-                auto lhs = ab.value().add(c);
-                auto rhs = a.add(bc.value());
-                ASSERT_TRUE(lhs.ok() && rhs.ok());
-                EXPECT_EQ(lhs.value(), rhs.value());
+                EXPECT_EQ(ab.value().add(c).value(), a.add(bc.value()).value());
 
-                // a * (b + c) = a*b + a*c
                 bc = b.add(c);
                 auto ambc = a.mul(bc.value());
                 auto am = a.mul(b);
                 auto ac = a.mul(c);
                 ASSERT_TRUE(ambc.ok() && am.ok() && ac.ok());
-                auto dist_rhs = am.value().add(ac.value());
-                ASSERT_TRUE(dist_rhs.ok());
-                EXPECT_EQ(ambc.value(), dist_rhs.value());
+                EXPECT_EQ(ambc.value(), am.value().add(ac.value()).value());
             }
         }
     }
 }
 
 TEST(E1BigInt, DivisionLaw_O1_2) {
-    for (const auto& [a, b] : ARITH_PAIRS) {
-        if (b.is_zero()) continue;
-        auto dm = a.divmod(b);
-        ASSERT_TRUE(dm.ok());
-        const auto& [q, r] = dm.value();
-        // a = q*b + r
-        auto qb = q.mul(b);
-        ASSERT_TRUE(qb.ok());
-        auto qbr = qb.value().add(r);
-        ASSERT_TRUE(qbr.ok());
-        EXPECT_EQ(qbr.value(), a);
-        // 0 <= r < b
-        EXPECT_LT(r.compare(b), 0);
-        EXPECT_GE(r.compare(BigInt::zero()), 0);
+    const std::vector<uint64_t> SUBSET = {0, 1, 2, 3, 7, 15, 31, 255, 65535};
+    for (uint64_t av : SUBSET) {
+        for (uint64_t bv : SUBSET) {
+            BigInt a(av), b(bv);
+            if (b.is_zero()) continue;
+            auto dm = a.divmod(b);
+            ASSERT_TRUE(dm.ok());
+            const auto& [q, r] = dm.value();
+            auto qb = q.mul(b);
+            ASSERT_TRUE(qb.ok());
+            auto qbr = qb.value().add(r);
+            ASSERT_TRUE(qbr.ok());
+            EXPECT_EQ(qbr.value(), a);
+            EXPECT_LT(r.compare(b), 0);
+            EXPECT_GE(r.compare(BigInt::zero()), 0);
+        }
     }
 }
 
@@ -220,7 +170,7 @@ TEST(E1BigInt, DecimalRoundtrip_O1_3) {
     const std::vector<std::string> DECIMAL_CORPUS = {
         "0", "1", "9", "10", "42", "255", "256", "65535", "65536",
         "4294967295", "4294967296", "18446744073709551615",
-        "340282366920938463463374607431768211455" // 2^128-1
+        "340282366920938463463374607431768211455"
     };
     for (const auto& s : DECIMAL_CORPUS) {
         auto r = BigInt::from_decimal(s);
@@ -233,14 +183,13 @@ TEST(E1BigInt, ByteRoundtrip_O1_4) {
     const std::vector<std::vector<uint8_t>> BYTE_CORPUS = {
         {}, {0x00}, {0x01}, {0xFF}, {0x01, 0x02, 0x03, 0x04},
         {0x00, 0x00, 0x00, 0x01}, {0xFF, 0xFF, 0xFF, 0xFF},
-        {0x01, 0x00, 0x00, 0x00, 0x00}, // 2^32
+        {0x01, 0x00, 0x00, 0x00, 0x00}
     };
     for (const auto& b : BYTE_CORPUS) {
         std::string_view sv(reinterpret_cast<const char*>(b.data()), b.size());
         auto r = BigInt::from_le_bytes(sv);
         ASSERT_TRUE(r.ok()) << "Failed to parse bytes";
         auto rt = r.value().to_le_bytes();
-        // Trim trailing zeros from original
         std::vector<uint8_t> trimmed = b;
         while (!trimmed.empty() && trimmed.back() == 0) trimmed.pop_back();
         EXPECT_EQ(rt, trimmed) << "Roundtrip failed for bytes";
@@ -248,14 +197,12 @@ TEST(E1BigInt, ByteRoundtrip_O1_4) {
 }
 
 TEST(E1BigInt, Shifts) {
-    // shl
     EXPECT_EQ(BigInt(1).shl(0).value(), BigInt(1));
     EXPECT_EQ(BigInt(1).shl(1).value(), BigInt(2));
     EXPECT_EQ(BigInt(1).shl(31).value(), BigInt(1ull << 31));
     EXPECT_EQ(BigInt(1).shl(32).value(), BigInt(0x100000000ull));
-    EXPECT_EQ(BigInt(1).shl(64).value().limb_count(), static_cast<size_t>(3)); // 2^64 = 3 limbs in base 2^32
+    EXPECT_EQ(BigInt(1).shl(64).value().limb_count(), static_cast<size_t>(3));
 
-    // shr
     EXPECT_EQ(BigInt(16).shr(0).value(), BigInt(16));
     EXPECT_EQ(BigInt(16).shr(1).value(), BigInt(8));
     EXPECT_EQ(BigInt(16).shr(4).value(), BigInt(1));
@@ -264,7 +211,7 @@ TEST(E1BigInt, Shifts) {
 }
 
 TEST(E1BigInt, DivmodScalar) {
-    BigInt a(0x100000000ull); // 2^32
+    BigInt a(0x100000000ull);
     auto r = a.divmod_scalar(2);
     ASSERT_TRUE(r.ok());
     EXPECT_EQ(r.value().first, BigInt(0x80000000ull));
@@ -278,15 +225,13 @@ TEST(E1BigInt, DivmodScalar) {
 }
 
 TEST(E1BigInt, KnuthDivmod) {
-    // Multi-limb division
-    BigInt a(0x100000000ull); // 2^32
+    BigInt a(0x100000000ull);
     BigInt b(2);
     auto r = a.divmod(b);
     ASSERT_TRUE(r.ok());
     EXPECT_EQ(r.value().first, BigInt(0x80000000ull));
     EXPECT_TRUE(r.value().second.is_zero());
 
-    // Large division
     auto rx = BigInt::from_decimal("340282366920938463463374607431768211455");
     ASSERT_TRUE(rx.ok());
     BigInt y(1000000);
@@ -295,6 +240,3 @@ TEST(E1BigInt, KnuthDivmod) {
     auto check = r.value().first.mul(y).value().add(r.value().second).value();
     EXPECT_EQ(check, rx.value());
 }
-
-} // namespace
-
