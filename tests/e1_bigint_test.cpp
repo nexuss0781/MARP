@@ -88,8 +88,11 @@ TEST(E1BigInt, ToU64Checked) {
     ASSERT_TRUE(rmax.has_value());
     EXPECT_EQ(*rmax, 0xFFFFFFFFull);
 
-    // Over 64 bits -> nullopt
-    EXPECT_FALSE(BigInt(0x10000000000ull).to_u64_checked().has_value());
+    // Over 64 bits -> nullopt (need 3 limbs)
+    Limb limbs[] = {0, 0, 1}; // 2^64
+    auto big = BigInt::from_limbs(limbs, 3);
+    ASSERT_TRUE(big.ok());
+    EXPECT_FALSE(big.value().to_u64_checked().has_value());
 }
 
 TEST(E1BigInt, ToDecimal) {

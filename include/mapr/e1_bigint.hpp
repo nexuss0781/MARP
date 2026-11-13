@@ -11,7 +11,7 @@ namespace mapr {
 class BigInt {
 public:
     // Constructors
-    BigInt() noexcept = default;                    // zero
+    BigInt() noexcept;                    // zero
     BigInt(uint64_t v) noexcept;                    // from u64
     static Result<BigInt> from_u64(uint64_t v) noexcept;     // checked (always Ok)
     static Result<BigInt> from_limbs(const Limb* data, size_t n) noexcept; // requires canonical

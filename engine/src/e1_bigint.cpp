@@ -9,6 +9,14 @@ namespace mapr {
 // Constructors / Destructor / Move / Copy
 // ============================================================================
 
+BigInt::BigInt() noexcept {
+    small_.fill(0);
+    count_ = 0;
+    on_heap_ = false;
+    heap_ = nullptr;
+    capacity_ = 0;
+}
+
 BigInt::BigInt(uint64_t v) noexcept {
     if (v == 0) {
         count_ = 0; on_heap_ = false; heap_ = nullptr; capacity_ = 0;
@@ -122,6 +130,7 @@ void BigInt::ensure_capacity(size_t n) {
             on_heap_ = false;
             capacity_ = 0;
         }
+        small_.fill(0);
         return;
     }
     if (!on_heap_ || capacity_ < n) {
