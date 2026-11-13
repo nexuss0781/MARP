@@ -112,7 +112,7 @@ Result<LengthResult> length_of(const TermView& term) noexcept {
                 break;
         }
     }
-    res.length = std::move(res.memo[0]); // root is node 0
+    res.length = std::move(res.memo[N - 1]); // root is the last node (topological order)
     return res;
 }
 
