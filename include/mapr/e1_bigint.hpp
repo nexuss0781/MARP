@@ -1,6 +1,7 @@
 #pragma once
 #include "e1_types.hpp"
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
