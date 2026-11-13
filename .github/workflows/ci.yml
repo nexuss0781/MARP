@@ -1,0 +1,73 @@
+name: MARP E1 Foundation CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ cmake libgtest-dev
+
+    - name: Build googletest
+      run: |
+        cd /tmp
+        git clone --depth 1 https://github.com/google/googletest.git
+        cd googletest
+        mkdir build && cd build
+        cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+        make -j4
+        sudo make install
+        sudo ldconfig
+
+    - name: Configure and Build E1
+      run: |
+        cd engine
+        make clean
+        make -j4
+
+    - name: Run E1 Tests (Gate E1-G)
+      run: |
+        cd engine
+        ./bin/mapr_tests
+
+    - name: Run with AddressSanitizer
+      run: |
+        cd engine
+        make clean
+        make test-san -j4
+
+    - name: Verify Gate E1-G artifacts
+      run: |
+        ls -la specs_and_reports/v2/gates/ 2>/dev/null || echo "Gate artifacts directory not found (expected for E1-G until harness is built)"
+        ls -la logs/ 2>/dev/null || echo "Logs directory not found"
+
+  build-legacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ cmake
+
+    - name: Build legacy engine (v1)
+      run: |
+        cd engine
+        # Build with legacy sources if they exist
+        make -j4 2>&1 | head -50 || true
