@@ -22,9 +22,9 @@ TEST(E1Crc32, KnownValues) {
 }
 
 TEST(E1Crc32, ZlibCompatibility) {
-    // zlib.crc32 with init=0 matches our incremental
+    // zlib.crc32 with init=0 matches our incremental (no init, no final XOR)
     std::string data = "Hello, World!";
-    uint32_t zlib_crc = static_cast<uint32_t>(crc32(0, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size())));
+    uint32_t zlib_crc = static_cast<uint32_t>(zlib.crc32(0, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size())));
     uint32_t our_crc = crc32_incremental(data);
     EXPECT_EQ(our_crc, zlib_crc);
 }
@@ -40,10 +40,10 @@ TEST(E1Crc32, IncrementalProperty) {
 }
 
 TEST(E1Crc32, StandardVsIncremental) {
-    // crc32() = crc32(data, 0xFFFFFFFF) ^ 0xFFFFFFFF
+    // crc32() = zlib.crc32(0xFFFFFFFF, data) ^ 0xFFFFFFFF
     std::string data = "test data";
     uint32_t std_crc = crc32(data);
-    uint32_t zlib_crc = static_cast<uint32_t>(crc32(0xFFFFFFFF, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size()))) ^ 0xFFFFFFFF;
+    uint32_t zlib_crc = static_cast<uint32_t>(zlib.crc32(0xFFFFFFFF, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size()))) ^ 0xFFFFFFFF;
     EXPECT_EQ(std_crc, zlib_crc);
 }
 
