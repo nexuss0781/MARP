@@ -140,8 +140,3 @@ TEST(E1Crc32, CombineMatrix) {
     EXPECT_NE(powers[0][0], 0u);
     EXPECT_NE(powers[1][0], 0u);
 }
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

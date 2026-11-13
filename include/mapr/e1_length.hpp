@@ -82,14 +82,40 @@ Result<LengthResult> length_of(const TermView& term) noexcept;
 // Structural identities (Math-SPECS §11.1). These are the O1.5 checks.
 // Each takes child lengths already computed and returns the parent length.
 namespace length_identity {
-    BigInt concat(const std::vector<BigInt>& children) noexcept;
-    BigInt repeat(const BigInt& child_len, const BigInt& q, const BigInt& r) noexcept;
-    BigInt slice(const BigInt& child_len, const BigInt& start, const BigInt& len) noexcept;
-    BigInt interleave(const std::vector<BigInt>& children, uint32_t stride) noexcept;
-    BigInt morph(const BigInt& child_len) noexcept { return child_len; }
-    BigInt xor_len(const BigInt& a, const BigInt& /*b*/) noexcept { return a; } // a==b by well-formedness
-    BigInt predictor(const BigInt& residual_len) noexcept { return residual_len; }
-    BigInt fixed(const BigInt& n) noexcept { return n; } // Zero, Lfsr, Affine
+    inline BigInt concat(const std::vector<BigInt>& children) noexcept {
+        BigInt sum = BigInt::zero();
+        for (const auto& c : children) {
+            auto r = sum.add(c);
+            if (!r.ok()) return BigInt::zero();
+            sum = std::move(r.value());
+        }
+        return sum;
+    }
+
+    inline BigInt repeat(const BigInt& child_len, const BigInt& q, const BigInt& r) noexcept {
+        auto mq = q.mul(child_len);
+        if (!mq.ok()) return BigInt::zero();
+        auto mqr = mq.value().add(r);
+        if (!mqr.ok()) return BigInt::zero();
+        return mqr.value();
+    }
+
+    inline BigInt slice(const BigInt& /*child_len*/, const BigInt& /*start*/, const BigInt& len) noexcept {
+        return len;
+    }
+
+    inline BigInt interleave(const std::vector<BigInt>& children, uint32_t /*stride*/) noexcept {
+        if (children.empty()) return BigInt::zero();
+        BigInt k(children.size());
+        auto mk = k.mul(children[0]);
+        if (!mk.ok()) return BigInt::zero();
+        return mk.value();
+    }
+
+    inline BigInt morph(const BigInt& child_len) noexcept { return child_len; }
+    inline BigInt xor_len(const BigInt& a, const BigInt& /*b*/) noexcept { return a; }
+    inline BigInt predictor(const BigInt& residual_len) noexcept { return residual_len; }
+    inline BigInt fixed(const BigInt& n) noexcept { return n; }
 } // namespace length_identity
 
 } // namespace mapr

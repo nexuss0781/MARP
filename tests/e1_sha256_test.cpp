@@ -129,8 +129,3 @@ TEST(E1Sha256, PaddingLength) {
         ASSERT_TRUE(r.ok()) << "Failed for L=" << L;
     }
 }
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

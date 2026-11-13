@@ -18,6 +18,7 @@ E1_OBJS := $(patsubst src/%.cpp,obj/%.o,$(E1_SRCS))
 
 # Test sources (relative to engine/ directory)
 TEST_SRCS := \
+    ../tests/test_runner.cpp \
     ../tests/e1_bigint_test.cpp \
     ../tests/e1_length_test.cpp \
     ../tests/e1_sha256_test.cpp \

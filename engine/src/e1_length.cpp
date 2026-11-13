@@ -116,42 +116,4 @@ Result<LengthResult> length_of(const TermView& term) noexcept {
     return res;
 }
 
-// ============================================================================
-// Structural identities (Math-SPECS §11.1)
-// ============================================================================
-
-namespace length_identity {
-
-BigInt concat(const std::vector<BigInt>& children) noexcept {
-    BigInt sum = BigInt::zero();
-    for (const auto& c : children) {
-        auto r = sum.add(c);
-        if (!r.ok()) return BigInt::zero(); // should not happen with valid inputs
-        sum = std::move(r.value());
-    }
-    return sum;
-}
-
-BigInt repeat(const BigInt& child_len, const BigInt& q, const BigInt& r) noexcept {
-    auto mq = q.mul(child_len);
-    if (!mq.ok()) return BigInt::zero();
-    auto mqr = mq.value().add(r);
-    if (!mqr.ok()) return BigInt::zero();
-    return mqr.value();
-}
-
-BigInt slice(const BigInt& /*child_len*/, const BigInt& /*start*/, const BigInt& len) noexcept {
-    return len;
-}
-
-BigInt interleave(const std::vector<BigInt>& children, uint32_t /*stride*/) noexcept {
-    if (children.empty()) return BigInt::zero();
-    BigInt k(children.size());
-    auto mk = k.mul(children[0]);
-    if (!mk.ok()) return BigInt::zero();
-    return mk.value();
-}
-
-} // namespace length_identity
-
 } // namespace mapr

@@ -344,8 +344,3 @@ TEST(E1Length, StructuralIdentities_O1_5) {
     auto f = length_identity::fixed(BigInt(123));
     EXPECT_EQ(f, BigInt(123));
 }
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
