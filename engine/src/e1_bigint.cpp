@@ -218,7 +218,7 @@ Result<BigInt> BigInt::from_decimal(std::string_view s) noexcept {
     }
     BigInt result = BigInt::zero();
     for (char c : s) {
-        uint8_t digit = c - '0';
+        uint8_t digit = static_cast<uint8_t>(c - '0');
         auto mul_res = result.mul(BigInt(10));
         if (!mul_res.ok()) return mul_res.error();
         result = std::move(mul_res.value());
