@@ -183,6 +183,19 @@ jobs:
           fi
           awk -F '\t' '$1 == "fixtures.supplied" && ($3 == "F11" || $3 == "F12") && $7 != "BLOCKED" { exit 1 }' "$tsv"
 
+      - name: Publish bootstrap evidence bundle
+        if: hashFiles('specs_and_reports/v2/evidence/H1/SHA256SUMS') == ''
+        run: |
+          set -euo pipefail
+          tar -C "$H1_SCRATCH" -czf /tmp/h1-evidence-bundle.tar.gz \
+            specs_and_reports/v2/fixtures.tsv \
+            specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+            specs_and_reports/v2/logs/H1-FIXTURES.log \
+            specs_and_reports/v2/evidence/H1/SHA256SUMS \
+            REPORT/HARNESS/H1-FIXTURES-REPORT.md
+          bundle="$(base64 -w0 /tmp/h1-evidence-bundle.tar.gz)"
+          echo "::notice title=H1 evidence bundle::$bundle"
+
       - name: Verify committed evidence when present
         run: |
           set -euo pipefail
