@@ -82,18 +82,6 @@ bool verify_envelope(const std::vector<uint8_t>& data) {
     return mapr::crc32(payload) == expected_crc;
 }
 
-std::string sha256_hex(std::string_view data) {
-    auto digest = mapr::Sha256::of(data);
-    if (!digest.ok()) return "";
-    static constexpr char hex[] = "0123456789abcdef";
-    std::string out;
-    out.reserve(64);
-    for (uint8_t byte : digest.value()) {
-        out.push_back(hex[byte >> 4]);
-        out.push_back(hex[byte & 0x0Fu]);
-    }
-    return out;
-}
 
 EvidenceRow make_row(const std::string& check, const std::string& corpus,
                      const std::string& item, const std::string& input_sha,

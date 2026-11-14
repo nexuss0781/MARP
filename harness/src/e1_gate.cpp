@@ -102,17 +102,6 @@ std::string hex_bytes(const std::vector<uint8_t>& bytes) {
     return out;
 }
 
-std::string sha256_hex(std::string_view data) {
-    auto digest = mapr::Sha256::hash(data);
-    if (!digest.ok()) return "";
-    std::string out;
-    out.reserve(64);
-    for (uint8_t byte : digest.value()) {
-        out.push_back(kHex[byte >> 4]);
-        out.push_back(kHex[byte & 0x0Fu]);
-    }
-    return out;
-}
 
 std::string_view bytes_view(const std::vector<uint8_t>& bytes) {
     if (bytes.empty()) return {};
