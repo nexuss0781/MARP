@@ -116,7 +116,7 @@ uint32_t crc32_combine(uint32_t crc_a, uint32_t crc_b, size_t len_b) noexcept {
     //   crc1 = crc32(0, buf1, len1)  (standard finalized)
     //   crc2 = crc32(0, buf2, len2)  (standard finalized)
     //   Returns crc32(0, buf1+buf2, len1+len2) (standard finalized)
-    return ::crc32_combine(crc_a, crc_b, static_cast<uLong>(len_b));
+    return static_cast<uint32_t>(::crc32_combine(crc_a, crc_b, static_cast<uLong>(len_b)));
 }
 
 uint32_t crc32_zeroed(std::string_view data, size_t offset) noexcept {
