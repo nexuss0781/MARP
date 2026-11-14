@@ -21,7 +21,6 @@ namespace marp::harness {
 namespace fs = std::filesystem;
 using mapr::BigInt;
 using mapr::ErrCode;
-using OracleBigInt = oracle::BigInt;
 
 static std::string sha256_hex(std::string_view data) {
     auto digest = mapr::Sha256::hash(data);
@@ -58,6 +57,40 @@ static void write_corpus_header(std::ofstream& ofs) {
     ofs << "corpus_id\titem_id\tdescription\tbit_length\tdescription_sha256\tseed\n";
 }
 
+// Helper to create BigInt with exact bit length using public API
+static BigInt make_bigint_exact_bits(int bits, uint64_t seed = 0) {
+    if (bits == 0) return BigInt(0);
+    if (bits <= 64) {
+        uint64_t max_val = (bits == 64) ? 0xFFFFFFFFFFFFFFFFull : ((1ull << bits) - 1);
+        std::mt19937_64 rng(seed);
+        std::uniform_int_distribution<uint64_t> dist(0, max_val);
+        uint64_t v = dist(rng);
+        if (bits > 0 && v > 0) {
+            int actual_bits = 64 - __builtin_clzll(v);
+            if (actual_bits < bits) {
+                v |= (1ull << (bits - 1));
+            }
+        }
+        return BigInt(v);
+    } else {
+        // For larger bits: create using shl
+        BigInt val(1);
+        return val.shl(bits - 1).value();
+    }
+}
+
+// Helper to create BigInt with all bits set (2^bits - 1)
+static BigInt make_all_ones(int bits) {
+    if (bits == 0) return BigInt(0);
+    if (bits <= 64) {
+        return BigInt((bits == 64) ? 0xFFFFFFFFFFFFFFFFull : ((1ull << bits) - 1));
+    } else {
+        BigInt val(1);
+        val = val.shl(bits).value();
+        return val.sub(BigInt(1)).value();
+    }
+}
+
 // A-EDGE corpus
 static void generate_a_edge(std::ofstream& ofs, uint64_t seed) {
     std::vector<std::pair<std::string, BigInt>> items = {
@@ -88,20 +121,7 @@ static void generate_a_bits(std::ofstream& ofs, uint64_t seed) {
     std::vector<int> bit_lengths = {0,1,2,3,7,8,15,16,31,32,33,63,64,65,127,128,129,255,256,257,511,512,513,1023,1024,1025};
     for (size_t i = 0; i < bit_lengths.size(); ++i) {
         int bits = bit_lengths[i];
-        BigInt val;
-        if (bits == 0) {
-            val = BigInt(0);
-        } else if (bits <= 32) {
-            val = BigInt((1ull << bits) - 1);
-        } else if (bits <= 64) {
-            val = BigInt(0xFFFFFFFFFFFFFFFFull);
-            // Adjust to exact bit length
-            val = val.shr(64 - bits).value();
-        } else {
-            // For larger bit lengths, create value with exact bit length
-            val = BigInt(1);
-            val = val.shl(bits - 1).value();
-        }
+        BigInt val = make_all_ones(bits);
         std::string desc = "A-BITS:" + std::to_string(bits);
         std::string sha = sha256_hex(desc);
         ofs << "A-BITS\t" << "item" << i << "\t" << desc << "\t" 
@@ -114,51 +134,19 @@ static void generate_a_rand(std::ofstream& ofs, uint64_t seed) {
     std::vector<int> bit_lengths = {0,1,2,3,7,8,15,16,31,32,33,63,64,65,127,128,129,255,256,257,511,512,513,1023,1024,1025};
     size_t item_idx = 0;
     for (int bits : bit_lengths) {
-        std::mt19937_64 rng(seed ^ (static_cast<uint64_t>(bits) << 32));
         for (int r = 0; r < 8; ++r) {
-            BigInt val;
-            if (bits == 0) {
-                val = BigInt(0);
-            } else if (bits <= 64) {
-                uint64_t max_val = (bits == 64) ? 0xFFFFFFFFFFFFFFFFull : ((1ull << bits) - 1);
-                std::uniform_int_distribution<uint64_t> dist(0, max_val);
-                uint64_t v = dist(rng);
-                // Ensure exact bit length
-                if (bits > 0 && v > 0) {
-                    int actual_bits = 64 - __builtin_clzll(v);
-                    if (actual_bits < bits) {
-                        v |= (1ull << (bits - 1));
-                    }
-                }
-                val = BigInt(v);
-            } else {
-                // For larger bits, generate random limbs
-                size_t n_limbs = (bits + 31) / 32;
-                val.ensure_capacity(n_limbs);
-                Limb* dst = val.mutable_limbs();
-                for (size_t i = 0; i < n_limbs - 1; ++i) {
-                    dst[i] = static_cast<Limb>(rng());
-                }
-                // Top limb with exact bit length
-                int top_bits = bits % 32;
-                if (top_bits == 0) top_bits = 32;
-                uint64_t top_max = (top_bits == 32) ? 0xFFFFFFFFull : ((1ull << top_bits) - 1);
-                std::uniform_int_distribution<uint64_t> top_dist(1ull << (top_bits - 1), top_max);
-                dst[n_limbs - 1] = static_cast<Limb>(top_dist(rng));
-                val.count_ = n_limbs;
-                val.trim();
-            }
+            BigInt val = make_bigint_exact_bits(bits, seed ^ (static_cast<uint64_t>(bits) << 32) ^ r);
             std::string desc = "A-RAND:" + std::to_string(bits) + ":" + std::to_string(r);
             std::string sha = sha256_hex(desc);
             ofs << "A-RAND\t" << "item" << item_idx++ << "\t" << desc << "\t" 
-                << bits << "\t" << sha << "\t" << (seed ^ (static_cast<uint64_t>(bits) << 32) ^ r) << "\n";
+                << val.bit_length() << "\t" << sha << "\t" << (seed ^ (static_cast<uint64_t>(bits) << 32) ^ r) << "\n";
         }
     }
 }
 
 // A-ARITH corpus: 10,000 seeded pairs from A-EDGE ∪ A-BITS ∪ A-RAND
 static void generate_a_arith(std::ofstream& ofs, uint64_t seed) {
-    // Collect all previous values
+    // Collect all previous values using public API
     std::vector<BigInt> pool;
     
     // A-EDGE values
@@ -169,50 +157,22 @@ static void generate_a_arith(std::ofstream& ofs, uint64_t seed) {
     pool.push_back(BigInt(0x100000000ull));
     pool.push_back(BigInt(0x100000001ull));
     pool.push_back(BigInt(0xFFFFFFFFFFFFFFFFull));
-    { BigInt x; x.ensure_capacity(3); x.mutable_limbs()[2]=1; x.count_=3; pool.push_back(x); }
-    { BigInt x; x.ensure_capacity(3); x.mutable_limbs()[0]=1; x.mutable_limbs()[2]=1; x.count_=3; pool.push_back(x); }
-    { BigInt x; x.ensure_capacity(5); for(int i=0;i<4;i++) x.mutable_limbs()[i]=0xFFFFFFFF; x.count_=4; pool.push_back(x); }
-    { BigInt x; x.ensure_capacity(5); x.mutable_limbs()[4]=1; x.count_=5; pool.push_back(x); }
-    { BigInt x; x.ensure_capacity(5); x.mutable_limbs()[0]=1; x.mutable_limbs()[4]=1; x.count_=5; pool.push_back(x); }
+    pool.push_back(BigInt(1).shl(64).value());
+    pool.push_back(BigInt(1).shl(64).value().add(BigInt(1)).value());
+    pool.push_back(BigInt(1).shl(128).value().sub(BigInt(1)).value());
+    pool.push_back(BigInt(1).shl(128).value());
+    pool.push_back(BigInt(1).shl(128).value().add(BigInt(1)).value());
     
     // A-BITS values
     std::vector<int> bit_lengths = {0,1,2,3,7,8,15,16,31,32,33,63,64,65,127,128,129,255,256,257,511,512,513,1023,1024,1025};
     for (int bits : bit_lengths) {
-        BigInt val;
-        if (bits == 0) val = BigInt(0);
-        else if (bits <= 32) val = BigInt((1ull << bits) - 1);
-        else if (bits <= 64) { val = BigInt(0xFFFFFFFFFFFFFFFFull); val = val.shr(64 - bits).value(); }
-        else { val = BigInt(1); val = val.shl(bits - 1).value(); }
-        pool.push_back(val);
+        pool.push_back(make_all_ones(bits));
     }
     
     // A-RAND values (subset - first 2 per bit length to keep pool manageable)
     for (int bits : bit_lengths) {
-        std::mt19937_64 rng(seed ^ (static_cast<uint64_t>(bits) << 32));
         for (int r = 0; r < 2; ++r) {
-            BigInt val;
-            if (bits == 0) val = BigInt(0);
-            else if (bits <= 64) {
-                uint64_t max_val = (bits == 64) ? 0xFFFFFFFFFFFFFFFFull : ((1ull << bits) - 1);
-                std::uniform_int_distribution<uint64_t> dist(0, max_val);
-                uint64_t v = dist(rng);
-                if (bits > 0 && v > 0) {
-                    int actual_bits = 64 - __builtin_clzll(v);
-                    if (actual_bits < bits) v |= (1ull << (bits - 1));
-                }
-                val = BigInt(v);
-            } else {
-                size_t n_limbs = (bits + 31) / 32;
-                val.ensure_capacity(n_limbs);
-                Limb* dst = val.mutable_limbs();
-                for (size_t i = 0; i < n_limbs - 1; ++i) dst[i] = static_cast<Limb>(rng());
-                int top_bits = bits % 32; if (top_bits == 0) top_bits = 32;
-                uint64_t top_max = (top_bits == 32) ? 0xFFFFFFFFull : ((1ull << top_bits) - 1);
-                std::uniform_int_distribution<uint64_t> top_dist(1ull << (top_bits - 1), top_max);
-                dst[n_limbs - 1] = static_cast<Limb>(top_dist(rng));
-                val.count_ = n_limbs; val.trim();
-            }
-            pool.push_back(val);
+            pool.push_back(make_bigint_exact_bits(bits, seed ^ (static_cast<uint64_t>(bits) << 32) ^ r));
         }
     }
     
@@ -245,21 +205,16 @@ static void generate_s_dec(std::ofstream& ofs, uint64_t seed) {
     values.push_back(BigInt(0x100000000ull));
     values.push_back(BigInt(0x100000001ull));
     values.push_back(BigInt(0xFFFFFFFFFFFFFFFFull));
-    { BigInt x; x.ensure_capacity(3); x.mutable_limbs()[2]=1; x.count_=3; values.push_back(x); }
-    { BigInt x; x.ensure_capacity(3); x.mutable_limbs()[0]=1; x.mutable_limbs()[2]=1; x.count_=3; values.push_back(x); }
-    { BigInt x; x.ensure_capacity(5); for(int i=0;i<4;i++) x.mutable_limbs()[i]=0xFFFFFFFF; x.count_=4; values.push_back(x); }
-    { BigInt x; x.ensure_capacity(5); x.mutable_limbs()[4]=1; x.count_=5; values.push_back(x); }
-    { BigInt x; x.ensure_capacity(5); x.mutable_limbs()[0]=1; x.mutable_limbs()[4]=1; x.count_=5; values.push_back(x); }
+    values.push_back(BigInt(1).shl(64).value());
+    values.push_back(BigInt(1).shl(64).value().add(BigInt(1)).value());
+    values.push_back(BigInt(1).shl(128).value().sub(BigInt(1)).value());
+    values.push_back(BigInt(1).shl(128).value());
+    values.push_back(BigInt(1).shl(128).value().add(BigInt(1)).value());
     
     // A-BITS (26 values)
     std::vector<int> bit_lengths = {0,1,2,3,7,8,15,16,31,32,33,63,64,65,127,128,129,255,256,257,511,512,513,1023,1024,1025};
     for (int bits : bit_lengths) {
-        BigInt val;
-        if (bits == 0) val = BigInt(0);
-        else if (bits <= 32) val = BigInt((1ull << bits) - 1);
-        else if (bits <= 64) { val = BigInt(0xFFFFFFFFFFFFFFFFull); val = val.shr(64 - bits).value(); }
-        else { val = BigInt(1); val = val.shl(bits - 1).value(); }
-        values.push_back(val);
+        values.push_back(make_all_ones(bits));
     }
     
     for (size_t i = 0; i < values.size(); ++i) {
