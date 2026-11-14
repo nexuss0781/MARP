@@ -231,7 +231,7 @@ static void check_arith_sub(const fs::path& root, const std::vector<CorpusItem>&
 static void check_arith_ring(const fs::path& root) {
     log_msg("CHECK: arith.ring - starting");
     size_t pass = 0, fail = 0;
-    std::mt19937_64 rng(0x4D415250u ^ 0xRING);
+    std::mt19937_64 rng(0x4D415250u ^ 0x52494E47u); // "RING"
     std::uniform_int_distribution<uint64_t> dist(0, 0xFFFFFFFFFFFFFFFFull);
     
     for (int i = 0; i < 1000; ++i) {
@@ -538,7 +538,7 @@ static void check_digest_sha_incremental(const fs::path& root) {
         for (size_t i = 0; i <= 128; ++i) cuts.push_back(i);
         for (size_t i = mib_msg.size(); i + 128 > mib_msg.size(); --i) cuts.push_back(i);
         for (size_t i = 0; i < mib_msg.size(); i += 4096) cuts.push_back(i);
-        std::mt19937_64 rng(0x4D415250u ^ 0xSHAINC);
+        std::mt19937_64 rng(0x4D415250u ^ 0x53484149u); // "SHAI"
         std::uniform_int_distribution<size_t> dist(0, mib_msg.size());
         for (int i = 0; i < 1024; ++i) cuts.push_back(dist(rng));
         
@@ -595,7 +595,7 @@ static void check_digest_crc_incremental(const fs::path& root) {
 static void check_digest_zeroed(const fs::path& root) {
     log_msg("CHECK: digest.zeroed - starting");
     size_t pass = 0, fail = 0;
-    std::mt19937_64 rng(0x4D415250u ^ 0xZEROED);
+    std::mt19937_64 rng(0x4D415250u ^ 0x5A45524Fu); // "ZERO"
     std::uniform_int_distribution<uint8_t> byte_dist(0, 255);
     std::uniform_int_distribution<size_t> len_dist(20, 200);
     std::uniform_int_distribution<size_t> offset_dist(0, 100);
@@ -634,7 +634,7 @@ static void check_digest_zeroed(const fs::path& root) {
 static void check_gear_stable(const fs::path& root, int threads) {
     log_msg("CHECK: gear.stable - starting threads=" + std::to_string(threads));
     size_t pass = 0, fail = 0;
-    std::mt19937_64 rng(0x4D415250u ^ 0xGEAR);
+    std::mt19937_64 rng(0x4D415250u ^ 0x47454152u); // "GEAR"
     std::uniform_int_distribution<uint8_t> byte_dist(0, 255);
     std::uniform_int_distribution<size_t> len_dist(1, 1000);
     

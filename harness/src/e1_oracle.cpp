@@ -92,7 +92,6 @@ std::string to_decimal(const BigInt& a) {
 
 BigInt from_le_bytes(std::string_view b) {
     if (b.empty()) return BigInt{0};
-    size_t n = (b.size() + 8) / 9; // Each 9 bytes = up to BASE
     // Actually simpler: use 4-byte limbs like E1 but base 10^9
     // We'll convert byte by byte
     BigInt result{0};

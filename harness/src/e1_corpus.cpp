@@ -21,7 +21,7 @@ namespace marp::harness {
 namespace fs = std::filesystem;
 using mapr::BigInt;
 using mapr::ErrCode;
-using oracle::BigInt as OracleBigInt;
+using OracleBigInt = oracle::BigInt;
 
 static std::string sha256_hex(std::string_view data) {
     auto digest = mapr::Sha256::hash(data);
@@ -68,11 +68,11 @@ static void generate_a_edge(std::ofstream& ofs, uint64_t seed) {
         {"2^32", BigInt(0x100000000ull)},
         {"2^32+1", BigInt(0x100000001ull)},
         {"2^64-1", BigInt(0xFFFFFFFFFFFFFFFFull)},
-        {"2^64", [](BigInt x) { x = BigInt(0); x.ensure_capacity(3); x.mutable_limbs()[2] = 1; x.count_ = 3; return x; }(BigInt())},
-        {"2^64+1", [](BigInt x) { x = BigInt(0); x.ensure_capacity(3); x.mutable_limbs()[0] = 1; x.mutable_limbs()[2] = 1; x.count_ = 3; return x; }(BigInt())},
-        {"2^128-1", [](BigInt x) { x.ensure_capacity(5); for(int i=0;i<4;i++) x.mutable_limbs()[i]=0xFFFFFFFF; x.count_=4; return x; }(BigInt())},
-        {"2^128", [](BigInt x) { x.ensure_capacity(5); x.mutable_limbs()[4]=1; x.count_=5; return x; }(BigInt())},
-        {"2^128+1", [](BigInt x) { x.ensure_capacity(5); x.mutable_limbs()[0]=1; x.mutable_limbs()[4]=1; x.count_=5; return x; }(BigInt())},
+        {"2^64", BigInt(1).shl(64).value()},
+        {"2^64+1", BigInt(1).shl(64).value().add(BigInt(1)).value()},
+        {"2^128-1", BigInt(1).shl(128).value().sub(BigInt(1)).value()},
+        {"2^128", BigInt(1).shl(128).value()},
+        {"2^128+1", BigInt(1).shl(128).value().add(BigInt(1)).value()},
     };
     
     for (size_t i = 0; i < items.size(); ++i) {
