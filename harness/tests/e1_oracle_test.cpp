@@ -263,10 +263,16 @@ TEST(E1Oracle, BigInt_ToLEBytes) {
 }
 
 TEST(E1Oracle, BigInt_BitLength) {
-    EXPECT_EQ(bit_length(BigInt(0)), 0);
-    EXPECT_EQ(bit_length(BigInt(1)), 1);
-    EXPECT_EQ(bit_length(BigInt(0xFFFFFFFFull)), 32);
-    EXPECT_EQ(bit_length(BigInt(0x100000000ull)), 33); // 2^32
+    EXPECT_EQ(bit_length(BigInt()), 0);
+    EXPECT_EQ(bit_length(BigInt{1}), 1);
+    EXPECT_EQ(bit_length(BigInt{0xFFFFFFFFu}), 32);
+    // 2^32 = 1 followed by 32 zeros = 33 bits
+    // In base 10^9: 2^32 = 4294967296 = 4 * 10^9 + 294967296
+    // This requires 2 limbs in base 10^9: [294967296, 4]
+    BigInt val;
+    val.push_back(294967296u);
+    val.push_back(4u);
+    EXPECT_EQ(bit_length(val), 33);
 }
 
 TEST(E1Oracle, SelfCheck) {

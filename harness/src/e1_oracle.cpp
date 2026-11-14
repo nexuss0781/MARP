@@ -151,7 +151,7 @@ std::vector<uint8_t> to_le_bytes(const BigInt& a) {
 
 int bit_length(const BigInt& a) {
     BigInt ta = trim(a);
-    if (ta.size() == 1 && ta[0] == 0) return 0;
+    if (ta.empty() || (ta.size() == 1 && ta[0] == 0)) return 0;
     // Find highest non-zero limb
     uint32_t top = ta.back();
     int bits = 0;
