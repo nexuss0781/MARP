@@ -20,8 +20,8 @@ uint32_t crc32(std::string_view data) noexcept;
 
 // Incremental CRC-32: accepts a **finalized** CRC (xorout applied) and returns a finalized CRC.
 // This is the zlib continuation convention: crc32_incremental(B, crc32(A)) == crc32(A+B)
-// and crc32_incremental(data) == crc32(data) when called with default argument.
-uint32_t crc32_incremental(std::string_view data, uint32_t prev_finalized = CRC32_XOROUT) noexcept;
+// and crc32_incremental(data) == crc32(data) when called with default argument (0 = finalized CRC of empty).
+uint32_t crc32_incremental(std::string_view data, uint32_t prev_finalized = 0) noexcept;
 
 // Combine: crc(A‖B) from crc(A), crc(B), len(B)
 // Both CRCs must be standard finalized values (crc32() output).
