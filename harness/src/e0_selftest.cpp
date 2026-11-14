@@ -174,7 +174,7 @@ int run_e0_selftest(const fs::path& root) {
     // Verify render produces FAIL for false gate
     log_msg("Test 4: Render detects FAIL");
     int render_result = render(tsv_path.parent_path(), root / "specs_and_reports" / "v2" / "ACCEPTANCE.FAIL.md");
-    bool render_detects_fail = (render_result == 0); // render succeeds but writes FAIL.md
+    (void)render_result; // render succeeds but writes FAIL.md
     // Actually render should succeed but the ACCEPTANCE.md should not be overwritten
     // Check that ACCEPTANCE.md doesn't exist or is not overwritten
     fs::path acceptance_md = root / "specs_and_reports" / "v2" / "ACCEPTANCE.md";

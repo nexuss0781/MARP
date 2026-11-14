@@ -19,6 +19,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <random>
 
 namespace marp::harness {
 
@@ -26,7 +27,7 @@ namespace fs = std::filesystem;
 using mapr::BigInt;
 using mapr::ErrCode;
 using mapr::Limb;
-using oracle::BigInt as OracleBigInt;
+using OracleBigInt = oracle::BigInt;
 
 static std::mutex log_mutex;
 static std::ofstream log_file;
@@ -83,12 +84,6 @@ static std::string to_hex(const std::array<uint8_t, 32>& digest) {
 static std::string to_hex(uint32_t v) {
     std::ostringstream oss;
     oss << std::hex << std::setw(8) << std::setfill('0') << v;
-    return oss.str();
-}
-
-static std::string to_hex(uint64_t v) {
-    std::ostringstream oss;
-    oss << std::hex << std::setw(16) << std::setfill('0') << v;
     return oss.str();
 }
 
