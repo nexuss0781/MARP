@@ -59,7 +59,9 @@ TEST(E1Oracle, CRC32_IncrementalProperty) {
     std::string ab = a + b;
     
     // Initial state for incremental is finalized CRC of empty (init=0 finalized)
-    uint32_t init_finalized = CRC32_INIT ^ CRC32_XOROUT; // 0xFFFFFFFF ^ 0xFFFFFFFF = 0
+    constexpr uint32_t CRC32_INIT_VAL = 0xFFFFFFFFu;
+    constexpr uint32_t CRC32_XOROUT_VAL = 0xFFFFFFFFu;
+    uint32_t init_finalized = CRC32_INIT_VAL ^ CRC32_XOROUT_VAL; // 0xFFFFFFFF ^ 0xFFFFFFFF = 0
     uint32_t crc_a = crc32_incremental(a, init_finalized);
     uint32_t crc_ab = crc32_incremental(ab, init_finalized);
     uint32_t crc_b_from_a = crc32_incremental(b, crc_a);
@@ -257,7 +259,7 @@ TEST(E1Oracle, BigInt_BitLength) {
     EXPECT_EQ(bit_length(BigInt{0}), 0);
     EXPECT_EQ(bit_length(BigInt{1}), 1);
     EXPECT_EQ(bit_length(BigInt{0xFFFFFFFF}), 32);
-    EXPECT_EQ(bit_length(BigInt{0x100000000}), 33); // 2^32
+    EXPECT_EQ(bit_length(BigInt{0x100000000ull}), 33); // 2^32
 }
 
 TEST(E1Oracle, SelfCheck) {
