@@ -43,7 +43,8 @@ jobs:
         run: |
           set -euo pipefail
           cd engine
-          make -f Makefile.h1 h1-all -j4 H1_GTEST_ROOT="$H1_GTEST_ROOT"
+          mkdir -p ../out
+          make -f Makefile.h1 h1-all -j4 H1_GTEST_ROOT="$H1_GTEST_ROOT" 2>&1 | tee ../out/h1-build.log
 
       - name: Run H1 tests
         run: |
@@ -196,6 +197,19 @@ jobs:
             echo "bootstrap-evidence" > "$H1_SCRATCH/bootstrap-evidence"
           fi
 
+      - name: Publish build diagnostics
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f out/h1-build.log ]; then
+            {
+              echo '## H1 build log tail'
+              echo '```'
+              tail -200 out/h1-build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Stage bootstrap artifact
         if: always()
         run: |
@@ -204,6 +218,9 @@ jobs:
             exit 0
           fi
           mkdir -p out/h1-artifact
+          if [ -f out/h1-build.log ]; then
+            cp out/h1-build.log out/h1-artifact/build.log
+          fi
           for path in \
             specs_and_reports/v2/fixtures.tsv \
             specs_and_reports/v2/gates/H1-FIXTURES.tsv \

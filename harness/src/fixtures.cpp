@@ -612,6 +612,7 @@ std::unique_ptr<FixtureStream> stream_for_spec(const FixtureSpec& spec,
         for (int segment = 0; segment < 5; ++segment) {
             const std::string seg_id = "F15.seg" + std::to_string(segment);
             const FixtureSpec* seg = find_spec(specs, seg_id);
+            if (seg == nullptr) throw std::invalid_argument("missing F15 segment");
             parts.push_back(stream_for_spec(*seg, options));
         }
         return std::make_unique<ConcatStream>(std::move(parts));
@@ -1466,6 +1467,7 @@ int verify(const GenerateOptions& options) {
     bool blocked = false;
     for (const auto& row : rows) {
         const FixtureSpec* spec = find_spec(specs, row.fixture);
+        if (spec == nullptr) throw std::runtime_error("manifest fixture missing from catalogue");
         std::string expected = "bytes=" + row.bytes + ";sha=" + row.sha256 + ";mode=" + row.mode;
         std::string actual = expected;
         std::string verdict = "PASS";
