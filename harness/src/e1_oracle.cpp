@@ -155,6 +155,20 @@ int bit_length(const BigInt& a) {
     BigInt ta = trim(a);
     if (ta.size() == 1 && ta[0] == 0) return 0;
 
+    // Defensive normalization: inputs must be canonical (limbs < BASE), but if a
+    // non-canonical value slips in, carry-propagate instead of spinning forever.
+    uint64_t carry = 0;
+    for (size_t i = 0; i < ta.size(); ++i) {
+        const uint64_t value = static_cast<uint64_t>(ta[i]) + carry;
+        ta[i] = static_cast<Limb>(value % BASE);
+        carry = value / BASE;
+    }
+    while (carry != 0) {
+        ta.push_back(static_cast<Limb>(carry % BASE));
+        carry /= BASE;
+    }
+    ta = trim(ta);
+
     const std::vector<uint8_t> bytes = to_le_bytes(ta);
     if (bytes.empty()) return 0;
     uint8_t top = bytes.back();
