@@ -40,18 +40,6 @@ static std::string to_hex(const std::array<uint8_t, 32>& digest) {
     return oss.str();
 }
 
-static std::string to_hex(uint32_t v) {
-    std::ostringstream oss;
-    oss << std::hex << std::setw(8) << std::setfill('0') << v;
-    return oss.str();
-}
-
-static std::string to_hex(uint64_t v) {
-    std::ostringstream oss;
-    oss << std::hex << std::setw(16) << std::setfill('0') << v;
-    return oss.str();
-}
-
 // Write corpus.tsv header
 static void write_corpus_header(std::ofstream& ofs) {
     ofs << "corpus_id\titem_id\tdescription\tbit_length\tdescription_sha256\tseed\n";
@@ -241,7 +229,10 @@ static void generate_s_bytes(std::ofstream& ofs, uint64_t seed) {
         if (bytes.back() == 0) bytes.back() = 1;
         
         std::string_view sv(reinterpret_cast<char*>(bytes.data()), bytes.size());
-        std::string desc = "S-BYTES:" + to_hex(mapr::Sha256::hash(sv).value_or(std::array<uint8_t,32>{}));
+        auto hash_result = mapr::Sha256::hash(sv);
+        std::array<uint8_t, 32> hash_val{};
+        if (hash_result.ok()) hash_val = hash_result.value();
+        std::string desc = "S-BYTES:" + to_hex(hash_val);
         std::string sha = sha256_hex(desc);
         ofs << "S-BYTES\t" << "item" << i << "\t" << desc << "\t" 
             << (len * 8) << "\t" << sha << "\t" << (seed ^ i) << "\n";
@@ -283,15 +274,19 @@ static void generate_d_kat(std::ofstream& ofs, uint64_t seed) {
         {
             std::string desc = "D-KAT:SHA256:msg" + std::to_string(m);
             std::string sha = sha256_hex(desc);
-            ofs << "D-KAT\t" << "item" << item_idx++ << "\t" << desc << "\t" 
-                << (messages[m].size() * 8) << "\t" << sha << "\t" << (seed ^ item_idx) << "\n";
+            size_t idx = item_idx;
+            item_idx++;
+            ofs << "D-KAT\t" << "item" << idx << "\t" << desc << "\t" 
+                << (messages[m].size() * 8) << "\t" << sha << "\t" << (seed ^ idx) << "\n";
         }
         // CRC-32
         {
             std::string desc = "D-KAT:CRC32:msg" + std::to_string(m);
             std::string sha = sha256_hex(desc);
-            ofs << "D-KAT\t" << "item" << item_idx++ << "\t" << desc << "\t" 
-                << (messages[m].size() * 8) << "\t" << sha << "\t" << (seed ^ item_idx) << "\n";
+            size_t idx = item_idx;
+            item_idx++;
+            ofs << "D-KAT\t" << "item" << idx << "\t" << desc << "\t" 
+                << (messages[m].size() * 8) << "\t" << sha << "\t" << (seed ^ idx) << "\n";
         }
     }
 }
