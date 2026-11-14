@@ -1,0 +1,99 @@
+# E2 / C03 TERM — isolated build.
+#
+# Includes the base engine Makefile only for the project warning flags; it does
+# not modify it and does not link its gate/harness objects.  Only E1 sources
+# (BigInt, SHA-256) and the C03 sources are compiled here.  No E3-E7 object is
+# part of any target in this file.
+include Makefile
+
+.DEFAULT_GOAL := e2-all
+
+# GoogleTest is used by the C03 unit tests only (recorded third-party allowance).
+E2_GTEST_ROOT  ?= /tmp/googletest
+E2_GTEST_LIBS  := $(shell pkg-config --libs gtest gtest_main 2>/dev/null || echo "-L$(E2_GTEST_ROOT)/build/lib -lgtest -lgtest_main")
+E2_GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null || echo "-isystem $(E2_GTEST_ROOT)/googletest/include -isystem /usr/local/include")
+
+E2_INC := -I. -I../include -Isrc/e2
+
+# -O2 is E2 §12.4's build level; it is listed last so it wins over the base -O3.
+E2_CXXFLAGS := $(CXXFLAGS) $(E2_INC) -O2
+E2_SANFLAGS := $(SANFLAGS) $(E2_INC)
+
+E2_E1_SRCS := src/e1_bigint.cpp src/e1_length.cpp src/e1_sha256.cpp
+E2_E1_OBJS := $(patsubst src/%.cpp,obj/e2/%.o,$(E2_E1_SRCS))
+
+E2_LIB_SRCS := src/e2/e2_term.cpp
+E2_LIB_OBJS := obj/e2/e2_term.o
+
+E2_TEST_SRC := tests/e2/e2_term_test.cpp
+E2_GATE_SRC := src/e2/e2_c03_gate.cpp
+E2_GATE_OBJ := obj/e2_gate/e2_c03_gate.o
+E2_TEST_OBJ := obj/e2_tests/e2_term_test.o
+
+.PHONY: e2-all e2-clean e2-test e2-test-san e2-evidence e2-independence e2-check
+
+e2-all: bin/e2_c03_gate bin/e2_c03_tests
+
+obj/e2/e1_%.o: src/e1_%.cpp ../include/mapr/e1_%.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E2_CXXFLAGS) -c $< -o $@
+
+obj/e2/e2_term.o: src/e2/e2_term.cpp ../include/mapr/e2/e2_term.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E2_CXXFLAGS) -c $< -o $@
+
+obj/e2_gate/%.o: src/e2/%.cpp ../include/mapr/e2/e2_term.hpp src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E2_CXXFLAGS) -c $< -o $@
+
+obj/e2_tests/%.o: tests/e2/%.cpp ../include/mapr/e2/e2_term.hpp src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E2_CXXFLAGS) $(E2_GTEST_CFLAGS) -c $< -o $@
+
+bin/e2_c03_gate: $(E2_E1_OBJS) $(E2_LIB_OBJS) $(E2_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(E2_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e2_c03_tests: $(E2_E1_OBJS) $(E2_LIB_OBJS) $(E2_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(E2_CXXFLAGS) -o $@ $^ $(E2_GTEST_LIBS) -pthread
+
+bin/e2_c03_tests_san: $(E2_E1_SRCS) $(E2_LIB_SRCS) $(E2_TEST_SRC) src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p bin
+	$(CXX) $(E2_SANFLAGS) $(E2_GTEST_CFLAGS) -o $@ $(E2_E1_SRCS) $(E2_LIB_SRCS) $(E2_TEST_SRC) $(E2_GTEST_LIBS) -pthread
+
+bin/e2_c03_gate_san: $(E2_E1_SRCS) $(E2_LIB_SRCS) $(E2_GATE_SRC) src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p bin
+	$(CXX) $(E2_SANFLAGS) -o $@ $(E2_E1_SRCS) $(E2_LIB_SRCS) $(E2_GATE_SRC) -pthread
+
+e2-test: bin/e2_c03_tests
+	./bin/e2_c03_tests
+
+e2-test-san: bin/e2_c03_tests_san
+	./bin/e2_c03_tests_san
+
+e2-evidence: bin/e2_c03_gate
+	./bin/e2_c03_gate --root .. --write-evidence
+
+# E2 may not link E3-E7.  Checked at source level (includes) and at symbol
+# level (nothing from the wire/discovery/CLI layers may appear in the C03
+# library objects).
+e2-independence: $(E2_LIB_OBJS) $(E2_GATE_OBJ)
+	@echo "Checking C03 sources for forbidden E3-E7 / harness includes..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|dag|pipeline|mau_translate))' src/e2 ../include/mapr/e2; then \
+		echo "FAIL: forbidden include in C03 sources"; exit 1; \
+	fi
+	@echo "Checking C03 objects for forbidden symbols..."
+	@nm -C $(E2_LIB_OBJS) > /tmp/e2_c03_nm.txt
+	@if grep -E 'mapr::(container|Encoder|Decoder|Dag)::|marp::harness::|mapr::v3|mapr::v4|mapr::v5|mapr::v6|mapr::v7' /tmp/e2_c03_nm.txt; then \
+		rm -f /tmp/e2_c03_nm.txt; echo "FAIL: forbidden symbol linked into C03 objects"; exit 1; \
+	fi
+	@rm -f /tmp/e2_c03_nm.txt
+	@echo "PASS: C03 independence verified (source grep + nm)"
+
+e2-check: e2-independence
+	@echo "PASS: C03 structural checks complete"
+
+e2-clean:
+	rm -rf obj/e2 obj/e2_gate obj/e2_tests
+	rm -f bin/e2_c03_gate bin/e2_c03_gate_san bin/e2_c03_tests bin/e2_c03_tests_san

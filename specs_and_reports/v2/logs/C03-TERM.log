@@ -1,0 +1,234 @@
+tool: C03-TERM evidence harness
+root: ..
+command_line: ./bin/e2_c03_gate --root .. --write-evidence
+compiler: 12.2.0
+std: c++20 (build flags in engine/Makefile.e2)
+wf.accept t-empty: Ok nodes=1 len=0
+wf.accept t-atom1: Ok nodes=1 len=1
+wf.accept t-atom16: Ok nodes=1 len=16
+wf.accept t-atom32: Ok nodes=1 len=32
+wf.accept t-zero0: Ok nodes=1 len=0
+wf.accept t-zero5: Ok nodes=1 len=5
+wf.accept t-concat2: Ok nodes=3 len=20
+wf.accept t-concat3: Ok nodes=4 len=50
+wf.accept t-repeat-0-0: Ok nodes=2 len=0
+wf.accept t-repeat-3-5: Ok nodes=2 len=53
+wf.accept t-slice: Ok nodes=2 len=9
+wf.accept t-slice-full: Ok nodes=2 len=16
+wf.accept t-slice-empty: Ok nodes=2 len=0
+wf.accept t-morph1: Ok nodes=2 len=32
+wf.accept t-morph2: Ok nodes=2 len=32
+wf.accept t-morph3: Ok nodes=2 len=32
+wf.accept t-morph4: Ok nodes=2 len=32
+wf.accept t-morph5: Ok nodes=2 len=32
+wf.accept t-morph6: Ok nodes=2 len=32
+wf.accept t-morph7: Ok nodes=2 len=32
+wf.accept t-morph8: Ok nodes=2 len=32
+wf.accept t-morph9: Ok nodes=2 len=32
+wf.accept t-xor: Ok nodes=3 len=16
+wf.accept t-interleave-2-1: Ok nodes=3 len=16
+wf.accept t-interleave-2-2: Ok nodes=3 len=16
+wf.accept t-interleave-2-3-stride: Ok nodes=3 len=18
+wf.accept t-interleave-3-2: Ok nodes=4 len=24
+wf.accept t-lfsr-a: Ok nodes=1 len=17
+wf.accept t-lfsr-b: Ok nodes=1 len=64
+wf.accept t-affine: Ok nodes=1 len=40
+wf.accept t-affine-wrap: Ok nodes=1 len=300
+wf.accept t-pred-0: Ok nodes=2 len=32
+wf.accept t-pred-1: Ok nodes=2 len=32
+wf.accept t-pred-2: Ok nodes=2 len=32
+wf.accept t-pred-3-p1: Ok nodes=2 len=32
+wf.accept t-pred-3-p5: Ok nodes=2 len=32
+wf.accept t-pred-4-p3: Ok nodes=2 len=32
+wf.accept t-pred-4-p64: Ok nodes=2 len=32
+wf.accept t-pred-1-n1: Ok nodes=2 len=1
+wf.accept t-pred-2-n1: Ok nodes=2 len=1
+wf.accept t-pred-2-n2: Ok nodes=2 len=2
+wf.accept t-nest-xor-slice-repeat: Ok nodes=5 len=20
+wf.accept t-nest-interleave-morph-lfsr: Ok nodes=4 len=16
+wf.accept t-nest-predictor-concat: Ok nodes=4 len=32
+wf.accept t-nest-morph-slice-xor: Ok nodes=5 len=10
+wf.accept t-nest-repeat-concat-morph9: Ok nodes=5 len=35
+wf.accept t-deep-morph-chain: Ok nodes=65 len=8
+wf.accept t-big-repeat: Ok nodes=2 len=4611686018427387907
+wf.accept t-big-zero: Ok nodes=1 len=4611686018427387905
+wf.accept t-big-slice: Ok nodes=2 len=100
+wf.accept t-big-affine: Ok nodes=2 len=64
+wf.accept t-big-lfsr: Ok nodes=2 len=64
+wf.accept: passed=52/52
+wf.reject bad-counts-nodes: expected Invalid:W1.counts actual Invalid:W1.counts (nodes=5 > max_nodes=2)
+wf.reject bad-atom-flags: expected Invalid:W4.atom-flags actual Invalid:W4.atom-flags (atom flags=1)
+wf.reject bad-node-flags: expected Invalid:W4.node-flags actual Invalid:W4.node-flags (node flags=1)
+wf.reject bad-atom-payload-length: expected Invalid:W6.atom-payload-length actual Invalid:W6.atom-payload-length (atom declared length disagrees with payload size 4)
+wf.reject bad-root: expected Invalid:W2.root actual Invalid:W2.root (root=9 >= nodes=1)
+wf.reject bad-no-nodes: expected Invalid:W2.root actual Invalid:W2.root (no nodes)
+wf.reject bad-unreachable-node: expected Invalid:W2.unreachable-node actual Invalid:W2.unreachable-node (node unreachable from root)
+wf.reject bad-unused-atom: expected Invalid:W2.unused-atom actual Invalid:W2.unused-atom (atom unused)
+wf.reject bad-arg-range: expected Invalid:W3.arg-range actual Invalid:W3.arg-range (arg 99 out of range)
+wf.reject bad-arg-order: expected Invalid:W3.arg-order actual Invalid:W3.arg-order (arg[0]=1 >= 1)
+wf.reject bad-total-length: expected Invalid:W5.total-length actual Invalid:W5.total-length (total_length=5 != nodes[root].length=4)
+wf.reject bad-stored-length-atom: expected Invalid:W6.length actual Invalid:W6.length (stored=5 recomputed=4)
+wf.reject bad-stored-length-zero: expected Invalid:W6.length actual Invalid:W6.length (stored=3 recomputed=4)
+wf.reject bad-stored-length-concat: expected Invalid:W6.length actual Invalid:W6.length (stored=10 recomputed=9)
+wf.reject bad-stored-length-repeat: expected Invalid:W6.length actual Invalid:W6.length (stored=11 recomputed=12)
+wf.reject bad-stored-length-slice: expected Invalid:W6.length actual Invalid:W6.length (stored=5 recomputed=4)
+wf.reject bad-stored-length-morph: expected Invalid:W6.length actual Invalid:W6.length (stored=9 recomputed=8)
+wf.reject bad-stored-length-xor: expected Invalid:W6.length actual Invalid:W6.length (stored=7 recomputed=8)
+wf.reject bad-stored-length-interleave: expected Invalid:W6.length actual Invalid:W6.length (stored=9 recomputed=8)
+wf.reject bad-stored-length-lfsr: expected Invalid:W6.length actual Invalid:W6.length (stored=7 recomputed=8)
+wf.reject bad-stored-length-affine: expected Invalid:W6.length actual Invalid:W6.length (stored=9 recomputed=8)
+wf.reject bad-stored-length-predictor: expected Invalid:W6.length actual Invalid:W6.length (stored=7 recomputed=8)
+wf.reject bad-depth: expected Limit:W7.depth actual Limit:W7.depth (depth 65537 > 65536)
+wf.reject bad-output-cap: expected Limit:S1.output-cap actual Limit:S1.output-cap (output 9223372036854775809 > 2^63)
+wf.reject bad-argc-empty: expected Invalid:W8.argc actual Invalid:W8.argc (Empty argc != 0)
+wf.reject bad-argc-atom: expected Invalid:W8.argc actual Invalid:W8.argc (Atom argc != 0)
+wf.reject bad-argc-zero: expected Invalid:W8.argc actual Invalid:W8.argc (Zero argc != 0)
+wf.reject bad-argc-concat: expected Invalid:W8.argc actual Invalid:W8.argc (Concat argc < 2)
+wf.reject bad-argc-repeat: expected Invalid:W8.argc actual Invalid:W8.argc (Repeat argc != 1)
+wf.reject bad-argc-slice: expected Invalid:W8.argc actual Invalid:W8.argc (Slice argc != 1)
+wf.reject bad-argc-morph: expected Invalid:W8.argc actual Invalid:W8.argc (Morph argc != 1)
+wf.reject bad-argc-xor: expected Invalid:W8.argc actual Invalid:W8.argc (Xor argc != 2)
+wf.reject bad-argc-interleave: expected Invalid:W8.argc actual Invalid:W8.argc (Interleave argc < 1)
+wf.reject bad-argc-lfsr: expected Invalid:W8.argc actual Invalid:W8.argc (Lfsr argc != 0)
+wf.reject bad-argc-affine: expected Invalid:W8.argc actual Invalid:W8.argc (Affine argc != 0)
+wf.reject bad-argc-predictor: expected Invalid:W8.argc actual Invalid:W8.argc (Predictor argc != 1)
+wf.reject bad-atom-id: expected Invalid:W8.atom-id actual Invalid:W8.atom-id (atom id out of range)
+wf.reject bad-atom-zero-length: expected Invalid:W8.atom-length actual Invalid:W8.atom-length (zero-length atom)
+wf.reject bad-repeat-q0-r7: expected Invalid:W8.repeat actual Invalid:W8.repeat (Repeat q=0 requires r=0)
+wf.reject bad-repeat-q0-r5: expected Invalid:W8.repeat actual Invalid:W8.repeat (Repeat q=0 requires r=0)
+wf.reject bad-repeat-r-eq-len: expected Invalid:W8.repeat actual Invalid:W8.repeat (Repeat r >= len(child))
+wf.reject bad-slice-start-past-end: expected Invalid:W8.slice actual Invalid:W8.slice (Slice start > len(child))
+wf.reject bad-slice-overrun: expected Invalid:W8.slice actual Invalid:W8.slice (Slice start+len > len(child))
+wf.reject bad-morph-id0: expected Invalid:W8.morph actual Invalid:W8.morph (morph 0 k=0)
+wf.reject bad-morph-id10: expected Invalid:W8.morph actual Invalid:W8.morph (morph 10 k=0)
+wf.reject bad-morph-k-bitrev: expected Invalid:W8.morph actual Invalid:W8.morph (morph 1 k=1)
+wf.reject bad-morph-rotl-k0: expected Invalid:W8.morph actual Invalid:W8.morph (morph 6 k=0)
+wf.reject bad-morph-rotl-k8: expected Invalid:W8.morph actual Invalid:W8.morph (morph 6 k=8)
+wf.reject bad-morph-rotr-k0: expected Invalid:W8.morph actual Invalid:W8.morph (morph 7 k=0)
+wf.reject bad-morph-swap16-odd: expected Invalid:W8.morph actual Invalid:W8.morph (morph 3 k=0)
+wf.reject bad-morph-swap32-mod4: expected Invalid:W8.morph actual Invalid:W8.morph (morph 4 k=0)
+wf.reject bad-morph-swap64-mod8: expected Invalid:W8.morph actual Invalid:W8.morph (morph 5 k=0)
+wf.reject bad-xor-length: expected Invalid:W8.xor actual Invalid:W8.xor (Xor operand lengths differ)
+wf.reject bad-interleave-length: expected Invalid:W8.interleave actual Invalid:W8.interleave (Interleave child lengths differ)
+wf.reject bad-interleave-stride0: expected Invalid:W8.interleave actual Invalid:W8.interleave (Interleave stride == 0)
+wf.reject bad-interleave-mod: expected Invalid:W8.interleave actual Invalid:W8.interleave (Interleave L % stride != 0)
+wf.reject bad-interleave-stride-big: expected Invalid:W8.interleave actual Invalid:W8.interleave (Interleave stride not a u32)
+wf.reject bad-lfsr-conn0: expected Invalid:W8.lfsr actual Invalid:W8.lfsr (Lfsr conn == 0)
+wf.reject bad-predictor-pid5: expected Invalid:W8.predictor actual Invalid:W8.predictor (pid 5 param 0)
+wf.reject bad-predictor-p3-param0: expected Invalid:W8.predictor actual Invalid:W8.predictor (pid 3 param 0)
+wf.reject bad-predictor-p4-param0: expected Invalid:W8.predictor actual Invalid:W8.predictor (pid 4 param 0)
+wf.reject: passed=61/61
+denotation t-empty: expected=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 actual=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 bytes=0
+length t-empty: reference=0 engine=0 denotation=0
+denotation t-atom1: expected=6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32 actual=6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32 bytes=1
+length t-atom1: reference=1 engine=1 denotation=1
+denotation t-atom16: expected=5686b484f1452625232576de7bdb8aff2bad2ce0a05745eeed5aa777bd0e9c6d actual=5686b484f1452625232576de7bdb8aff2bad2ce0a05745eeed5aa777bd0e9c6d bytes=16
+length t-atom16: reference=16 engine=16 denotation=16
+denotation t-atom32: expected=1a8740b0b0fdfd43eefe9f1ad84391d664294382cfda9b4adbd70a0965d1f2c9 actual=1a8740b0b0fdfd43eefe9f1ad84391d664294382cfda9b4adbd70a0965d1f2c9 bytes=32
+length t-atom32: reference=32 engine=32 denotation=32
+denotation t-zero0: expected=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 actual=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 bytes=0
+length t-zero0: reference=0 engine=0 denotation=0
+denotation t-zero5: expected=8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4 actual=8855508aade16ec573d21e6a485dfd0a7624085c1a14b5ecdd6485de0c6839a4 bytes=5
+length t-zero5: reference=5 engine=5 denotation=5
+denotation t-concat2: expected=cd9b619d15dbb4aeb9540835a2af9d3afb6b860afd61c9c5393c3a061a9b55d0 actual=cd9b619d15dbb4aeb9540835a2af9d3afb6b860afd61c9c5393c3a061a9b55d0 bytes=20
+length t-concat2: reference=20 engine=20 denotation=20
+denotation t-concat3: expected=d0138e7c8951c0b8b50628e062497d16e027ef1ec60f2683d557d0a332d6ac4d actual=d0138e7c8951c0b8b50628e062497d16e027ef1ec60f2683d557d0a332d6ac4d bytes=50
+length t-concat3: reference=50 engine=50 denotation=50
+denotation t-repeat-0-0: expected=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 actual=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 bytes=0
+length t-repeat-0-0: reference=0 engine=0 denotation=0
+denotation t-repeat-3-5: expected=a9c780b5f3afbfc71dffb6857538663914744e6f730e0957a2dfc43ea07628a2 actual=a9c780b5f3afbfc71dffb6857538663914744e6f730e0957a2dfc43ea07628a2 bytes=53
+length t-repeat-3-5: reference=53 engine=53 denotation=53
+denotation t-slice: expected=02021e8d29dd152b3d5fa1148fee3ae436e51c8452965f20e595c2298c99a599 actual=02021e8d29dd152b3d5fa1148fee3ae436e51c8452965f20e595c2298c99a599 bytes=9
+length t-slice: reference=9 engine=9 denotation=9
+denotation t-slice-full: expected=100995ce1c6e30d73cc19db8690f61b14085b80859f4b945dd067f48bb211546 actual=100995ce1c6e30d73cc19db8690f61b14085b80859f4b945dd067f48bb211546 bytes=16
+length t-slice-full: reference=16 engine=16 denotation=16
+denotation t-slice-empty: expected=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 actual=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 bytes=0
+length t-slice-empty: reference=0 engine=0 denotation=0
+denotation t-morph1: expected=254487a214122a3910c44b8f7e4e9d6630f1d3e36a0bb877311f3238a21a4652 actual=254487a214122a3910c44b8f7e4e9d6630f1d3e36a0bb877311f3238a21a4652 bytes=32
+length t-morph1: reference=32 engine=32 denotation=32
+denotation t-morph2: expected=d3f3a41792ae71c023e70f3045441053c440cf6208f5083bd73b3f755178c619 actual=d3f3a41792ae71c023e70f3045441053c440cf6208f5083bd73b3f755178c619 bytes=32
+length t-morph2: reference=32 engine=32 denotation=32
+denotation t-morph3: expected=d7b88b6e79ecd05101c1a11bd4faefb9c9d20c681fb898770475f7a34b670c68 actual=d7b88b6e79ecd05101c1a11bd4faefb9c9d20c681fb898770475f7a34b670c68 bytes=32
+length t-morph3: reference=32 engine=32 denotation=32
+denotation t-morph4: expected=92f1db62d3909c85590ef75fa6aa34ee5a42d9953b6777de9b4d8c07f87cdbb3 actual=92f1db62d3909c85590ef75fa6aa34ee5a42d9953b6777de9b4d8c07f87cdbb3 bytes=32
+length t-morph4: reference=32 engine=32 denotation=32
+denotation t-morph5: expected=00624e104423fd5762e291132a8bb3d941fd178793952f2552f3e302a6dc47af actual=00624e104423fd5762e291132a8bb3d941fd178793952f2552f3e302a6dc47af bytes=32
+length t-morph5: reference=32 engine=32 denotation=32
+denotation t-morph6: expected=845ae3261cbba01a4fd988f298ce154bef50d739230289902b367d0ed7952d18 actual=845ae3261cbba01a4fd988f298ce154bef50d739230289902b367d0ed7952d18 bytes=32
+length t-morph6: reference=32 engine=32 denotation=32
+denotation t-morph7: expected=88a6b388db9459abd1a2dd3c2bcabe21d69d72a8f01256b934c1d1c43671a2c0 actual=88a6b388db9459abd1a2dd3c2bcabe21d69d72a8f01256b934c1d1c43671a2c0 bytes=32
+length t-morph7: reference=32 engine=32 denotation=32
+denotation t-morph8: expected=0bd406f8123fa3aaf21219d1576bdac2e7499a0cf8c9ae180a1306a4ba44e662 actual=0bd406f8123fa3aaf21219d1576bdac2e7499a0cf8c9ae180a1306a4ba44e662 bytes=32
+length t-morph8: reference=32 engine=32 denotation=32
+denotation t-morph9: expected=8684aba7dfd803b2b6d5283b2eb368d175d2572afe38420ef314eb84e9d2811f actual=8684aba7dfd803b2b6d5283b2eb368d175d2572afe38420ef314eb84e9d2811f bytes=32
+length t-morph9: reference=32 engine=32 denotation=32
+denotation t-xor: expected=c1ed06ab8b2a4227f71ba290a015cc5789b66364f3974e14eca666a77977b264 actual=c1ed06ab8b2a4227f71ba290a015cc5789b66364f3974e14eca666a77977b264 bytes=16
+length t-xor: reference=16 engine=16 denotation=16
+denotation t-interleave-2-1: expected=fd43af3dd3f0621e91bea80d8a84c6a8d108632adfed948f47bb18fa7a635f4a actual=fd43af3dd3f0621e91bea80d8a84c6a8d108632adfed948f47bb18fa7a635f4a bytes=16
+length t-interleave-2-1: reference=16 engine=16 denotation=16
+denotation t-interleave-2-2: expected=ca07d1023e96b83f5384b44e71d5760723500d30c7aa5ef873feac914a77eb75 actual=ca07d1023e96b83f5384b44e71d5760723500d30c7aa5ef873feac914a77eb75 bytes=16
+length t-interleave-2-2: reference=16 engine=16 denotation=16
+denotation t-interleave-2-3-stride: expected=a7925a676a6a721b97c7ca7181e20b32ea49646fb98cc888e0a950ad703b1362 actual=a7925a676a6a721b97c7ca7181e20b32ea49646fb98cc888e0a950ad703b1362 bytes=18
+length t-interleave-2-3-stride: reference=18 engine=18 denotation=18
+denotation t-interleave-3-2: expected=87cee0cdac605efc5acd3725a5f22a79ae86b747a0fa6693645f4c503f8a2df6 actual=87cee0cdac605efc5acd3725a5f22a79ae86b747a0fa6693645f4c503f8a2df6 bytes=24
+length t-interleave-3-2: reference=24 engine=24 denotation=24
+denotation t-lfsr-a: expected=090639655010f5898f22246bcff260f8625e334a96aaca9da7f733bb7fa7080d actual=090639655010f5898f22246bcff260f8625e334a96aaca9da7f733bb7fa7080d bytes=17
+length t-lfsr-a: reference=17 engine=17 denotation=17
+denotation t-lfsr-b: expected=a099aee40be4c195c667049db0f09d3b05a1ce0770c5c06778c53f36e3665cc5 actual=a099aee40be4c195c667049db0f09d3b05a1ce0770c5c06778c53f36e3665cc5 bytes=64
+length t-lfsr-b: reference=64 engine=64 denotation=64
+denotation t-affine: expected=67da5ca825d1261a8fbb89ce28a788d73f0fb6a6c26b670414ac8351056c5fcb actual=67da5ca825d1261a8fbb89ce28a788d73f0fb6a6c26b670414ac8351056c5fcb bytes=40
+length t-affine: reference=40 engine=40 denotation=40
+denotation t-affine-wrap: expected=97cb528fdf7a60c1105f4be4202b7aff891f73457bbadc593695a941d13792d8 actual=97cb528fdf7a60c1105f4be4202b7aff891f73457bbadc593695a941d13792d8 bytes=300
+length t-affine-wrap: reference=300 engine=300 denotation=300
+denotation t-pred-0: expected=044af0c28e2979da341c371fab9c69a498e0e29531b0f21746a83f041fc64bcd actual=044af0c28e2979da341c371fab9c69a498e0e29531b0f21746a83f041fc64bcd bytes=32
+length t-pred-0: reference=32 engine=32 denotation=32
+denotation t-pred-1: expected=ca9c8fb5964e9467a35f7c61faccaa4bedd7538d89d5cf4f78c0021778349ce0 actual=ca9c8fb5964e9467a35f7c61faccaa4bedd7538d89d5cf4f78c0021778349ce0 bytes=32
+length t-pred-1: reference=32 engine=32 denotation=32
+denotation t-pred-2: expected=c040abb40fa6e12ab2b59b25310d2ecbbe6b83b87fec952deba74031e0225a67 actual=c040abb40fa6e12ab2b59b25310d2ecbbe6b83b87fec952deba74031e0225a67 bytes=32
+length t-pred-2: reference=32 engine=32 denotation=32
+denotation t-pred-3-p1: expected=b37b2eaecdbf728f1f55f4f92fb97497088096ede2a8cd53e6838f89a675a451 actual=b37b2eaecdbf728f1f55f4f92fb97497088096ede2a8cd53e6838f89a675a451 bytes=32
+length t-pred-3-p1: reference=32 engine=32 denotation=32
+denotation t-pred-3-p5: expected=f45178b07452152b42aba8103700dff52ad945aba0da94313cd93fd947293669 actual=f45178b07452152b42aba8103700dff52ad945aba0da94313cd93fd947293669 bytes=32
+length t-pred-3-p5: reference=32 engine=32 denotation=32
+denotation t-pred-4-p3: expected=a0ce966cc96fcaa3f93b6660ba0baf63e16fab676a81dcac2512294ed2de8b58 actual=a0ce966cc96fcaa3f93b6660ba0baf63e16fab676a81dcac2512294ed2de8b58 bytes=32
+length t-pred-4-p3: reference=32 engine=32 denotation=32
+denotation t-pred-4-p64: expected=230698000d78c998f00449289b3435a89f8c0e075e2255c468e5dd0d39d196e4 actual=230698000d78c998f00449289b3435a89f8c0e075e2255c468e5dd0d39d196e4 bytes=32
+length t-pred-4-p64: reference=32 engine=32 denotation=32
+denotation t-pred-1-n1: expected=ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879 actual=ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879 bytes=1
+length t-pred-1-n1: reference=1 engine=1 denotation=1
+denotation t-pred-2-n1: expected=ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879 actual=ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879 bytes=1
+length t-pred-2-n1: reference=1 engine=1 denotation=1
+denotation t-pred-2-n2: expected=65c7c90a69c573a62a2c004c4c7df22151d1d79e4c8f5cffeff072bb4a32c30d actual=65c7c90a69c573a62a2c004c4c7df22151d1d79e4c8f5cffeff072bb4a32c30d bytes=2
+length t-pred-2-n2: reference=2 engine=2 denotation=2
+denotation t-nest-xor-slice-repeat: expected=96961d6c1f1f498bed94ee0e63a994fce9bf8d7bb6e0586fde23e59f55e003ac actual=96961d6c1f1f498bed94ee0e63a994fce9bf8d7bb6e0586fde23e59f55e003ac bytes=20
+length t-nest-xor-slice-repeat: reference=20 engine=20 denotation=20
+denotation t-nest-interleave-morph-lfsr: expected=22c103f45cf49f75f4095f2d49086c49ead9cb24198c7d4697f852829b96dae1 actual=22c103f45cf49f75f4095f2d49086c49ead9cb24198c7d4697f852829b96dae1 bytes=16
+length t-nest-interleave-morph-lfsr: reference=16 engine=16 denotation=16
+denotation t-nest-predictor-concat: expected=704f66fb7ea87f1dbb83f53dce2266391384cc6b4614e7d43224ab3a51241cc6 actual=704f66fb7ea87f1dbb83f53dce2266391384cc6b4614e7d43224ab3a51241cc6 bytes=32
+length t-nest-predictor-concat: reference=32 engine=32 denotation=32
+denotation t-nest-morph-slice-xor: expected=a3f65f2f10ee485b955c67c3f233fa6358386b64bc3f23d4d37fc2867a46bd6d actual=a3f65f2f10ee485b955c67c3f233fa6358386b64bc3f23d4d37fc2867a46bd6d bytes=10
+length t-nest-morph-slice-xor: reference=10 engine=10 denotation=10
+denotation t-nest-repeat-concat-morph9: expected=07deb82bef1613354f140ea3aa3d5f9d768b2fc9ad89643ceb795c489e3f154e actual=07deb82bef1613354f140ea3aa3d5f9d768b2fc9ad89643ceb795c489e3f154e bytes=35
+length t-nest-repeat-concat-morph9: reference=35 engine=35 denotation=35
+denotation t-deep-morph-chain: expected=3c07d184848727a22a4e3f44c8078c8b5ebb4c69ec5847ed579b4700d2317a3e actual=3c07d184848727a22a4e3f44c8078c8b5ebb4c69ec5847ed579b4700d2317a3e bytes=8
+length t-deep-morph-chain: reference=8 engine=8 denotation=8
+denotation+length: passed=94/94 (denotation and length rows)
+range: passed=607/607
+length.big t-big-repeat: reference=4611686018427387907 engine=4611686018427387907
+length.big t-big-zero: reference=4611686018427387905 engine=4611686018427387905
+length.big t-big-slice: reference=100 engine=100
+length.big t-big-affine: reference=64 engine=64
+length.big t-big-lfsr: reference=64 engine=64
+big terms (length + range): passed=27/27
+morph: passed=100/100
+predictor: passed=35/35
+lfsr: passed=98/98
+evaluation (stream/cursor/sink): passed=188/188
+length.stored: passed=48/48
+limits: passed=5/5
+determinism: passed=2/2
+independence: files=5 violations=0 tree_sha256=a758ebf21a3ecced9142a79fb7e4c90eaab2f635c888b0de17440194f7e5add7
+independence: passed=1/1
+coverage: passed=3/3
+totals: checks=1321 pass=1321 fail=0
+RESULT: PASS (C03 TERM)
