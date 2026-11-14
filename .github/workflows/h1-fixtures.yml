@@ -194,7 +194,15 @@ jobs:
             specs_and_reports/v2/evidence/H1/SHA256SUMS \
             REPORT/HARNESS/H1-FIXTURES-REPORT.md
           bundle="$(base64 -w0 /tmp/h1-evidence-bundle.tar.gz)"
-          echo "::notice title=H1 evidence bundle::$bundle"
+          chunk_size=3500
+          index=0
+          while [ -n "$bundle" ]; do
+            chunk="${bundle:0:chunk_size}"
+            bundle="${bundle:chunk_size}"
+            printf -v label '%02d' "$index"
+            echo "::notice title=H1 evidence chunk $label::$chunk"
+            index=$((index + 1))
+          done
 
       - name: Verify committed evidence when present
         run: |
