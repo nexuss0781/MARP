@@ -227,7 +227,7 @@ evaluation (stream/cursor/sink): passed=188/188
 length.stored: passed=48/48
 limits: passed=5/5
 determinism: passed=2/2
-independence: files=5 violations=0 tree_sha256=a758ebf21a3ecced9142a79fb7e4c90eaab2f635c888b0de17440194f7e5add7
+independence: files=8 violations=0 tree_sha256=416da5cab0f3d0878ff62a7c1988831680f16b43cb2f6a4a26b6ec092839b5e1
 independence: passed=1/1
 coverage: passed=3/3
 totals: checks=1321 pass=1321 fail=0
