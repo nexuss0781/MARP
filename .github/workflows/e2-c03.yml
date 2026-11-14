@@ -192,7 +192,8 @@ jobs:
           cd engine
           ./bin/e2_c03_gate --root .. --write-evidence
           diff -u /tmp/committed-C03-TERM.tsv ../specs_and_reports/v2/gates/C03-TERM.tsv
-          sha256sum -c ../specs_and_reports/v2/evidence/E2/SHA256SUMS
+          cd ..
+          sha256sum -c specs_and_reports/v2/evidence/E2/SHA256SUMS
           echo "PASS: primary C03 evidence restored and self-consistent"
 
       - name: Upload C03 evidence artifact
