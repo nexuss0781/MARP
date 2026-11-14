@@ -1,0 +1,101 @@
+# E2 / C04 CANON — isolated build.
+#
+# Includes the base engine Makefile only for the project warning flags; it does
+# not modify it and does not link its gate/harness objects.  Only E1 sources
+# (BigInt, length, SHA-256), the C03 sources (well-formedness, denotation) and
+# the C04 sources are compiled here.  No E3-E7 object is part of any target in
+# this file.
+include Makefile
+
+.DEFAULT_GOAL := c04-all
+
+# GoogleTest is used by the C04 unit tests only (recorded third-party allowance).
+C04_GTEST_ROOT  ?= /tmp/googletest
+C04_GTEST_LIBS  := $(shell pkg-config --libs gtest gtest_main 2>/dev/null || echo "-L$(C04_GTEST_ROOT)/build/lib -lgtest -lgtest_main")
+C04_GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null || echo "-isystem $(C04_GTEST_ROOT)/googletest/include -isystem /usr/local/include")
+
+C04_INC := -I. -I../include -Isrc/e2
+
+# -O2 is E2 §12.4's build level; it is listed last so it wins over the base -O3.
+C04_CXXFLAGS := $(CXXFLAGS) $(C04_INC) -O2
+C04_SANFLAGS := $(SANFLAGS) $(C04_INC)
+
+C04_E1_SRCS := src/e1_bigint.cpp src/e1_length.cpp src/e1_sha256.cpp
+C04_E2_TERM_SRCS := src/e2/e2_term.cpp
+C04_CANON_SRCS := src/e2/e2_canon.cpp
+
+C04_LIB_SRCS := $(C04_E1_SRCS) $(C04_E2_TERM_SRCS) $(C04_CANON_SRCS)
+C04_LIB_OBJS := $(patsubst src/%.cpp,obj/c04/%.o,$(C04_LIB_SRCS))
+
+C04_GATE_SRC := src/e2/e2_c04_gate.cpp
+C04_GATE_OBJ := obj/c04_gate/e2_c04_gate.o
+C04_TEST_SRC := tests/e2/e2_canon_test.cpp
+C04_TEST_OBJ := obj/c04_tests/e2_canon_test.o
+
+.PHONY: c04-all c04-test c04-test-san c04-evidence c04-independence c04-check c04-clean
+
+c04-all: bin/e2_c04_gate bin/e2_c04_tests
+
+obj/c04/e1_%.o: src/e1_%.cpp ../include/mapr/e1_%.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C04_CXXFLAGS) -c $< -o $@
+
+obj/c04/e2/%.o: src/e2/%.cpp ../include/mapr/e2/%.hpp ../include/mapr/e2/e2_term.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C04_CXXFLAGS) -c $< -o $@
+
+obj/c04_gate/%.o: src/e2/%.cpp ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp src/e2/c03_build.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C04_CXXFLAGS) -c $< -o $@
+
+obj/c04_tests/%.o: tests/e2/%.cpp ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp src/e2/c03_build.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C04_CXXFLAGS) $(C04_GTEST_CFLAGS) -c $< -o $@
+
+bin/e2_c04_gate: $(C04_LIB_OBJS) $(C04_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C04_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e2_c04_tests: $(C04_LIB_OBJS) $(C04_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C04_CXXFLAGS) -o $@ $^ $(C04_GTEST_LIBS) -pthread
+
+bin/e2_c04_tests_san: $(C04_LIB_SRCS) $(C04_TEST_SRC) src/e2/c03_build.hpp
+	@mkdir -p bin
+	$(CXX) $(C04_SANFLAGS) $(C04_GTEST_CFLAGS) -o $@ $(C04_LIB_SRCS) $(C04_TEST_SRC) $(C04_GTEST_LIBS) -pthread
+
+bin/e2_c04_gate_san: $(C04_LIB_SRCS) $(C04_GATE_SRC) src/e2/c03_build.hpp
+	@mkdir -p bin
+	$(CXX) $(C04_SANFLAGS) -o $@ $(C04_LIB_SRCS) $(C04_GATE_SRC) -pthread
+
+c04-test: bin/e2_c04_tests
+	./bin/e2_c04_tests
+
+c04-test-san: bin/e2_c04_tests_san
+	./bin/e2_c04_tests_san
+
+c04-evidence: bin/e2_c04_gate
+	./bin/e2_c04_gate --root .. --write-evidence
+
+# E2 may not link E3-E7.  Checked at source level (includes) and at symbol
+# level (nothing from the wire/discovery/CLI layers may appear in the C04
+# objects).
+c04-independence: $(C04_LIB_OBJS) $(C04_GATE_OBJ)
+	@echo "Checking C04 sources for forbidden E3-E7 / harness includes..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|dag|pipeline|mau_translate))' src/e2/e2_canon.cpp src/e2/e2_c04_gate.cpp ../include/mapr/e2/e2_canon.hpp ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp; then \
+		echo "FAIL: forbidden include in C04 sources"; exit 1; \
+	fi
+	@echo "Checking C04 objects for forbidden symbols..."
+	@nm -C $(C04_LIB_OBJS) > /tmp/e2_c04_nm.txt
+	@if grep -E 'mapr::(container|Encoder|Decoder|Dag)::|marp::harness::|mapr::v3|mapr::v4|mapr::v5|mapr::v6|mapr::v7' /tmp/e2_c04_nm.txt; then \
+		rm -f /tmp/e2_c04_nm.txt; echo "FAIL: forbidden symbol linked into C04 objects"; exit 1; \
+	fi
+	@rm -f /tmp/e2_c04_nm.txt
+	@echo "PASS: C04 independence verified (source grep + nm)"
+
+c04-check: c04-independence
+	@echo "PASS: C04 structural checks complete"
+
+c04-clean:
+	rm -rf obj/c04 obj/c04_gate obj/c04_tests
+	rm -f bin/e2_c04_gate bin/e2_c04_gate_san bin/e2_c04_tests bin/e2_c04_tests_san

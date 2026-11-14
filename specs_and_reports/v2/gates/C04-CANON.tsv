@@ -1,0 +1,404 @@
+check	corpus	item_id	input_sha256	expected	actual	verdict	log
+canon	T-KAT	t-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	denotation preserved (0 bytes)	equal	PASS	denotation
+canon	T-KAT	t-atom1	4cac0a5cca7ffb251705fc3b7e4a416c6e7983f20e1850557ad69eebae66cf3c	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-atom1	4cac0a5cca7ffb251705fc3b7e4a416c6e7983f20e1850557ad69eebae66cf3c	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-atom1	4cac0a5cca7ffb251705fc3b7e4a416c6e7983f20e1850557ad69eebae66cf3c	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-atom1	4cac0a5cca7ffb251705fc3b7e4a416c6e7983f20e1850557ad69eebae66cf3c	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-atom1	4cac0a5cca7ffb251705fc3b7e4a416c6e7983f20e1850557ad69eebae66cf3c	denotation preserved (1 bytes)	equal	PASS	denotation
+canon	T-KAT	t-atom16	ed690fa4d7d74e5c78a34b95267445c43b4b945edebf0ab642f1fd7e5d6ce09c	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-atom16	ed690fa4d7d74e5c78a34b95267445c43b4b945edebf0ab642f1fd7e5d6ce09c	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-atom16	ed690fa4d7d74e5c78a34b95267445c43b4b945edebf0ab642f1fd7e5d6ce09c	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-atom16	ed690fa4d7d74e5c78a34b95267445c43b4b945edebf0ab642f1fd7e5d6ce09c	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-atom16	ed690fa4d7d74e5c78a34b95267445c43b4b945edebf0ab642f1fd7e5d6ce09c	denotation preserved (16 bytes)	equal	PASS	denotation
+canon	T-KAT	t-atom32	2dc827d9d61f8dffecbd5d05a991a43c82dbc1a00cbc31c3a6a70815007c4014	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-atom32	2dc827d9d61f8dffecbd5d05a991a43c82dbc1a00cbc31c3a6a70815007c4014	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-atom32	2dc827d9d61f8dffecbd5d05a991a43c82dbc1a00cbc31c3a6a70815007c4014	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-atom32	2dc827d9d61f8dffecbd5d05a991a43c82dbc1a00cbc31c3a6a70815007c4014	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-atom32	2dc827d9d61f8dffecbd5d05a991a43c82dbc1a00cbc31c3a6a70815007c4014	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-zero0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-zero0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-zero0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-zero0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-zero0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	denotation preserved (0 bytes)	equal	PASS	denotation
+canon	T-KAT	t-zero5	d6b55dee375fa93a8551036c841bb10dd65afd2043a3c809fc76478bdf51776d	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-zero5	d6b55dee375fa93a8551036c841bb10dd65afd2043a3c809fc76478bdf51776d	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-zero5	d6b55dee375fa93a8551036c841bb10dd65afd2043a3c809fc76478bdf51776d	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-zero5	d6b55dee375fa93a8551036c841bb10dd65afd2043a3c809fc76478bdf51776d	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-zero5	d6b55dee375fa93a8551036c841bb10dd65afd2043a3c809fc76478bdf51776d	denotation preserved (5 bytes)	equal	PASS	denotation
+canon	T-KAT	t-concat2	7fda38dfb5852357ddecfe1b6e8dd1ac6c32a8cdbfc1adbb72b68816118e4b2f	canon ok (nodes 3 -> 3)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-concat2	7fda38dfb5852357ddecfe1b6e8dd1ac6c32a8cdbfc1adbb72b68816118e4b2f	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-concat2	7fda38dfb5852357ddecfe1b6e8dd1ac6c32a8cdbfc1adbb72b68816118e4b2f	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-concat2	7fda38dfb5852357ddecfe1b6e8dd1ac6c32a8cdbfc1adbb72b68816118e4b2f	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-concat2	7fda38dfb5852357ddecfe1b6e8dd1ac6c32a8cdbfc1adbb72b68816118e4b2f	denotation preserved (20 bytes)	equal	PASS	denotation
+canon	T-KAT	t-concat3	46ba0c32256446df8af65f24f3112d1ad405fa7288863343f255da9798aecf9c	canon ok (nodes 4 -> 3)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-concat3	46ba0c32256446df8af65f24f3112d1ad405fa7288863343f255da9798aecf9c	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-concat3	46ba0c32256446df8af65f24f3112d1ad405fa7288863343f255da9798aecf9c	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-concat3	46ba0c32256446df8af65f24f3112d1ad405fa7288863343f255da9798aecf9c	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-concat3	46ba0c32256446df8af65f24f3112d1ad405fa7288863343f255da9798aecf9c	denotation preserved (50 bytes)	equal	PASS	denotation
+canon	T-KAT	t-repeat-0-0	b838497305e79f81857f407bb41646b8196b8b026fbd7464565922c9ab7b45de	canon ok (nodes 2 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-repeat-0-0	b838497305e79f81857f407bb41646b8196b8b026fbd7464565922c9ab7b45de	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-repeat-0-0	b838497305e79f81857f407bb41646b8196b8b026fbd7464565922c9ab7b45de	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-repeat-0-0	b838497305e79f81857f407bb41646b8196b8b026fbd7464565922c9ab7b45de	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-repeat-0-0	b838497305e79f81857f407bb41646b8196b8b026fbd7464565922c9ab7b45de	denotation preserved (0 bytes)	equal	PASS	denotation
+canon	T-KAT	t-repeat-3-5	f7f555551f4081488b195fae84fd714e515a550bfa6ea7ba38ff0f5adacea750	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-repeat-3-5	f7f555551f4081488b195fae84fd714e515a550bfa6ea7ba38ff0f5adacea750	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-repeat-3-5	f7f555551f4081488b195fae84fd714e515a550bfa6ea7ba38ff0f5adacea750	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-repeat-3-5	f7f555551f4081488b195fae84fd714e515a550bfa6ea7ba38ff0f5adacea750	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-repeat-3-5	f7f555551f4081488b195fae84fd714e515a550bfa6ea7ba38ff0f5adacea750	denotation preserved (53 bytes)	equal	PASS	denotation
+canon	T-KAT	t-slice	1f550597cee8b814f66143c97f84458a1c679a41adfeca96dd357f5d2153d93b	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-slice	1f550597cee8b814f66143c97f84458a1c679a41adfeca96dd357f5d2153d93b	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-slice	1f550597cee8b814f66143c97f84458a1c679a41adfeca96dd357f5d2153d93b	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-slice	1f550597cee8b814f66143c97f84458a1c679a41adfeca96dd357f5d2153d93b	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-slice	1f550597cee8b814f66143c97f84458a1c679a41adfeca96dd357f5d2153d93b	denotation preserved (9 bytes)	equal	PASS	denotation
+canon	T-KAT	t-slice-full	8e248134dd009ced121d00155ba078d634dbfcc1b0fead5fb9203ff79609bcbf	canon ok (nodes 2 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-slice-full	8e248134dd009ced121d00155ba078d634dbfcc1b0fead5fb9203ff79609bcbf	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-slice-full	8e248134dd009ced121d00155ba078d634dbfcc1b0fead5fb9203ff79609bcbf	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-slice-full	8e248134dd009ced121d00155ba078d634dbfcc1b0fead5fb9203ff79609bcbf	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-slice-full	8e248134dd009ced121d00155ba078d634dbfcc1b0fead5fb9203ff79609bcbf	denotation preserved (16 bytes)	equal	PASS	denotation
+canon	T-KAT	t-slice-empty	27b35c209f6abdfda3bb0294123b95f340cff61d651f1b3762462acc99ce3c59	canon ok (nodes 2 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-slice-empty	27b35c209f6abdfda3bb0294123b95f340cff61d651f1b3762462acc99ce3c59	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-slice-empty	27b35c209f6abdfda3bb0294123b95f340cff61d651f1b3762462acc99ce3c59	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-slice-empty	27b35c209f6abdfda3bb0294123b95f340cff61d651f1b3762462acc99ce3c59	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-slice-empty	27b35c209f6abdfda3bb0294123b95f340cff61d651f1b3762462acc99ce3c59	denotation preserved (0 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph1	65c521f2b3676db0d4f52545ad6e7fbedda9f682ba1df4c4e08bdf9f171e3837	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph1	65c521f2b3676db0d4f52545ad6e7fbedda9f682ba1df4c4e08bdf9f171e3837	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph1	65c521f2b3676db0d4f52545ad6e7fbedda9f682ba1df4c4e08bdf9f171e3837	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph1	65c521f2b3676db0d4f52545ad6e7fbedda9f682ba1df4c4e08bdf9f171e3837	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph1	65c521f2b3676db0d4f52545ad6e7fbedda9f682ba1df4c4e08bdf9f171e3837	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph2	ce810ede6c48e39d8388580152b1e980f92fd56e63b173d57feebc5ca1579c59	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph2	ce810ede6c48e39d8388580152b1e980f92fd56e63b173d57feebc5ca1579c59	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph2	ce810ede6c48e39d8388580152b1e980f92fd56e63b173d57feebc5ca1579c59	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph2	ce810ede6c48e39d8388580152b1e980f92fd56e63b173d57feebc5ca1579c59	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph2	ce810ede6c48e39d8388580152b1e980f92fd56e63b173d57feebc5ca1579c59	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph3	21ad993ba540f9a21f460dd6de8d906f2c1e9b9c0ae2bc781a4096264f6d3047	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph3	21ad993ba540f9a21f460dd6de8d906f2c1e9b9c0ae2bc781a4096264f6d3047	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph3	21ad993ba540f9a21f460dd6de8d906f2c1e9b9c0ae2bc781a4096264f6d3047	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph3	21ad993ba540f9a21f460dd6de8d906f2c1e9b9c0ae2bc781a4096264f6d3047	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph3	21ad993ba540f9a21f460dd6de8d906f2c1e9b9c0ae2bc781a4096264f6d3047	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph4	5fac1a25ec2cbeef704cb28fa486aaf42d4c25b10ac4f6091e1174a8a1da3f6f	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph4	5fac1a25ec2cbeef704cb28fa486aaf42d4c25b10ac4f6091e1174a8a1da3f6f	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph4	5fac1a25ec2cbeef704cb28fa486aaf42d4c25b10ac4f6091e1174a8a1da3f6f	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph4	5fac1a25ec2cbeef704cb28fa486aaf42d4c25b10ac4f6091e1174a8a1da3f6f	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph4	5fac1a25ec2cbeef704cb28fa486aaf42d4c25b10ac4f6091e1174a8a1da3f6f	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph5	54de3c3b709877c006ff810ef95c58ce78abade1e61bf62d51f87ec961bdeda2	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph5	54de3c3b709877c006ff810ef95c58ce78abade1e61bf62d51f87ec961bdeda2	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph5	54de3c3b709877c006ff810ef95c58ce78abade1e61bf62d51f87ec961bdeda2	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph5	54de3c3b709877c006ff810ef95c58ce78abade1e61bf62d51f87ec961bdeda2	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph5	54de3c3b709877c006ff810ef95c58ce78abade1e61bf62d51f87ec961bdeda2	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph6	e9022b599767b5563d59a19f5ec4afddf615c16a1fa6d4fefaa34ceb9701f1d9	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph6	e9022b599767b5563d59a19f5ec4afddf615c16a1fa6d4fefaa34ceb9701f1d9	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph6	e9022b599767b5563d59a19f5ec4afddf615c16a1fa6d4fefaa34ceb9701f1d9	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph6	e9022b599767b5563d59a19f5ec4afddf615c16a1fa6d4fefaa34ceb9701f1d9	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph6	e9022b599767b5563d59a19f5ec4afddf615c16a1fa6d4fefaa34ceb9701f1d9	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph7	14690daa3caf7e54f86988b422fe43027822ebb93a3f41886f46d91ae1621142	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph7	14690daa3caf7e54f86988b422fe43027822ebb93a3f41886f46d91ae1621142	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph7	14690daa3caf7e54f86988b422fe43027822ebb93a3f41886f46d91ae1621142	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph7	14690daa3caf7e54f86988b422fe43027822ebb93a3f41886f46d91ae1621142	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph7	14690daa3caf7e54f86988b422fe43027822ebb93a3f41886f46d91ae1621142	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph8	8b6dbd4f405b0454d2450655a89c18b6b68a38df350e37481cf10af09b477176	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph8	8b6dbd4f405b0454d2450655a89c18b6b68a38df350e37481cf10af09b477176	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph8	8b6dbd4f405b0454d2450655a89c18b6b68a38df350e37481cf10af09b477176	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph8	8b6dbd4f405b0454d2450655a89c18b6b68a38df350e37481cf10af09b477176	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph8	8b6dbd4f405b0454d2450655a89c18b6b68a38df350e37481cf10af09b477176	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-morph9	5cd0f839fa27ec6555f31a20858c0aff608a549b765da30a2aed999921df2a1b	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-morph9	5cd0f839fa27ec6555f31a20858c0aff608a549b765da30a2aed999921df2a1b	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-morph9	5cd0f839fa27ec6555f31a20858c0aff608a549b765da30a2aed999921df2a1b	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-morph9	5cd0f839fa27ec6555f31a20858c0aff608a549b765da30a2aed999921df2a1b	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-morph9	5cd0f839fa27ec6555f31a20858c0aff608a549b765da30a2aed999921df2a1b	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-xor	d9a776e191c2c614e950d459d4fc823171b985a4a78aed1201db790e79377163	canon ok (nodes 3 -> 3)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-xor	d9a776e191c2c614e950d459d4fc823171b985a4a78aed1201db790e79377163	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-xor	d9a776e191c2c614e950d459d4fc823171b985a4a78aed1201db790e79377163	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-xor	d9a776e191c2c614e950d459d4fc823171b985a4a78aed1201db790e79377163	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-xor	d9a776e191c2c614e950d459d4fc823171b985a4a78aed1201db790e79377163	denotation preserved (16 bytes)	equal	PASS	denotation
+canon	T-KAT	t-interleave-2-1	82516c45807fd7d4ac5ce1c5bd6178120d4a492ac8430aef55dff1b8e5d8d593	canon ok (nodes 3 -> 3)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-interleave-2-1	82516c45807fd7d4ac5ce1c5bd6178120d4a492ac8430aef55dff1b8e5d8d593	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-interleave-2-1	82516c45807fd7d4ac5ce1c5bd6178120d4a492ac8430aef55dff1b8e5d8d593	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-interleave-2-1	82516c45807fd7d4ac5ce1c5bd6178120d4a492ac8430aef55dff1b8e5d8d593	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-interleave-2-1	82516c45807fd7d4ac5ce1c5bd6178120d4a492ac8430aef55dff1b8e5d8d593	denotation preserved (16 bytes)	equal	PASS	denotation
+canon	T-KAT	t-interleave-2-2	3aee9d9f63558b426ab3a31aef65d8041aa88e6b336ac2ebd1b5ee8f70b46cdd	canon ok (nodes 3 -> 3)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-interleave-2-2	3aee9d9f63558b426ab3a31aef65d8041aa88e6b336ac2ebd1b5ee8f70b46cdd	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-interleave-2-2	3aee9d9f63558b426ab3a31aef65d8041aa88e6b336ac2ebd1b5ee8f70b46cdd	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-interleave-2-2	3aee9d9f63558b426ab3a31aef65d8041aa88e6b336ac2ebd1b5ee8f70b46cdd	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-interleave-2-2	3aee9d9f63558b426ab3a31aef65d8041aa88e6b336ac2ebd1b5ee8f70b46cdd	denotation preserved (16 bytes)	equal	PASS	denotation
+canon	T-KAT	t-interleave-2-3-stride	4612a7b167106a18ae5eda1539284cd429a43a892240ef0955f52a753f5f8ecc	canon ok (nodes 3 -> 3)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-interleave-2-3-stride	4612a7b167106a18ae5eda1539284cd429a43a892240ef0955f52a753f5f8ecc	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-interleave-2-3-stride	4612a7b167106a18ae5eda1539284cd429a43a892240ef0955f52a753f5f8ecc	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-interleave-2-3-stride	4612a7b167106a18ae5eda1539284cd429a43a892240ef0955f52a753f5f8ecc	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-interleave-2-3-stride	4612a7b167106a18ae5eda1539284cd429a43a892240ef0955f52a753f5f8ecc	denotation preserved (18 bytes)	equal	PASS	denotation
+canon	T-KAT	t-interleave-3-2	ec4681290fefb1b05ed6ee75da91c6bcf97789d55fd9f859784277dec878c112	canon ok (nodes 4 -> 4)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-interleave-3-2	ec4681290fefb1b05ed6ee75da91c6bcf97789d55fd9f859784277dec878c112	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-interleave-3-2	ec4681290fefb1b05ed6ee75da91c6bcf97789d55fd9f859784277dec878c112	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-interleave-3-2	ec4681290fefb1b05ed6ee75da91c6bcf97789d55fd9f859784277dec878c112	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-interleave-3-2	ec4681290fefb1b05ed6ee75da91c6bcf97789d55fd9f859784277dec878c112	denotation preserved (24 bytes)	equal	PASS	denotation
+canon	T-KAT	t-lfsr-a	44be922a7680f3bf63c54beac492face3bbe609653aa20cf8a39bd9fae5bb4d0	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-lfsr-a	44be922a7680f3bf63c54beac492face3bbe609653aa20cf8a39bd9fae5bb4d0	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-lfsr-a	44be922a7680f3bf63c54beac492face3bbe609653aa20cf8a39bd9fae5bb4d0	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-lfsr-a	44be922a7680f3bf63c54beac492face3bbe609653aa20cf8a39bd9fae5bb4d0	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-lfsr-a	44be922a7680f3bf63c54beac492face3bbe609653aa20cf8a39bd9fae5bb4d0	denotation preserved (17 bytes)	equal	PASS	denotation
+canon	T-KAT	t-lfsr-b	a05b602d3eabf200593f4cdb0219845914ca1be93941057babb783f756861db5	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-lfsr-b	a05b602d3eabf200593f4cdb0219845914ca1be93941057babb783f756861db5	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-lfsr-b	a05b602d3eabf200593f4cdb0219845914ca1be93941057babb783f756861db5	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-lfsr-b	a05b602d3eabf200593f4cdb0219845914ca1be93941057babb783f756861db5	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-lfsr-b	a05b602d3eabf200593f4cdb0219845914ca1be93941057babb783f756861db5	denotation preserved (64 bytes)	equal	PASS	denotation
+canon	T-KAT	t-affine	f8177ab8bf4ab84d48a6f94352cf55ff88523cfa4360d88864139732fe145b1a	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-affine	f8177ab8bf4ab84d48a6f94352cf55ff88523cfa4360d88864139732fe145b1a	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-affine	f8177ab8bf4ab84d48a6f94352cf55ff88523cfa4360d88864139732fe145b1a	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-affine	f8177ab8bf4ab84d48a6f94352cf55ff88523cfa4360d88864139732fe145b1a	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-affine	f8177ab8bf4ab84d48a6f94352cf55ff88523cfa4360d88864139732fe145b1a	denotation preserved (40 bytes)	equal	PASS	denotation
+canon	T-KAT	t-affine-wrap	af928f6a65d00a8792359cb917ac01a545cc991f34fc422c20cdc303a79b8378	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-affine-wrap	af928f6a65d00a8792359cb917ac01a545cc991f34fc422c20cdc303a79b8378	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-affine-wrap	af928f6a65d00a8792359cb917ac01a545cc991f34fc422c20cdc303a79b8378	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-affine-wrap	af928f6a65d00a8792359cb917ac01a545cc991f34fc422c20cdc303a79b8378	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-affine-wrap	af928f6a65d00a8792359cb917ac01a545cc991f34fc422c20cdc303a79b8378	denotation preserved (300 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-0	8b883faa5a082cdb3274f66d658ab68cbdee060d28a79748c42ed54aa18d2503	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-0	8b883faa5a082cdb3274f66d658ab68cbdee060d28a79748c42ed54aa18d2503	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-0	8b883faa5a082cdb3274f66d658ab68cbdee060d28a79748c42ed54aa18d2503	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-0	8b883faa5a082cdb3274f66d658ab68cbdee060d28a79748c42ed54aa18d2503	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-0	8b883faa5a082cdb3274f66d658ab68cbdee060d28a79748c42ed54aa18d2503	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-1	b117a8cba8ee1a75978d19996823e891004b3cc162211c3e5199cb2ca42db5b1	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-1	b117a8cba8ee1a75978d19996823e891004b3cc162211c3e5199cb2ca42db5b1	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-1	b117a8cba8ee1a75978d19996823e891004b3cc162211c3e5199cb2ca42db5b1	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-1	b117a8cba8ee1a75978d19996823e891004b3cc162211c3e5199cb2ca42db5b1	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-1	b117a8cba8ee1a75978d19996823e891004b3cc162211c3e5199cb2ca42db5b1	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-2	b6c082af0b0a8fa1f31227ce847faeffb50e37922136d04f561ea92ba82cb395	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-2	b6c082af0b0a8fa1f31227ce847faeffb50e37922136d04f561ea92ba82cb395	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-2	b6c082af0b0a8fa1f31227ce847faeffb50e37922136d04f561ea92ba82cb395	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-2	b6c082af0b0a8fa1f31227ce847faeffb50e37922136d04f561ea92ba82cb395	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-2	b6c082af0b0a8fa1f31227ce847faeffb50e37922136d04f561ea92ba82cb395	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-3-p1	38f51721dc96ed9940b40879636121057dabd3044a17ee95572b13b48de69d44	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-3-p1	38f51721dc96ed9940b40879636121057dabd3044a17ee95572b13b48de69d44	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-3-p1	38f51721dc96ed9940b40879636121057dabd3044a17ee95572b13b48de69d44	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-3-p1	38f51721dc96ed9940b40879636121057dabd3044a17ee95572b13b48de69d44	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-3-p1	38f51721dc96ed9940b40879636121057dabd3044a17ee95572b13b48de69d44	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-3-p5	ca1ccfac8d0a961b917700098cf029d6252bf7135d7e87056710c6a0b07ca5ed	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-3-p5	ca1ccfac8d0a961b917700098cf029d6252bf7135d7e87056710c6a0b07ca5ed	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-3-p5	ca1ccfac8d0a961b917700098cf029d6252bf7135d7e87056710c6a0b07ca5ed	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-3-p5	ca1ccfac8d0a961b917700098cf029d6252bf7135d7e87056710c6a0b07ca5ed	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-3-p5	ca1ccfac8d0a961b917700098cf029d6252bf7135d7e87056710c6a0b07ca5ed	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-4-p3	c99d339700b291e27c7cf0d63bfad2df41473dc66f171a56ed378a33c87b769d	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-4-p3	c99d339700b291e27c7cf0d63bfad2df41473dc66f171a56ed378a33c87b769d	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-4-p3	c99d339700b291e27c7cf0d63bfad2df41473dc66f171a56ed378a33c87b769d	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-4-p3	c99d339700b291e27c7cf0d63bfad2df41473dc66f171a56ed378a33c87b769d	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-4-p3	c99d339700b291e27c7cf0d63bfad2df41473dc66f171a56ed378a33c87b769d	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-4-p64	69a310694810847b6a14586cf0a051f5621074bc174ab8b180acbef9ca313d89	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-4-p64	69a310694810847b6a14586cf0a051f5621074bc174ab8b180acbef9ca313d89	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-4-p64	69a310694810847b6a14586cf0a051f5621074bc174ab8b180acbef9ca313d89	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-4-p64	69a310694810847b6a14586cf0a051f5621074bc174ab8b180acbef9ca313d89	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-4-p64	69a310694810847b6a14586cf0a051f5621074bc174ab8b180acbef9ca313d89	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-1-n1	1ef668e239d2dc8fe018be5bffd092cd5bd096e1b373981a2d23d4681da318f6	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-1-n1	1ef668e239d2dc8fe018be5bffd092cd5bd096e1b373981a2d23d4681da318f6	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-1-n1	1ef668e239d2dc8fe018be5bffd092cd5bd096e1b373981a2d23d4681da318f6	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-1-n1	1ef668e239d2dc8fe018be5bffd092cd5bd096e1b373981a2d23d4681da318f6	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-1-n1	1ef668e239d2dc8fe018be5bffd092cd5bd096e1b373981a2d23d4681da318f6	denotation preserved (1 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-2-n1	b26e51d443e13db65ab9c5c90b0cf3a0432138ab010444fbd5f3ddfe727feb00	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-2-n1	b26e51d443e13db65ab9c5c90b0cf3a0432138ab010444fbd5f3ddfe727feb00	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-2-n1	b26e51d443e13db65ab9c5c90b0cf3a0432138ab010444fbd5f3ddfe727feb00	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-2-n1	b26e51d443e13db65ab9c5c90b0cf3a0432138ab010444fbd5f3ddfe727feb00	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-2-n1	b26e51d443e13db65ab9c5c90b0cf3a0432138ab010444fbd5f3ddfe727feb00	denotation preserved (1 bytes)	equal	PASS	denotation
+canon	T-KAT	t-pred-2-n2	b4449eb7dfcbadc9771e84b6dd9c1220c045b649f2f86e604f6ab2df7182e8ce	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-pred-2-n2	b4449eb7dfcbadc9771e84b6dd9c1220c045b649f2f86e604f6ab2df7182e8ce	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-pred-2-n2	b4449eb7dfcbadc9771e84b6dd9c1220c045b649f2f86e604f6ab2df7182e8ce	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-pred-2-n2	b4449eb7dfcbadc9771e84b6dd9c1220c045b649f2f86e604f6ab2df7182e8ce	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-pred-2-n2	b4449eb7dfcbadc9771e84b6dd9c1220c045b649f2f86e604f6ab2df7182e8ce	denotation preserved (2 bytes)	equal	PASS	denotation
+canon	T-KAT	t-nest-xor-slice-repeat	e83aff6ac50c6507737fea78a911171a97af03acbe7ea1294508dde6f8c3d19b	canon ok (nodes 5 -> 5)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-nest-xor-slice-repeat	e83aff6ac50c6507737fea78a911171a97af03acbe7ea1294508dde6f8c3d19b	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-nest-xor-slice-repeat	e83aff6ac50c6507737fea78a911171a97af03acbe7ea1294508dde6f8c3d19b	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-nest-xor-slice-repeat	e83aff6ac50c6507737fea78a911171a97af03acbe7ea1294508dde6f8c3d19b	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-nest-xor-slice-repeat	e83aff6ac50c6507737fea78a911171a97af03acbe7ea1294508dde6f8c3d19b	denotation preserved (20 bytes)	equal	PASS	denotation
+canon	T-KAT	t-nest-interleave-morph-lfsr	62b154f7820a9573b928272f0df997f28a0af76ee4985ac9917ad741cae1a2e8	canon ok (nodes 4 -> 4)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-nest-interleave-morph-lfsr	62b154f7820a9573b928272f0df997f28a0af76ee4985ac9917ad741cae1a2e8	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-nest-interleave-morph-lfsr	62b154f7820a9573b928272f0df997f28a0af76ee4985ac9917ad741cae1a2e8	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-nest-interleave-morph-lfsr	62b154f7820a9573b928272f0df997f28a0af76ee4985ac9917ad741cae1a2e8	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-nest-interleave-morph-lfsr	62b154f7820a9573b928272f0df997f28a0af76ee4985ac9917ad741cae1a2e8	denotation preserved (16 bytes)	equal	PASS	denotation
+canon	T-KAT	t-nest-predictor-concat	6db4e532daad7ca3d4041e880761b4ff0034c7d1be7ccd8eb8beaece2b4032de	canon ok (nodes 4 -> 4)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-nest-predictor-concat	6db4e532daad7ca3d4041e880761b4ff0034c7d1be7ccd8eb8beaece2b4032de	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-nest-predictor-concat	6db4e532daad7ca3d4041e880761b4ff0034c7d1be7ccd8eb8beaece2b4032de	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-nest-predictor-concat	6db4e532daad7ca3d4041e880761b4ff0034c7d1be7ccd8eb8beaece2b4032de	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-nest-predictor-concat	6db4e532daad7ca3d4041e880761b4ff0034c7d1be7ccd8eb8beaece2b4032de	denotation preserved (32 bytes)	equal	PASS	denotation
+canon	T-KAT	t-nest-morph-slice-xor	f3aeb5e43c8afb4b090bcc154b52e980fb91888a738392a1038268c730ec24de	canon ok (nodes 5 -> 5)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-nest-morph-slice-xor	f3aeb5e43c8afb4b090bcc154b52e980fb91888a738392a1038268c730ec24de	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-nest-morph-slice-xor	f3aeb5e43c8afb4b090bcc154b52e980fb91888a738392a1038268c730ec24de	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-nest-morph-slice-xor	f3aeb5e43c8afb4b090bcc154b52e980fb91888a738392a1038268c730ec24de	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-nest-morph-slice-xor	f3aeb5e43c8afb4b090bcc154b52e980fb91888a738392a1038268c730ec24de	denotation preserved (10 bytes)	equal	PASS	denotation
+canon	T-KAT	t-nest-repeat-concat-morph9	67a4f743dc643d22bd8fe0375c29337f8d9d7aba5dc121fc098b2faf3366c408	canon ok (nodes 5 -> 5)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-nest-repeat-concat-morph9	67a4f743dc643d22bd8fe0375c29337f8d9d7aba5dc121fc098b2faf3366c408	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-nest-repeat-concat-morph9	67a4f743dc643d22bd8fe0375c29337f8d9d7aba5dc121fc098b2faf3366c408	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-nest-repeat-concat-morph9	67a4f743dc643d22bd8fe0375c29337f8d9d7aba5dc121fc098b2faf3366c408	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-nest-repeat-concat-morph9	67a4f743dc643d22bd8fe0375c29337f8d9d7aba5dc121fc098b2faf3366c408	denotation preserved (35 bytes)	equal	PASS	denotation
+canon	T-KAT	t-deep-morph-chain	dcd0d0bfca6d74f95b1c03393dd5cc502d2677a75468c15f44a9f0ecae0c7f1a	canon ok (nodes 65 -> 1)	ok	PASS	canon
+canon-canonical-out	T-KAT	t-deep-morph-chain	dcd0d0bfca6d74f95b1c03393dd5cc502d2677a75468c15f44a9f0ecae0c7f1a	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-KAT	t-deep-morph-chain	dcd0d0bfca6d74f95b1c03393dd5cc502d2677a75468c15f44a9f0ecae0c7f1a	fixed point	fixed point	PASS	canon
+canon-determinism	T-KAT	t-deep-morph-chain	dcd0d0bfca6d74f95b1c03393dd5cc502d2677a75468c15f44a9f0ecae0c7f1a	identical across runs	identical	PASS	canon
+canon-denotation	T-KAT	t-deep-morph-chain	dcd0d0bfca6d74f95b1c03393dd5cc502d2677a75468c15f44a9f0ecae0c7f1a	denotation preserved (8 bytes)	equal	PASS	denotation
+canon	T-BIG	t-big-repeat	7431a150367cf4cf6f135b5b90557f08d23f8a69038a79501bd10e33bae650e7	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-BIG	t-big-repeat	7431a150367cf4cf6f135b5b90557f08d23f8a69038a79501bd10e33bae650e7	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-BIG	t-big-repeat	7431a150367cf4cf6f135b5b90557f08d23f8a69038a79501bd10e33bae650e7	fixed point	fixed point	PASS	canon
+canon-determinism	T-BIG	t-big-repeat	7431a150367cf4cf6f135b5b90557f08d23f8a69038a79501bd10e33bae650e7	identical across runs	identical	PASS	canon
+canon	T-BIG	t-big-zero	ad1b79dae53c311ac4726a679e7214870e5959c1519c0dc57f5a282661c1a374	canon ok (nodes 1 -> 1)	ok	PASS	canon
+canon-canonical-out	T-BIG	t-big-zero	ad1b79dae53c311ac4726a679e7214870e5959c1519c0dc57f5a282661c1a374	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-BIG	t-big-zero	ad1b79dae53c311ac4726a679e7214870e5959c1519c0dc57f5a282661c1a374	fixed point	fixed point	PASS	canon
+canon-determinism	T-BIG	t-big-zero	ad1b79dae53c311ac4726a679e7214870e5959c1519c0dc57f5a282661c1a374	identical across runs	identical	PASS	canon
+canon	T-BIG	t-big-slice	edd7a5079fa727b7051bc8fb5118e8b636b5b025081f6ae3308ae10f446df440	canon ok (nodes 2 -> 1)	ok	PASS	canon
+canon-canonical-out	T-BIG	t-big-slice	edd7a5079fa727b7051bc8fb5118e8b636b5b025081f6ae3308ae10f446df440	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-BIG	t-big-slice	edd7a5079fa727b7051bc8fb5118e8b636b5b025081f6ae3308ae10f446df440	fixed point	fixed point	PASS	canon
+canon-determinism	T-BIG	t-big-slice	edd7a5079fa727b7051bc8fb5118e8b636b5b025081f6ae3308ae10f446df440	identical across runs	identical	PASS	canon
+canon	T-BIG	t-big-affine	a62c44c368f95c4cb805a22556af2973b5591ac5beb87e37bcdfb8d0655c0937	canon ok (nodes 2 -> 3)	ok	PASS	canon
+canon-canonical-out	T-BIG	t-big-affine	a62c44c368f95c4cb805a22556af2973b5591ac5beb87e37bcdfb8d0655c0937	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-BIG	t-big-affine	a62c44c368f95c4cb805a22556af2973b5591ac5beb87e37bcdfb8d0655c0937	fixed point	fixed point	PASS	canon
+canon-determinism	T-BIG	t-big-affine	a62c44c368f95c4cb805a22556af2973b5591ac5beb87e37bcdfb8d0655c0937	identical across runs	identical	PASS	canon
+canon	T-BIG	t-big-lfsr	568c3a256593e5f602244d7067e43ad7c0e050f914ff221f428448f9279c3b69	canon ok (nodes 2 -> 2)	ok	PASS	canon
+canon-canonical-out	T-BIG	t-big-lfsr	568c3a256593e5f602244d7067e43ad7c0e050f914ff221f428448f9279c3b69	canonical (ok)	canonical (ok)	PASS	canon
+canon-idempotent	T-BIG	t-big-lfsr	568c3a256593e5f602244d7067e43ad7c0e050f914ff221f428448f9279c3b69	fixed point	fixed point	PASS	canon
+canon-determinism	T-BIG	t-big-lfsr	568c3a256593e5f602244d7067e43ad7c0e050f914ff221f428448f9279c3b69	identical across runs	identical	PASS	canon
+redex-first-failure	R-KAT	r1-concat-child-concat	e14ab14a413478cee4f98bfaa268eb7996239f332d7d309c2475d475ec471dee	C1.concat-child-concat	C1.concat-child-concat	PASS	redex
+rewrite	R-KAT	r1-concat-child-concat	e14ab14a413478cee4f98bfaa268eb7996239f332d7d309c2475d475ec471dee	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r1-concat-child-concat	e14ab14a413478cee4f98bfaa268eb7996239f332d7d309c2475d475ec471dee	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r1-concat-child-concat	e14ab14a413478cee4f98bfaa268eb7996239f332d7d309c2475d475ec471dee	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r1-concat-child-concat	e14ab14a413478cee4f98bfaa268eb7996239f332d7d309c2475d475ec471dee	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r1-concat-child-concat	e14ab14a413478cee4f98bfaa268eb7996239f332d7d309c2475d475ec471dee	C1.concat-child-concat	rule_fires[1] = 1	PASS	redex
+redex-first-failure	R-KAT	r2-concat-empty-child	f5900c532c787bac40261a506e448ae7d12fa3d24537d518f8ff0c45e0c55bdf	C2.empty-or-concat-argc	C2.empty-or-concat-argc	PASS	redex
+rewrite	R-KAT	r2-concat-empty-child	f5900c532c787bac40261a506e448ae7d12fa3d24537d518f8ff0c45e0c55bdf	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r2-concat-empty-child	f5900c532c787bac40261a506e448ae7d12fa3d24537d518f8ff0c45e0c55bdf	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r2-concat-empty-child	f5900c532c787bac40261a506e448ae7d12fa3d24537d518f8ff0c45e0c55bdf	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r2-concat-empty-child	f5900c532c787bac40261a506e448ae7d12fa3d24537d518f8ff0c45e0c55bdf	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r2-concat-empty-child	f5900c532c787bac40261a506e448ae7d12fa3d24537d518f8ff0c45e0c55bdf	C2.empty-or-concat-argc	rule_fires[2] = 2	PASS	redex
+redex-first-failure	R-KAT	r3-adjacent-atoms-merge	9aaafe3f6b3bc9e450319bf76e9ba58a779dafefe3c344e7b12ca8e3a413fc40	C3.atom-length	C3.atom-length	PASS	redex
+rewrite	R-KAT	r3-adjacent-atoms-merge	9aaafe3f6b3bc9e450319bf76e9ba58a779dafefe3c344e7b12ca8e3a413fc40	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r3-adjacent-atoms-merge	9aaafe3f6b3bc9e450319bf76e9ba58a779dafefe3c344e7b12ca8e3a413fc40	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r3-adjacent-atoms-merge	9aaafe3f6b3bc9e450319bf76e9ba58a779dafefe3c344e7b12ca8e3a413fc40	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r3-adjacent-atoms-merge	9aaafe3f6b3bc9e450319bf76e9ba58a779dafefe3c344e7b12ca8e3a413fc40	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r3-adjacent-atoms-merge	9aaafe3f6b3bc9e450319bf76e9ba58a779dafefe3c344e7b12ca8e3a413fc40	C3.atom-length	rule_fires[3] = 1	PASS	redex
+redex-first-failure	R-KAT	r4-adjacent-zeros-merge	dbb5d31ece598b87918c2309168a457112b15ea85414966b4afd3da9c4253e21	C4.adjacent-zero	C4.adjacent-zero	PASS	redex
+rewrite	R-KAT	r4-adjacent-zeros-merge	dbb5d31ece598b87918c2309168a457112b15ea85414966b4afd3da9c4253e21	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r4-adjacent-zeros-merge	dbb5d31ece598b87918c2309168a457112b15ea85414966b4afd3da9c4253e21	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r4-adjacent-zeros-merge	dbb5d31ece598b87918c2309168a457112b15ea85414966b4afd3da9c4253e21	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r4-adjacent-zeros-merge	dbb5d31ece598b87918c2309168a457112b15ea85414966b4afd3da9c4253e21	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r4-adjacent-zeros-merge	dbb5d31ece598b87918c2309168a457112b15ea85414966b4afd3da9c4253e21	C4.adjacent-zero	rule_fires[4] = 1	PASS	redex
+redex-first-failure	R-KAT	r5-repeat-q1-r0	b57b20121402b934e9cfdc72f0ac2b18f5c07a6811888bc17df7c893710b2103	C5.repeat-normal-form	C5.repeat-normal-form	PASS	redex
+rewrite	R-KAT	r5-repeat-q1-r0	b57b20121402b934e9cfdc72f0ac2b18f5c07a6811888bc17df7c893710b2103	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r5-repeat-q1-r0	b57b20121402b934e9cfdc72f0ac2b18f5c07a6811888bc17df7c893710b2103	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r5-repeat-q1-r0	b57b20121402b934e9cfdc72f0ac2b18f5c07a6811888bc17df7c893710b2103	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r5-repeat-q1-r0	b57b20121402b934e9cfdc72f0ac2b18f5c07a6811888bc17df7c893710b2103	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r5-repeat-q1-r0	b57b20121402b934e9cfdc72f0ac2b18f5c07a6811888bc17df7c893710b2103	C5.repeat-normal-form	rule_fires[5] = 1	PASS	redex
+redex-first-failure	R-KAT	r5-repeat-q1-r3	4180ac1cdae0fd97e3380f7655c038432ce0fb6661e8bb1a1755dc050fa0b261	C5.repeat-normal-form	C5.repeat-normal-form	PASS	redex
+rewrite	R-KAT	r5-repeat-q1-r3	4180ac1cdae0fd97e3380f7655c038432ce0fb6661e8bb1a1755dc050fa0b261	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r5-repeat-q1-r3	4180ac1cdae0fd97e3380f7655c038432ce0fb6661e8bb1a1755dc050fa0b261	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r5-repeat-q1-r3	4180ac1cdae0fd97e3380f7655c038432ce0fb6661e8bb1a1755dc050fa0b261	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r5-repeat-q1-r3	4180ac1cdae0fd97e3380f7655c038432ce0fb6661e8bb1a1755dc050fa0b261	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r5-repeat-q1-r3	4180ac1cdae0fd97e3380f7655c038432ce0fb6661e8bb1a1755dc050fa0b261	C5.repeat-normal-form	rule_fires[5] = 1	PASS	redex
+redex-first-failure	R-KAT	r5-repeat-q0-r0	1523814e6eb9f0d7486460afcbf8e8ad544ee1d211d10c6cd4657ec1f2d1aaf2	C5.repeat-normal-form	C5.repeat-normal-form	PASS	redex
+rewrite	R-KAT	r5-repeat-q0-r0	1523814e6eb9f0d7486460afcbf8e8ad544ee1d211d10c6cd4657ec1f2d1aaf2	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r5-repeat-q0-r0	1523814e6eb9f0d7486460afcbf8e8ad544ee1d211d10c6cd4657ec1f2d1aaf2	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r5-repeat-q0-r0	1523814e6eb9f0d7486460afcbf8e8ad544ee1d211d10c6cd4657ec1f2d1aaf2	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r5-repeat-q0-r0	1523814e6eb9f0d7486460afcbf8e8ad544ee1d211d10c6cd4657ec1f2d1aaf2	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r5-repeat-q0-r0	1523814e6eb9f0d7486460afcbf8e8ad544ee1d211d10c6cd4657ec1f2d1aaf2	C5.repeat-normal-form	rule_fires[5] = 1	PASS	redex
+redex-first-failure	R-KAT	r6-slice-full-cover	a50b48f30e0b7976a72eaa852dc9bd3b7230b9941d429f133a23f7447e49f5d0	C6.slice-fold	C6.slice-fold	PASS	redex
+rewrite	R-KAT	r6-slice-full-cover	a50b48f30e0b7976a72eaa852dc9bd3b7230b9941d429f133a23f7447e49f5d0	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r6-slice-full-cover	a50b48f30e0b7976a72eaa852dc9bd3b7230b9941d429f133a23f7447e49f5d0	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r6-slice-full-cover	a50b48f30e0b7976a72eaa852dc9bd3b7230b9941d429f133a23f7447e49f5d0	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r6-slice-full-cover	a50b48f30e0b7976a72eaa852dc9bd3b7230b9941d429f133a23f7447e49f5d0	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r6-slice-full-cover	a50b48f30e0b7976a72eaa852dc9bd3b7230b9941d429f133a23f7447e49f5d0	C6.slice-fold	rule_fires[6] = 1	PASS	redex
+redex-first-failure	R-KAT	r6-slice-zero-length	4929a912131e61df2e9828c7daafe1e94ed7094f5b0196b45176f39d57d1ba4b	C6.slice-fold	C6.slice-fold	PASS	redex
+rewrite	R-KAT	r6-slice-zero-length	4929a912131e61df2e9828c7daafe1e94ed7094f5b0196b45176f39d57d1ba4b	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r6-slice-zero-length	4929a912131e61df2e9828c7daafe1e94ed7094f5b0196b45176f39d57d1ba4b	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r6-slice-zero-length	4929a912131e61df2e9828c7daafe1e94ed7094f5b0196b45176f39d57d1ba4b	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r6-slice-zero-length	4929a912131e61df2e9828c7daafe1e94ed7094f5b0196b45176f39d57d1ba4b	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r6-slice-zero-length	4929a912131e61df2e9828c7daafe1e94ed7094f5b0196b45176f39d57d1ba4b	C6.slice-fold	rule_fires[6] = 1	PASS	redex
+redex-first-failure	R-KAT	r7-morph-involution-cancel	e585469dc7dc74d534dc9f08389825b7a87f88c8e31d8fd1b6534aa0d6b0bfc6	C7.morph-fold	C7.morph-fold	PASS	redex
+rewrite	R-KAT	r7-morph-involution-cancel	e585469dc7dc74d534dc9f08389825b7a87f88c8e31d8fd1b6534aa0d6b0bfc6	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r7-morph-involution-cancel	e585469dc7dc74d534dc9f08389825b7a87f88c8e31d8fd1b6534aa0d6b0bfc6	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r7-morph-involution-cancel	e585469dc7dc74d534dc9f08389825b7a87f88c8e31d8fd1b6534aa0d6b0bfc6	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r7-morph-involution-cancel	e585469dc7dc74d534dc9f08389825b7a87f88c8e31d8fd1b6534aa0d6b0bfc6	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r7-morph-involution-cancel	e585469dc7dc74d534dc9f08389825b7a87f88c8e31d8fd1b6534aa0d6b0bfc6	C7.morph-fold	rule_fires[7] = 1	PASS	redex
+redex-first-failure	R-KAT	r7-morph-rotl-rotr-cancel	1f7477175b1433dd3c911642eb0eb59c7a5f05dfe8f2f1705526a00994e931d2	C7.morph-fold	C7.morph-fold	PASS	redex
+rewrite	R-KAT	r7-morph-rotl-rotr-cancel	1f7477175b1433dd3c911642eb0eb59c7a5f05dfe8f2f1705526a00994e931d2	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r7-morph-rotl-rotr-cancel	1f7477175b1433dd3c911642eb0eb59c7a5f05dfe8f2f1705526a00994e931d2	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r7-morph-rotl-rotr-cancel	1f7477175b1433dd3c911642eb0eb59c7a5f05dfe8f2f1705526a00994e931d2	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r7-morph-rotl-rotr-cancel	1f7477175b1433dd3c911642eb0eb59c7a5f05dfe8f2f1705526a00994e931d2	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r7-morph-rotl-rotr-cancel	1f7477175b1433dd3c911642eb0eb59c7a5f05dfe8f2f1705526a00994e931d2	C7.morph-fold	rule_fires[7] = 1	PASS	redex
+redex-first-failure	R-KAT	r8-xor-self	11309406ce86039ac32fcd6d56a516258e3e7b2b2d29404f241c750f48fb5172	C8.xor-fold	C8.xor-fold	PASS	redex
+rewrite	R-KAT	r8-xor-self	11309406ce86039ac32fcd6d56a516258e3e7b2b2d29404f241c750f48fb5172	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r8-xor-self	11309406ce86039ac32fcd6d56a516258e3e7b2b2d29404f241c750f48fb5172	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r8-xor-self	11309406ce86039ac32fcd6d56a516258e3e7b2b2d29404f241c750f48fb5172	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r8-xor-self	11309406ce86039ac32fcd6d56a516258e3e7b2b2d29404f241c750f48fb5172	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r8-xor-self	11309406ce86039ac32fcd6d56a516258e3e7b2b2d29404f241c750f48fb5172	C8.xor-fold	rule_fires[8] = 1	PASS	redex
+redex-first-failure	R-KAT	r8-xor-zero-operand	f4b9f6988d077da648f08db6091fafa9c2f3f13d0826d34dd32ce3629bf6c01e	C8.xor-fold	C8.xor-fold	PASS	redex
+rewrite	R-KAT	r8-xor-zero-operand	f4b9f6988d077da648f08db6091fafa9c2f3f13d0826d34dd32ce3629bf6c01e	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r8-xor-zero-operand	f4b9f6988d077da648f08db6091fafa9c2f3f13d0826d34dd32ce3629bf6c01e	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r8-xor-zero-operand	f4b9f6988d077da648f08db6091fafa9c2f3f13d0826d34dd32ce3629bf6c01e	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r8-xor-zero-operand	f4b9f6988d077da648f08db6091fafa9c2f3f13d0826d34dd32ce3629bf6c01e	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r8-xor-zero-operand	f4b9f6988d077da648f08db6091fafa9c2f3f13d0826d34dd32ce3629bf6c01e	C8.xor-fold	rule_fires[8] = 1	PASS	redex
+redex-first-failure	R-KAT	r9-interleave-argc1	52f561bbfa19ba2a4e0998b9e4e07fb736cce369102d4aba9d4a5e78b1c00cc3	C9.interleave-argc	C9.interleave-argc	PASS	redex
+rewrite	R-KAT	r9-interleave-argc1	52f561bbfa19ba2a4e0998b9e4e07fb736cce369102d4aba9d4a5e78b1c00cc3	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r9-interleave-argc1	52f561bbfa19ba2a4e0998b9e4e07fb736cce369102d4aba9d4a5e78b1c00cc3	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r9-interleave-argc1	52f561bbfa19ba2a4e0998b9e4e07fb736cce369102d4aba9d4a5e78b1c00cc3	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r9-interleave-argc1	52f561bbfa19ba2a4e0998b9e4e07fb736cce369102d4aba9d4a5e78b1c00cc3	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r9-interleave-argc1	52f561bbfa19ba2a4e0998b9e4e07fb736cce369102d4aba9d4a5e78b1c00cc3	C9.interleave-argc	rule_fires[9] = 1	PASS	redex
+redex-first-failure	R-KAT	r10-affine-step0	abd261ce6fd727598061a967203341a7d5c2db6767487d9cd5c65f6d1636d075	C10.affine-step-zero	C10.affine-step-zero	PASS	redex
+rewrite	R-KAT	r10-affine-step0	abd261ce6fd727598061a967203341a7d5c2db6767487d9cd5c65f6d1636d075	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r10-affine-step0	abd261ce6fd727598061a967203341a7d5c2db6767487d9cd5c65f6d1636d075	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r10-affine-step0	abd261ce6fd727598061a967203341a7d5c2db6767487d9cd5c65f6d1636d075	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r10-affine-step0	abd261ce6fd727598061a967203341a7d5c2db6767487d9cd5c65f6d1636d075	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r10-affine-step0	abd261ce6fd727598061a967203341a7d5c2db6767487d9cd5c65f6d1636d075	C10.affine-step-zero	rule_fires[10] = 1	PASS	redex
+redex-first-failure	R-KAT	r11-repeat-of-zero	fccfb108f8b29a81c0eb606dba70f332d6e195319ef6660a66d5fb4c1be26b08	C11.repeat-slice-zero-child	C11.repeat-slice-zero-child	PASS	redex
+rewrite	R-KAT	r11-repeat-of-zero	fccfb108f8b29a81c0eb606dba70f332d6e195319ef6660a66d5fb4c1be26b08	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r11-repeat-of-zero	fccfb108f8b29a81c0eb606dba70f332d6e195319ef6660a66d5fb4c1be26b08	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r11-repeat-of-zero	fccfb108f8b29a81c0eb606dba70f332d6e195319ef6660a66d5fb4c1be26b08	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r11-repeat-of-zero	fccfb108f8b29a81c0eb606dba70f332d6e195319ef6660a66d5fb4c1be26b08	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r11-repeat-of-zero	fccfb108f8b29a81c0eb606dba70f332d6e195319ef6660a66d5fb4c1be26b08	C11.repeat-slice-zero-child	rule_fires[11] = 1	PASS	redex
+redex-first-failure	R-KAT	r11-slice-of-zero	c5f51d674dac4fab29dc5d4628b136851a69bc2b375042a38683b5ec87cdaa39	C11.repeat-slice-zero-child	C11.repeat-slice-zero-child	PASS	redex
+rewrite	R-KAT	r11-slice-of-zero	c5f51d674dac4fab29dc5d4628b136851a69bc2b375042a38683b5ec87cdaa39	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r11-slice-of-zero	c5f51d674dac4fab29dc5d4628b136851a69bc2b375042a38683b5ec87cdaa39	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r11-slice-of-zero	c5f51d674dac4fab29dc5d4628b136851a69bc2b375042a38683b5ec87cdaa39	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r11-slice-of-zero	c5f51d674dac4fab29dc5d4628b136851a69bc2b375042a38683b5ec87cdaa39	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r11-slice-of-zero	c5f51d674dac4fab29dc5d4628b136851a69bc2b375042a38683b5ec87cdaa39	C11.repeat-slice-zero-child	rule_fires[11] = 1	PASS	redex
+redex-first-failure	R-KAT	r12-duplicated-subtree	14a7be230db0b3d83ef7642c15be850eda9d3ad98046f12ddc7621099d52b7a1	C12.not-hash-consed	C12.not-hash-consed	PASS	redex
+rewrite	R-KAT	r12-duplicated-subtree	14a7be230db0b3d83ef7642c15be850eda9d3ad98046f12ddc7621099d52b7a1	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r12-duplicated-subtree	14a7be230db0b3d83ef7642c15be850eda9d3ad98046f12ddc7621099d52b7a1	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r12-duplicated-subtree	14a7be230db0b3d83ef7642c15be850eda9d3ad98046f12ddc7621099d52b7a1	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r12-duplicated-subtree	14a7be230db0b3d83ef7642c15be850eda9d3ad98046f12ddc7621099d52b7a1	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r12-duplicated-subtree	14a7be230db0b3d83ef7642c15be850eda9d3ad98046f12ddc7621099d52b7a1	C12.not-hash-consed	rule_fires[12] = 1	PASS	redex
+redex-first-failure	R-KAT	r13-atom-first-use-order	660c89b284211aefdbd7b61bf926eb22123bde4246c4c8806a9b2a7ee8cff99d	C13.identity-shape	C13.identity-shape	PASS	redex
+rewrite	R-KAT	r13-atom-first-use-order	660c89b284211aefdbd7b61bf926eb22123bde4246c4c8806a9b2a7ee8cff99d	canon ok	ok	PASS	redex
+rewrite-canonical-out	R-KAT	r13-atom-first-use-order	660c89b284211aefdbd7b61bf926eb22123bde4246c4c8806a9b2a7ee8cff99d	canonical (ok)	canonical (ok)	PASS	redex
+rewrite-denotation	R-KAT	r13-atom-first-use-order	660c89b284211aefdbd7b61bf926eb22123bde4246c4c8806a9b2a7ee8cff99d	denotation preserved	equal	PASS	denotation
+rewrite-idempotent	R-KAT	r13-atom-first-use-order	660c89b284211aefdbd7b61bf926eb22123bde4246c4c8806a9b2a7ee8cff99d	fixed point	fixed point	PASS	redex
+rewrite-rule-fired	R-KAT	r13-atom-first-use-order	660c89b284211aefdbd7b61bf926eb22123bde4246c4c8806a9b2a7ee8cff99d	C13.identity-shape	dense first-use ids restored	PASS	redex
+coverage.rule	C04	C1.concat-child-concat	ad6e6a2cfe0697de4d417a718fa1436770a01246fdfd1f8905d3ff2459b4cac5	fired >= 1	1	PASS	coverage
+coverage.rule	C04	C2.empty-or-concat-argc	c1c385b24e27b2cf703893739cb7b169a152e8a5a2ddfee25be10bb7d0e0c568	fired >= 1	4	PASS	coverage
+coverage.rule	C04	C3.atom-length	00a1868d6359e975b8ca6f003467a441333b64bda96d29668901170e9a1aa718	fired >= 1	2	PASS	coverage
+coverage.rule	C04	C4.adjacent-zero	5899719f8bced59903405238b2c43122349c50d54fd602b94745f142d51f6d3c	fired >= 1	1	PASS	coverage
+coverage.rule	C04	C5.repeat-normal-form	3033d7c51f55175b8bde5e5a3d11743cb93b4b67b2f7ecd9d52f942039977222	fired >= 1	4	PASS	coverage
+coverage.rule	C04	C6.slice-fold	da9cf65934e77efae2418505154f7554c812d2fa580041d71b369b67f2e3d278	fired >= 1	4	PASS	coverage
+coverage.rule	C04	C7.morph-fold	23990484f2da71d0a37df871d0b04ca8df11393822e37e2d2ef475fd35ac2796	fired >= 1	34	PASS	coverage
+coverage.rule	C04	C8.xor-fold	4d82b8c2a6d4e5c5dfa3e1e066606fe4fd28152c8110aa8f911dc83ce852d993	fired >= 1	4	PASS	coverage
+coverage.rule	C04	C9.interleave-argc	5851735f07c39ab28a014cf887b4cfac05caca97ae945e84c4b11694b602075b	fired >= 1	1	PASS	coverage
+coverage.rule	C04	C10.affine-step-zero	2f540a2b16de31348029edbd4517fda5501994bec857636abc386a0f2ad5b384	fired >= 1	2	PASS	coverage
+coverage.rule	C04	C11.repeat-slice-zero-child	bf8443d862f8de4d4933a9ccc086d291a51498d5a04d22336159ebb6c32425c0	fired >= 1	3	PASS	coverage
+coverage.rule	C04	C12.not-hash-consed	005d1a47fdad042cf9153a4e2019bf7718a18337ffb87b5e5983f8e7de924bfd	fired >= 1	32	PASS	coverage
+coverage.rule	C04	C13.identity-shape	d4811882758914e4282396d792e10126f17cef8c81c30e358c8db1e1e5bb5878	fired >= 1	29	PASS	coverage
+atom-max-exact-merge	T-ATOM	merge-exact-1MiB	d59b53f626be1f471a6230cd75fb1a19e7495d73ed366587da7d06d6aef11216	single atom of length 1048576	merged to one atom	PASS	atom
+atom-max-exact-merge-denotation	T-ATOM	merge-exact-1MiB	d59b53f626be1f471a6230cd75fb1a19e7495d73ed366587da7d06d6aef11216	denotation preserved	equal	PASS	atom
+atom-max-over-stay-split	T-ATOM	split-above-1MiB	056b5186e38948593ca2139f6eb946dc74e82f1a86469bc64aa03e80a9b20a61	atoms stay split	stay split	PASS	atom
+atom-max-oversize-split	T-ATOM	split-1048583	448847a917402b6ebf9a49678ef78ba8218579cd5897af8666cc70c1aeb2af60	split into 1048576 + 7	split as expected	PASS	atom
+atom-max-oversize-split-denotation	T-ATOM	split-1048583	448847a917402b6ebf9a49678ef78ba8218579cd5897af8666cc70c1aeb2af60	denotation preserved	equal	PASS	atom
+key-out-of-range	K-KEY	oob-node	33daa4960106a3c000a8ae95c8f007a051fce0436a4dc7c97a602a7665d5cc52	empty key	empty key	PASS	key
+key-id-independent	K-KEY	atom-at-different-id	20e61cc753532459d8bde5f6b4a5b1e4605081d81dcf163553e9cf763323f6d8	keys equal	equal	PASS	key
+key-injective-corpus	K-KEY	all-corpus-node-pairs	fb095624103259f86a43b8cedab71373a62f18c2539424a53863e3e9fbb984c7	2177 pairs, 0 mismatches	2177 pairs, 0 mismatches	PASS	key
+key-payload-addressed	K-KEY	atom-key-payload	455515ecb1f38e0701f109267a822daf04c40b41c0b0397c31ccc0a3a34981ca	non-empty, deterministic	ok	PASS	key
+budget-zero-limit	T-BUDGET	budget0-needs-work	e3e5d2a0590a659495c14c5088423167eb4e7f4bf1c75ff517cdcc8cd3cbad0c	Limit + budget_exhausted	Limit + budget_exhausted	PASS	budget
+budget-zero-noop	T-BUDGET	budget0-no-op	33daa4960106a3c000a8ae95c8f007a051fce0436a4dc7c97a602a7665d5cc52	ok (0 rewrites)	ok	PASS	budget
+budget-default-64x	T-BUDGET	default-budget	8118fc5eb10268ec5df039b56455bbd71a6e0d379b399e6daa3e30d07aa4966a	rewrites <= 64*(n+1)	rewrites=2	PASS	budget
+presupposition-wf-required	T-BUDGET	non-wf-argc0	5c0428103c6f11d801bb7489c613f303e10737f55c25014d8039143d78761da3	Invalid	Invalid	PASS	budget
+report-accounting	T-BUDGET	nodes-atoms-accounting	3506ddf4d76090cdc3a49c73337c2fe5546c2118c2271fb1db765c83452e4808	nodes_in/atoms_in/nodes_out/atoms_out consistent	consistent	PASS	budget
+determinism-repeat-corpus	T-KAT	all-corpus-terms	f723e6c99c64713e0d5b95252a3f9bf7ba658a168d8de4cea791fa97a48d81b8	0 mismatched terms	0 mismatched	PASS	determinism
+independence	C04	source-scan	416da5cab0f3d0878ff62a7c1988831680f16b43cb2f6a4a26b6ec092839b5e1	0 forbidden includes	0 forbidden includes across 8 files	PASS	source-scan
+independence.library	C04	library-scan	b718f1354f7247312eca086d9a024afe5fa717ddea5adeddd6f12bcf945b2e8c	0 harness/test includes in library	0 violations	PASS	source-scan
+coverage.kind	C04	all-12-kinds	f6b1a520a9e0d54c9dc8eadc9a9840ef10717313cfbc5e13d1491fefb5074d3c	12/12	12/12	PASS	all-12-kinds
+coverage.morph	C04	all-9-morphs	fa51619db5c750c6f29b7459cd289c552cfa8f99eb4c030a798da9f59bd6ade0	9/9	9/9	PASS	all-9-morphs
+coverage.predictor	C04	all-5-predictors	653a6d265ad8824bb83ad7acee0075ac38392a89fb0f1076848c51cd2b7ab8aa	5/5	5/5	PASS	all-5-predictors
+c04.summary	C04	all-checks	761b7ad8ad439b2855fcbb611331c646ef0870b0631247bba3f3025cb6df5a53	402 checks all PASS	pass=402 fail=0	PASS	summary

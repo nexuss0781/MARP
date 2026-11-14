@@ -127,6 +127,13 @@ struct Atom {
     BigInt length;                             // payload byte length
     std::array<u8, 32> sha256{};               // SHA-256 of payload
     std::span<const u8> payload;               // view; storage outlives the Ir
+    // C04 CANON additive member: when set, keeps the payload storage referenced
+    // through `payload` alive for as long as this atom lives.  `canon` returns
+    // self-contained Ir values whose atoms always carry this handle (they own
+    // their merged/split payload storage); atoms built by other tools leave it
+    // nullptr, matching the pre-C04 contract that the caller keeps storage
+    // alive.  Existing code is unaffected.
+    std::shared_ptr<void> owner;
 };
 
 struct Node {

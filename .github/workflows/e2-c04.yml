@@ -1,0 +1,213 @@
+name: MARP E2 C04 CANON CI
+
+# Isolated workflow for C04 CANON (E2 ALGEBRA, second sub-component).
+# It builds only E1 + C03 + C04 sources through engine/Makefile.c04 and proves
+# that no E3-E7 (wire / discovery / selection / CLI) object is linked.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  c04-independence:
+    name: C04 independence (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E3-E7 / harness includes in C04 sources
+        run: |
+          set -euo pipefail
+          echo "Scanning include/mapr/e2 and engine/src/e2 for forbidden includes..."
+          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|dag|pipeline|mau_translate))' include/mapr/e2 engine/src/e2; then
+            echo "FAIL: forbidden include found in C04 sources"
+            exit 1
+          fi
+          echo "PASS: no E3-E7 include in C04 sources"
+
+      - name: Reject non-C++ artefacts in C04 paths
+        run: |
+          set -euo pipefail
+          if find include/mapr/e2 engine/src/e2 engine/tests/e2 -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+            echo "FAIL: script file found under a C04 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under C04 paths"
+
+      - name: Confirm earlier evidence manifests still verify
+        run: |
+          set -euo pipefail
+          sha256sum -c specs_and_reports/v2/evidence/E1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H3/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/E2/SHA256SUMS
+          echo "PASS: E1/H1/H3/E2 (C03) evidence manifests still verify"
+
+  build-test-evidence:
+    name: C04 build, tests, evidence
+    runs-on: ubuntu-latest
+    needs: [c04-independence]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Build C04 (strict -Werror, -O2 per E2 §12.4)
+        env:
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c04 c04-clean
+          make -f Makefile.c04 c04-all -j4
+
+      - name: Verify C04 independence (grep + nm on the built objects)
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c04 c04-independence
+          echo "Undefined symbols in the C04 library object:"
+          nm -uC obj/c04/e2/e2_canon.o | sort || true
+          echo "Checking the C04 test binary does not link E3-E7 code..."
+          if nm -C bin/e2_c04_tests | grep -E 'mapr::(container|Encoder|Decoder)::|marp::harness::'; then
+            echo "FAIL: E3-E7/harness symbol linked into the C04 test binary"
+            exit 1
+          fi
+          echo "PASS: binary independence verified"
+
+      - name: Snapshot committed evidence and verify manifest
+        run: |
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C04-CANON.tsv /tmp/committed-C04-CANON.tsv
+          sha256sum -c specs_and_reports/v2/evidence/C04/SHA256SUMS
+          echo "PASS: committed C04 evidence manifest verified before regeneration"
+
+      - name: Run C04 unit tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c04_tests --gtest_color=no
+
+      - name: Generate C04 evidence
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c04_gate --root .. --write-evidence
+
+      - name: Committed C04-CANON.tsv must match the CI-generated TSV byte for byte
+        run: |
+          set -euo pipefail
+          diff -u /tmp/committed-C04-CANON.tsv specs_and_reports/v2/gates/C04-CANON.tsv
+          echo "PASS: committed C04-CANON.tsv is byte-for-byte identical to CI output"
+
+      - name: Evidence schema, verdicts and required checks
+        run: |
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/C04-CANON.tsv"
+          LOG="specs_and_reports/v2/logs/C04-CANON.log"
+          SUMS="specs_and_reports/v2/evidence/C04/SHA256SUMS"
+          test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
+          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $7 != "PASS" { print; exit 1 }' "$TSV"; then
+            echo "PASS: every C04 row is PASS"
+          else
+            echo "FAIL: non-PASS verdict present in C04-CANON.tsv"
+            exit 1
+          fi
+          for req in canon canon-canonical-out canon-idempotent canon-determinism canon-denotation \
+                     redex-first-failure rewrite rewrite-canonical-out rewrite-denotation \
+                     rewrite-idempotent rewrite-rule-fired coverage.rule coverage.kind \
+                     coverage.morph coverage.predictor report-accounting presupposition-wf-required \
+                     key-out-of-range key-id-independent key-injective-corpus key-payload-addressed \
+                     budget-zero-limit budget-zero-noop budget-default-64x \
+                     atom-max-exact-merge atom-max-over-stay-split atom-max-oversize-split \
+                     atom-max-exact-merge-denotation atom-max-oversize-split-denotation \
+                     determinism-repeat-corpus independence independence.library c04.summary; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+          awk -F'\t' '$1 == "coverage.rule" { n++ } END { if (n != 13) { print "coverage.rule rows != 13: " n; exit 1 } }' "$TSV"
+          awk -F'\t' -v k=12 '$1 == "coverage.kind" { if ($5 != "12/12") { print "kind coverage not complete: " $5; exit 1 } }' "$TSV"
+          grep -q '^RESULT: PASS (C04 CANON)$' "$LOG"
+          sha256sum -c "$SUMS"
+          echo "PASS: C04 evidence schema and manifest verified"
+          tail -3 "$LOG"
+
+      - name: Determinism (independent re-run must reproduce the TSV)
+        run: |
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C04-CANON.tsv /tmp/run1-C04-CANON.tsv
+          cd engine
+          ./bin/e2_c04_gate --root .. --write-evidence
+          diff -u /tmp/run1-C04-CANON.tsv ../specs_and_reports/v2/gates/C04-CANON.tsv
+          echo "PASS: repeat run produced a byte-identical C04-CANON.tsv"
+
+      - name: AddressSanitizer + UBSan C04 unit tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c04 c04-test-san -j4
+
+      - name: AddressSanitizer + UBSan C04 evidence run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c04 bin/e2_c04_gate_san -j4
+          ./bin/e2_c04_gate_san --root .. --write-evidence
+          diff -u /tmp/committed-C04-CANON.tsv ../specs_and_reports/v2/gates/C04-CANON.tsv
+          echo "PASS: sanitizer evidence run reproduces the committed TSV"
+
+      - name: Restore the primary evidence set
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c04_gate --root .. --write-evidence
+          diff -u /tmp/committed-C04-CANON.tsv ../specs_and_reports/v2/gates/C04-CANON.tsv
+          cd ..
+          sha256sum -c specs_and_reports/v2/evidence/C04/SHA256SUMS
+          echo "PASS: primary C04 evidence restored and self-consistent"
+
+      - name: Upload C04 evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2-c04-evidence
+          path: |
+            specs_and_reports/v2/gates/C04-CANON.tsv
+            specs_and_reports/v2/logs/C04-CANON.log
+            specs_and_reports/v2/evidence/C04/SHA256SUMS
+          retention-days: 30
