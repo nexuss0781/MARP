@@ -504,50 +504,6 @@ uint32_t crc32_incremental(std::string_view data, uint32_t prev_finalized) {
     return internal ^ CRC32_XOROUT;
 }
 
-// Combine matrix for CRC-32
-static std::array<uint32_t, 32> build_zero_byte_matrix() {
-    std::array<uint32_t, 32> mat{};
-    for (int i = 0; i < 32; ++i) {
-        uint32_t crc = 1u << i;
-        // 8 zero bits = process 0 byte with init=0
-        for (int j = 0; j < 8; ++j) {
-            if (crc & 1) crc = (crc >> 1) ^ CRC32_POLY;
-            else crc >>= 1;
-        }
-        mat[i] = crc;
-    }
-    return mat;
-}
-
-static uint32_t mat_times(const std::array<uint32_t, 32>& mat, uint32_t vec) {
-    uint32_t res = 0;
-    for (int i = 0; i < 32; ++i) {
-        if (vec & 1) res ^= mat[i];
-        vec >>= 1;
-    }
-    return res;
-}
-
-static std::array<uint32_t, 32> mat_square(const std::array<uint32_t, 32>& mat) {
-    std::array<uint32_t, 32> res{};
-    for (int i = 0; i < 32; ++i) {
-        res[i] = mat_times(mat, mat[i]);
-    }
-    return res;
-}
-
-static const std::array<std::array<uint32_t, 32>, 32>& combine_matrix() {
-    static const auto matrix = []() {
-        std::array<std::array<uint32_t, 32>, 32> powers{};
-        powers[0] = build_zero_byte_matrix();
-        for (int i = 1; i < 32; ++i) {
-            powers[i] = mat_square(powers[i-1]);
-        }
-        return powers;
-    }();
-    return matrix;
-}
-
 uint32_t crc32_combine(uint32_t crc_a, uint32_t crc_b, size_t len_b) {
     // Use zlib's proven crc32_combine.
     // Our crc32() returns standard finalized CRC (init=0xFFFFFFFF, xorout=0xFFFFFFFF)
