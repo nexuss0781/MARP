@@ -1,0 +1,286 @@
+name: MARP H1 Fixtures CI
+
+on:
+  push:
+    branches: [h1-fixtures, arena/6a99d26f-marp]
+  pull_request:
+    branches: [master, main, h1-fixtures]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  h1-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      H1_SCRATCH: /tmp/h1-scratch
+      H1_RUN_ID: ${{ github.run_id }}
+      H1_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      H1_COMMIT: ${{ github.sha }}
+      H1_RUNNER_OS: Linux
+      H1_GTEST_ROOT: /tmp/googletest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake
+
+      - name: Build pinned GoogleTest
+        run: |
+          set -euo pipefail
+          cd /tmp
+          git clone --depth 1 --branch v1.17.0 https://github.com/google/googletest.git
+          cmake -S googletest -B googletest/build -DCMAKE_BUILD_TYPE=Release -DBUILD_GMOCK=OFF
+          cmake --build googletest/build --target gtest gtest_main -j4
+          find /tmp/googletest -maxdepth 4 -name 'libgtest*.a' -print
+
+      - name: Build H1 binary and tests
+        run: |
+          set -euo pipefail
+          cd engine
+          mkdir -p ../out
+          make -f Makefile.h1 h1-all -j4 H1_GTEST_ROOT="$H1_GTEST_ROOT" 2>&1 | tee ../out/h1-build.log
+
+      - name: Annotate build failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          if [ -f out/h1-build.log ]; then
+            message="$(tail -c 6000 out/h1-build.log | jq -sRr @uri)"
+            echo "::error title=H1 build log::$message"
+          fi
+
+      - name: Run H1 tests
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/fixtures_tests
+
+      - name: Run H1 sanitizer tests
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h1 h1-test-san -j4 H1_GTEST_ROOT="$H1_GTEST_ROOT"
+
+      - name: Generate scratch manifest and evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$H1_SCRATCH"
+          cd engine
+          ./bin/mapr_fixtures --root "$H1_SCRATCH" --out "$H1_SCRATCH/out" \
+            --manifest "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" \
+            --allow-blocked --evidence --determinism \
+            --ci-run-id "$H1_RUN_ID" --ci-run-url "$H1_RUN_URL" \
+            --commit "$H1_COMMIT" --runner-os "$H1_RUNNER_OS"
+
+      - name: Verify scratch identity
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/mapr_fixtures --root "$H1_SCRATCH" \
+            --manifest "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" \
+            --verify --allow-blocked --evidence \
+            --ci-run-id "$H1_RUN_ID" --ci-run-url "$H1_RUN_URL" \
+            --commit "$H1_COMMIT" --runner-os "$H1_RUNNER_OS"
+
+      - name: External determinism proof
+        run: |
+          set -euo pipefail
+          cmp "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" "$H1_SCRATCH/out/fixtures.second.tsv"
+          sha256sum "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" "$H1_SCRATCH/out/fixtures.second.tsv"
+
+      - name: Small-fixture sha256sum cross-checks
+        run: |
+          set -euo pipefail
+          cd engine
+          for id in F00 F01 F09.0; do
+            file="$H1_SCRATCH/small/$id"
+            ./bin/mapr_fixtures --root "$H1_SCRATCH" \
+              --manifest "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" \
+              --materialize "$id" --to "$file"
+            digest="$(sha256sum "$file" | cut -d' ' -f1)"
+            ./bin/mapr_fixtures --root "$H1_SCRATCH" \
+              --manifest "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" \
+              --record-small "$id" --file "$file" --external-sha "$digest" \
+              --ci-run-id "$H1_RUN_ID" --ci-run-url "$H1_RUN_URL" \
+              --commit "$H1_COMMIT" --runner-os "$H1_RUNNER_OS"
+          done
+
+      - name: Sparse F02 materialisation proof
+        run: |
+          set -euo pipefail
+          cd engine
+          file="$H1_SCRATCH/sparse/F02"
+          ./bin/mapr_fixtures --root "$H1_SCRATCH" \
+            --manifest "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" \
+            --materialize F02 --to "$file" --evidence \
+            --ci-run-id "$H1_RUN_ID" --ci-run-url "$H1_RUN_URL" \
+            --commit "$H1_COMMIT" --runner-os "$H1_RUNNER_OS"
+          logical="$(stat -c %s "$file")"
+          blocks="$(stat -c %b "$file")"
+          block_size="$(stat -c %B "$file")"
+          allocated=$((blocks * block_size))
+          test "$logical" -eq 1073741824
+          test "$allocated" -lt 536870912
+          sha256sum "$file"
+
+      - name: Virtual end-range CLI proof
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/mapr_fixtures --range F13 1099511627712 64 > "$H1_SCRATCH/range-F13.bin"
+          ./bin/mapr_fixtures --range F14 1125899906842560 64 > "$H1_SCRATCH/range-F14.bin"
+          test "$(stat -c %s "$H1_SCRATCH/range-F13.bin")" -eq 64
+          test "$(stat -c %s "$H1_SCRATCH/range-F14.bin")" -eq 64
+          sha256sum "$H1_SCRATCH/range-F13.bin" "$H1_SCRATCH/range-F14.bin"
+
+      - name: No file-class branching and H1 isolation proof
+        run: |
+          set -euo pipefail
+          cd engine
+          set +e
+          grep -nE '\.(extension|filename|stem)[[:space:]]*\(|MIME|mime|content_type|file_type' ../harness/src/fixtures.cpp
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "FAIL: file-class branching token found"
+            exit 1
+          fi
+          if [ "$status" -ne 1 ]; then
+            exit "$status"
+          fi
+          if grep -nE '#include[[:space:]]*["<](mapr/harness/(gates|e0_|e1_)|marp/harness/(gates|e0_|e1_))' \
+            ../harness/include/marp/harness/fixtures.hpp ../harness/src/fixtures.cpp ../harness/src/fixtures_cli.cpp; then
+            echo "FAIL: H1 includes H2/oracle harness headers"
+            exit 1
+          fi
+          test -f obj/h1/e1_bigint.o
+          test -f obj/h1/e1_sha256.o
+          test ! -e obj/h1/gates.o
+          source_sha="$(sha256sum ../harness/src/fixtures.cpp | cut -d' ' -f1)"
+          ./bin/mapr_fixtures --root "$H1_SCRATCH" \
+            --manifest "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" \
+            --record-check fixtures.noclass harness/src/fixtures.cpp 0 0 "$source_sha" PASS \
+            --ci-run-id "$H1_RUN_ID" --ci-run-url "$H1_RUN_URL" \
+            --commit "$H1_COMMIT" --runner-os "$H1_RUNNER_OS"
+
+      - name: Required evidence rows
+        run: |
+          set -euo pipefail
+          tsv="$H1_SCRATCH/specs_and_reports/v2/gates/H1-FIXTURES.tsv"
+          for check in fixtures.catalog fixtures.identity fixtures.determinism fixtures.supplied fixtures.virtual fixtures.sparse fixtures.small_bytes fixtures.noclass fixtures.concat fixtures.mutations; do
+            grep -q "^${check}" "$tsv"
+          done
+          if grep -q $'\tFAIL\t' "$tsv"; then
+            echo "FAIL: H1 evidence contains FAIL"
+            exit 1
+          fi
+          awk -F '\t' '$1 == "fixtures.supplied" && ($3 == "F11" || $3 == "F12") && $7 != "BLOCKED" { exit 1 }' "$tsv"
+
+      - name: Publish bootstrap evidence bundle
+        if: hashFiles('specs_and_reports/v2/evidence/H1/SHA256SUMS') == ''
+        run: |
+          set -euo pipefail
+          tar -C "$H1_SCRATCH" -czf /tmp/h1-evidence-bundle.tar.gz \
+            specs_and_reports/v2/fixtures.tsv \
+            specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+            specs_and_reports/v2/logs/H1-FIXTURES.log \
+            specs_and_reports/v2/evidence/H1/SHA256SUMS \
+            REPORT/HARNESS/H1-FIXTURES-REPORT.md
+          bundle="$(base64 -w0 /tmp/h1-evidence-bundle.tar.gz)"
+          chunk_size=3500
+          index=0
+          while [ -n "$bundle" ]; do
+            chunk="${bundle:0:chunk_size}"
+            bundle="${bundle:chunk_size}"
+            printf -v label '%02d' "$index"
+            echo "::notice title=H1 evidence chunk $label::$chunk"
+            index=$((index + 1))
+          done
+
+      - name: Verify committed evidence when present
+        run: |
+          set -euo pipefail
+          if [ -f specs_and_reports/v2/evidence/H1/SHA256SUMS ]; then
+            sha256sum -c specs_and_reports/v2/evidence/H1/SHA256SUMS
+            cmp "$H1_SCRATCH/specs_and_reports/v2/fixtures.tsv" specs_and_reports/v2/fixtures.tsv
+            cd engine
+            ./bin/mapr_fixtures --root .. --manifest ../specs_and_reports/v2/fixtures.tsv --verify-evidence
+            ./bin/mapr_fixtures --root .. --manifest ../specs_and_reports/v2/fixtures.tsv --verify --allow-blocked
+            cd ..
+            tsv=specs_and_reports/v2/gates/H1-FIXTURES.tsv
+            for check in fixtures.catalog fixtures.identity fixtures.determinism fixtures.supplied fixtures.virtual fixtures.sparse fixtures.small_bytes fixtures.noclass fixtures.concat fixtures.mutations; do
+              grep -q "^${check}" "$tsv"
+            done
+            if grep -q $'\tFAIL\t' "$tsv"; then
+              echo "FAIL: committed H1 evidence contains FAIL"
+              exit 1
+            fi
+            awk -F '\t' '$1 == "fixtures.supplied" && ($3 == "F11" || $3 == "F12") && $7 != "BLOCKED" { exit 1 }' "$tsv"
+            echo "committed-evidence-present" > "$H1_SCRATCH/committed-evidence-present"
+          else
+            echo "bootstrap-evidence" > "$H1_SCRATCH/bootstrap-evidence"
+          fi
+
+      - name: Publish build diagnostics
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f out/h1-build.log ]; then
+            {
+              echo '## H1 build log tail'
+              echo '```'
+              tail -200 out/h1-build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Stage bootstrap artifact
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f specs_and_reports/v2/evidence/H1/SHA256SUMS ]; then
+            exit 0
+          fi
+          mkdir -p out/h1-artifact
+          if [ -f out/h1-build.log ]; then
+            cp out/h1-build.log out/h1-artifact/build.log
+          fi
+          for path in \
+            specs_and_reports/v2/fixtures.tsv \
+            specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+            specs_and_reports/v2/logs/H1-FIXTURES.log \
+            specs_and_reports/v2/evidence/H1/SHA256SUMS \
+            REPORT/HARNESS/H1-FIXTURES-REPORT.md; do
+            if [ -f "$H1_SCRATCH/$path" ]; then
+              mkdir -p "out/h1-artifact/$(dirname "$path")"
+              cp "$H1_SCRATCH/$path" "out/h1-artifact/$path"
+            fi
+          done
+
+      - name: Upload committed H1 evidence
+        if: always() && hashFiles('specs_and_reports/v2/evidence/H1/SHA256SUMS') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: h1-evidence
+          path: |
+            specs_and_reports/v2/fixtures.tsv
+            specs_and_reports/v2/gates/H1-FIXTURES.tsv
+            specs_and_reports/v2/logs/H1-FIXTURES.log
+            specs_and_reports/v2/evidence/H1/SHA256SUMS
+            REPORT/HARNESS/H1-FIXTURES-REPORT.md
+          retention-days: 30
+
+      - name: Upload bootstrap H1 evidence
+        if: always() && hashFiles('specs_and_reports/v2/evidence/H1/SHA256SUMS') == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: h1-evidence
+          path: out/h1-artifact/**
+          retention-days: 30
