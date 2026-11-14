@@ -1,0 +1,56 @@
+# H1 FIXTURES isolated build. Include the H2-closeout Makefile for the project
+# warning flags, but do not modify or link its harness/gate objects.
+include Makefile
+
+.DEFAULT_GOAL := h1-all
+
+H1_GTEST_ROOT ?= /tmp/googletest
+H1_GTEST_LIBS := $(shell pkg-config --libs gtest gtest_main 2>/dev/null || echo "-L$(H1_GTEST_ROOT)/build/lib -lgtest -lgtest_main")
+H1_GTEST_CFLAGS := -isystem $(H1_GTEST_ROOT)/googletest/include -isystem /usr/local/include
+
+H1_E1_OBJS := obj/h1/e1_bigint.o obj/h1/e1_sha256.o
+H1_LIB_OBJS := obj/h1/fixtures.o
+H1_CLI_OBJS := obj/h1/fixtures_cli.o
+H1_TEST_OBJS := obj/h1/fixtures_test.o
+
+.PHONY: h1-all h1-test h1-test-san h1-clean
+
+h1-all: bin/mapr_fixtures bin/fixtures_tests
+
+obj/h1/e1_%.o: src/e1_%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+obj/h1/fixtures.o: ../harness/src/fixtures.cpp ../harness/include/marp/harness/fixtures.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+obj/h1/fixtures_cli.o: ../harness/src/fixtures_cli.cpp ../harness/include/marp/harness/fixtures.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+obj/h1/fixtures_test.o: ../harness/tests/fixtures_test.cpp ../harness/include/marp/harness/fixtures.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(H1_GTEST_CFLAGS) -c $< -o $@
+
+bin/mapr_fixtures: $(H1_E1_OBJS) $(H1_LIB_OBJS) $(H1_CLI_OBJS)
+	@mkdir -p bin
+	$(CXX) $(CXXFLAGS) -o $@ $^ -pthread
+
+bin/fixtures_tests: $(H1_E1_OBJS) $(H1_LIB_OBJS) $(H1_TEST_OBJS)
+	@mkdir -p bin
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(H1_GTEST_LIBS) -pthread
+
+bin/fixtures_tests_san: src/e1_bigint.cpp src/e1_sha256.cpp ../harness/src/fixtures.cpp ../harness/tests/fixtures_test.cpp
+	@mkdir -p bin
+	$(CXX) $(SANFLAGS) $(H1_GTEST_CFLAGS) -o $@ $^ $(H1_GTEST_LIBS) -pthread
+
+h1-test: bin/fixtures_tests
+	./bin/fixtures_tests
+
+h1-test-san: bin/fixtures_tests_san
+	./bin/fixtures_tests_san
+
+h1-clean:
+	rm -rf obj/h1
+	rm -f bin/mapr_fixtures bin/fixtures_tests bin/fixtures_tests_san
