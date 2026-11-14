@@ -1,0 +1,335 @@
+date_utc: 2026-11-14T19:04:36Z
+host: runnervm8axu0
+kernel: 7.0.0-1017-azure
+nproc: 4
+mem_total_kib: 16366508
+disk: 154894188544
+compiler: 13.3.0
+make: GNU Make 4.3
+engine_sha256: d1e209d400798301dee88216686a4e54b8cac7a934162e25c56b306ca9a52fa5
+test_sha256: -
+fixture_manifest_sha256: 51ee02245c5c4ed78a090dc99b7deaebe3f8b528ec7357f5dbad8edd9368bc16
+max_rss_kib: 4448
+ci_run_id: 43629534676
+ci_run_url: https://github.com/nexuss0781/MARP/actions/runs/43629534676
+commit: f45123d20ec7aefd9d57ec791ab90d8608960457
+runner_os: Linux
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --record-check fixtures.noclass harness/src/fixtures.cpp 0 0 88cb81d094a7035674d84cea8832b7b1fe306fe27935aef726fefa5b12b60327 PASS --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+[#fixtures.catalog:manifest]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: 31
+actual: 31
+verdict: PASS
+[#/fixtures.catalog:manifest]
+[#fixtures.concat:F15]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: segments=F02:1073741824,F03:1073741824,F05:268435456,F06:1073741824,F10:805306368;bytes=4294967296
+actual: segments=F02:1073741824,F03:1073741824,F05:268435456,F06:1073741824,F10:805306368;bytes=4294967296
+verdict: PASS
+[#/fixtures.concat:F15]
+[#fixtures.determinism:manifest]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: 51ee02245c5c4ed78a090dc99b7deaebe3f8b528ec7357f5dbad8edd9368bc16
+actual: 51ee02245c5c4ed78a090dc99b7deaebe3f8b528ec7357f5dbad8edd9368bc16
+verdict: PASS
+[#/fixtures.determinism:manifest]
+[#fixtures.identity:F00]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=0;sha=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855;mode=generated
+actual: bytes=0;sha=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855;mode=generated
+verdict: PASS
+[#/fixtures.identity:F00]
+[#fixtures.identity:F01]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1;sha=6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32;mode=generated
+actual: bytes=1;sha=6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32;mode=generated
+verdict: PASS
+[#/fixtures.identity:F01]
+[#fixtures.identity:F02]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14;mode=generated
+actual: bytes=1073741824;sha=49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14;mode=generated
+verdict: PASS
+[#/fixtures.identity:F02]
+[#fixtures.identity:F03]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=265ddb125876c185ec1ac81fb97b0f3fb8f11b0c1b175da6831af5fd0589b950;mode=generated
+actual: bytes=1073741824;sha=265ddb125876c185ec1ac81fb97b0f3fb8f11b0c1b175da6831af5fd0589b950;mode=generated
+verdict: PASS
+[#/fixtures.identity:F03]
+[#fixtures.identity:F04]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=4294967296;sha=57b3ff1cda55685e82d65cf335c912657f5faf077855a82721deb573681f4fc8;mode=generated
+actual: bytes=4294967296;sha=57b3ff1cda55685e82d65cf335c912657f5faf077855a82721deb573681f4fc8;mode=generated
+verdict: PASS
+[#/fixtures.identity:F04]
+[#fixtures.identity:F05]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=268435456;sha=dc29c5647a3c395caa2190dcce07cc7249bdcda02e9c68c7960992df3e394263;mode=generated
+actual: bytes=268435456;sha=dc29c5647a3c395caa2190dcce07cc7249bdcda02e9c68c7960992df3e394263;mode=generated
+verdict: PASS
+[#/fixtures.identity:F05]
+[#fixtures.identity:F06]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3;mode=generated
+actual: bytes=1073741824;sha=2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3;mode=generated
+verdict: PASS
+[#/fixtures.identity:F06]
+[#fixtures.identity:F07]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=6856a2756d4bdb7b1338cff249793b3cc3a39dfb7eaa7d0d2eb8bfb91bbb3bb9;mode=generated
+actual: bytes=1073741824;sha=6856a2756d4bdb7b1338cff249793b3cc3a39dfb7eaa7d0d2eb8bfb91bbb3bb9;mode=generated
+verdict: PASS
+[#/fixtures.identity:F07]
+[#fixtures.identity:F08]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=11d734012586d248dccbba7a241b88b9030bcb21b847875cd3c07e7744332107;mode=generated
+actual: bytes=1073741824;sha=11d734012586d248dccbba7a241b88b9030bcb21b847875cd3c07e7744332107;mode=generated
+verdict: PASS
+[#/fixtures.identity:F08]
+[#fixtures.identity:F09]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1024000;sha=d7945d8bc097047c96aebf53870d6ec920ec82646e9fde1b9df13b3979218dc5;mode=generated
+actual: bytes=1024000;sha=d7945d8bc097047c96aebf53870d6ec920ec82646e9fde1b9df13b3979218dc5;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09]
+[#fixtures.identity:F09.0]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=4a37299c6a4e9a8da11246d8e57910ff7f63c55841b5de3394d24e53545bd50a;mode=generated
+actual: bytes=102400;sha=4a37299c6a4e9a8da11246d8e57910ff7f63c55841b5de3394d24e53545bd50a;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.0]
+[#fixtures.identity:F09.1]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=3db2b2fe1ef3057f23703ac55cdb0ffddc8732841c4247a4c65f2491d07e84bf;mode=generated
+actual: bytes=102400;sha=3db2b2fe1ef3057f23703ac55cdb0ffddc8732841c4247a4c65f2491d07e84bf;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.1]
+[#fixtures.identity:F09.2]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=a823670ae89e26246d0ed775c41cf29099400d5ffd401feda02a42d339bf0074;mode=generated
+actual: bytes=102400;sha=a823670ae89e26246d0ed775c41cf29099400d5ffd401feda02a42d339bf0074;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.2]
+[#fixtures.identity:F09.3]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=38bc3a46ebd5a31b098a1144cdae4d4a077de50ccbbc5b08c2f72b64300e564e;mode=generated
+actual: bytes=102400;sha=38bc3a46ebd5a31b098a1144cdae4d4a077de50ccbbc5b08c2f72b64300e564e;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.3]
+[#fixtures.identity:F09.4]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=ab8dbe3f44a081cbef367f9f3037049e29a8506e5131f61dd98e885477bd439e;mode=generated
+actual: bytes=102400;sha=ab8dbe3f44a081cbef367f9f3037049e29a8506e5131f61dd98e885477bd439e;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.4]
+[#fixtures.identity:F09.5]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=b2d0fb4e77b08d6a8969e52e8ca17c59f7394c45642cf3f6d2a29a9454fd598d;mode=generated
+actual: bytes=102400;sha=b2d0fb4e77b08d6a8969e52e8ca17c59f7394c45642cf3f6d2a29a9454fd598d;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.5]
+[#fixtures.identity:F09.6]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=e69f641c93717020e81d7f5283d7d0c583adf3f6841488f6bd1c5353294d70a7;mode=generated
+actual: bytes=102400;sha=e69f641c93717020e81d7f5283d7d0c583adf3f6841488f6bd1c5353294d70a7;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.6]
+[#fixtures.identity:F09.7]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=c312f6204b366f2cbd02cec1230df8063e36398102c046c796c8970fe7e2b024;mode=generated
+actual: bytes=102400;sha=c312f6204b366f2cbd02cec1230df8063e36398102c046c796c8970fe7e2b024;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.7]
+[#fixtures.identity:F09.8]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=ed9e3f5d84ec91dd99d1238e7f80e0f773e447d8650601e055a86797167aea57;mode=generated
+actual: bytes=102400;sha=ed9e3f5d84ec91dd99d1238e7f80e0f773e447d8650601e055a86797167aea57;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.8]
+[#fixtures.identity:F09.9]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;sha=d925401f9237cf0dc91795fc792c13b5f7f2ef846d4408e5248ebeb60b78d012;mode=generated
+actual: bytes=102400;sha=d925401f9237cf0dc91795fc792c13b5f7f2ef846d4408e5248ebeb60b78d012;mode=generated
+verdict: PASS
+[#/fixtures.identity:F09.9]
+[#fixtures.identity:F10]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=cfaac1e1ba62ff944f41f72e53c7cff5ac84abbce5fb16a1f77825289d366bd2;mode=generated
+actual: bytes=1073741824;sha=cfaac1e1ba62ff944f41f72e53c7cff5ac84abbce5fb16a1f77825289d366bd2;mode=generated
+verdict: PASS
+[#/fixtures.identity:F10]
+[#fixtures.identity:F11]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: mode=blocked;gates=V2-G1,V2-G6,V2-G7,V2-G14
+actual: mode=blocked;gates=V2-G1,V2-G6,V2-G7,V2-G14
+verdict: BLOCKED
+[#/fixtures.identity:F11]
+[#fixtures.identity:F12]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: mode=blocked;gates=V2-G1,V2-G6,V2-G7,V2-G14
+actual: mode=blocked;gates=V2-G1,V2-G6,V2-G7,V2-G14
+verdict: BLOCKED
+[#/fixtures.identity:F12]
+[#fixtures.identity:F13]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1099511627776;sha=-;mode=virtual;range=bytes=1099511627776;offset=1099511627712;len=64;sha=f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b
+actual: bytes=1099511627776;sha=-;mode=virtual;range=bytes=1099511627776;offset=1099511627712;len=64;sha=f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b
+verdict: PASS
+[#/fixtures.identity:F13]
+[#fixtures.identity:F14]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1125899906842624;sha=-;mode=virtual;range=bytes=1125899906842624;offset=1125899906842560;len=64;sha=50ec4c710d8fb2273fcf06ffac312e20eaf22597b7ab37728e8ee2a28f83a2ac
+actual: bytes=1125899906842624;sha=-;mode=virtual;range=bytes=1125899906842624;offset=1125899906842560;len=64;sha=50ec4c710d8fb2273fcf06ffac312e20eaf22597b7ab37728e8ee2a28f83a2ac
+verdict: PASS
+[#/fixtures.identity:F14]
+[#fixtures.identity:F15]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=4294967296;sha=e24e7fdb267a6454905a90439e0002a5418d12eabfc1210e53f4337b7e999b0c;mode=generated
+actual: bytes=4294967296;sha=e24e7fdb267a6454905a90439e0002a5418d12eabfc1210e53f4337b7e999b0c;mode=generated
+verdict: PASS
+[#/fixtures.identity:F15]
+[#fixtures.identity:F15.seg0]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14;mode=generated
+actual: bytes=1073741824;sha=49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14;mode=generated
+verdict: PASS
+[#/fixtures.identity:F15.seg0]
+[#fixtures.identity:F15.seg1]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=265ddb125876c185ec1ac81fb97b0f3fb8f11b0c1b175da6831af5fd0589b950;mode=generated
+actual: bytes=1073741824;sha=265ddb125876c185ec1ac81fb97b0f3fb8f11b0c1b175da6831af5fd0589b950;mode=generated
+verdict: PASS
+[#/fixtures.identity:F15.seg1]
+[#fixtures.identity:F15.seg2]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=268435456;sha=dc29c5647a3c395caa2190dcce07cc7249bdcda02e9c68c7960992df3e394263;mode=generated
+actual: bytes=268435456;sha=dc29c5647a3c395caa2190dcce07cc7249bdcda02e9c68c7960992df3e394263;mode=generated
+verdict: PASS
+[#/fixtures.identity:F15.seg2]
+[#fixtures.identity:F15.seg3]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1073741824;sha=2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3;mode=generated
+actual: bytes=1073741824;sha=2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3;mode=generated
+verdict: PASS
+[#/fixtures.identity:F15.seg3]
+[#fixtures.identity:F15.seg4]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --verify --allow-blocked --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=805306368;sha=ad57f9e3f2b235b942291a3ed564e248ca87daa7202e006cc77c48063b4de9f1;mode=generated
+actual: bytes=805306368;sha=ad57f9e3f2b235b942291a3ed564e248ca87daa7202e006cc77c48063b4de9f1;mode=generated
+verdict: PASS
+[#/fixtures.identity:F15.seg4]
+[#fixtures.mutations:F09.0]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.0]
+[#fixtures.mutations:F09.1]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.1]
+[#fixtures.mutations:F09.2]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.2]
+[#fixtures.mutations:F09.3]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.3]
+[#fixtures.mutations:F09.4]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.4]
+[#fixtures.mutations:F09.5]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.5]
+[#fixtures.mutations:F09.6]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.6]
+[#fixtures.mutations:F09.7]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.7]
+[#fixtures.mutations:F09.8]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.8]
+[#fixtures.mutations:F09.9]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=102400;mutations=1024
+actual: bytes=102400;mutations=1024
+verdict: PASS
+[#/fixtures.mutations:F09.9]
+[#fixtures.noclass:harness/src/fixtures.cpp]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --record-check fixtures.noclass harness/src/fixtures.cpp 0 0 88cb81d094a7035674d84cea8832b7b1fe306fe27935aef726fefa5b12b60327 PASS --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: 0
+actual: 0
+verdict: PASS
+[#/fixtures.noclass:harness/src/fixtures.cpp]
+[#fixtures.small_bytes:F00]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --record-small F00 --file /tmp/h1-scratch/small/F00 --external-sha e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+actual: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+verdict: PASS
+[#/fixtures.small_bytes:F00]
+[#fixtures.small_bytes:F01]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --record-small F01 --file /tmp/h1-scratch/small/F01 --external-sha 6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32 --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: 6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32
+actual: 6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32
+verdict: PASS
+[#/fixtures.small_bytes:F01]
+[#fixtures.small_bytes:F09.0]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --record-small F09.0 --file /tmp/h1-scratch/small/F09.0 --external-sha 4a37299c6a4e9a8da11246d8e57910ff7f63c55841b5de3394d24e53545bd50a --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: 4a37299c6a4e9a8da11246d8e57910ff7f63c55841b5de3394d24e53545bd50a
+actual: 4a37299c6a4e9a8da11246d8e57910ff7f63c55841b5de3394d24e53545bd50a
+verdict: PASS
+[#/fixtures.small_bytes:F09.0]
+[#fixtures.sparse:F02]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --materialize F02 --to /tmp/h1-scratch/sparse/F02 --evidence --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: logical=1073741824;sha=49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14;sparse=true;allocated_max=536870912
+actual: logical=1073741824;allocated=0;sparse=true;sha=49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14
+verdict: PASS
+[#/fixtures.sparse:F02]
+[#fixtures.supplied:F11]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: mode=supplied
+actual: mode=blocked;params=source=supplied;option=--real;reason=missing_path;requested=-;gates=V2-G1,V2-G6,V2-G7,V2-G14
+verdict: BLOCKED
+[#/fixtures.supplied:F11]
+[#fixtures.supplied:F12]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: mode=supplied
+actual: mode=blocked;params=source=supplied;option=--coded;reason=missing_path;requested=-;gates=V2-G1,V2-G6,V2-G7,V2-G14
+verdict: BLOCKED
+[#/fixtures.supplied:F12]
+[#fixtures.virtual:F13]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1099511627776;offset=1099511627712;len=64;sha=f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b
+actual: bytes=1099511627776;offset=1099511627712;len=64;sha=f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b
+verdict: PASS
+[#/fixtures.virtual:F13]
+[#fixtures.virtual:F14]
+command_line: ./bin/mapr_fixtures --root /tmp/h1-scratch --out /tmp/h1-scratch/out --manifest /tmp/h1-scratch/specs_and_reports/v2/fixtures.tsv --allow-blocked --evidence --determinism --ci-run-id 43629534676 --ci-run-url https://github.com/nexuss0781/MARP/actions/runs/43629534676 --commit f45123d20ec7aefd9d57ec791ab90d8608960457 --runner-os Linux
+expected: bytes=1125899906842624;offset=1125899906842560;len=64;sha=50ec4c710d8fb2273fcf06ffac312e20eaf22597b7ab37728e8ee2a28f83a2ac
+actual: bytes=1125899906842624;offset=1125899906842560;len=64;sha=50ec4c710d8fb2273fcf06ffac312e20eaf22597b7ab37728e8ee2a28f83a2ac
+verdict: PASS
+[#/fixtures.virtual:F14]
