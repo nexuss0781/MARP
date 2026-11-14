@@ -480,7 +480,7 @@ static std::array<uint32_t, 256> build_crc32_table() {
 }
 
 static const std::array<uint32_t, 256>& crc32_table() {
-    static const auto table = build_crc32_table();
+    thread_local static const auto table = build_crc32_table();
     return table;
 }
 
@@ -540,7 +540,7 @@ static constexpr uint64_t GEAR_CONST1 = 0x9E3779B97F4A7C15ull;
 static constexpr uint64_t GEAR_CONST2 = 0xC2B2AE3D27D4EB4Full;
 
 static const std::array<uint64_t, 256>& gear_table() {
-    static const auto table = []() {
+    thread_local static const auto table = []() {
         std::array<uint64_t, 256> t{};
         for (int i = 0; i < 256; ++i) {
             t[i] = (static_cast<uint64_t>(i) * GEAR_CONST1) ^ (static_cast<uint64_t>(i) * GEAR_CONST2);
