@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <string_view>
 #include <string>
+#include <zlib.h>
 
 namespace mapr {
 
@@ -108,26 +109,14 @@ uint32_t crc32_incremental(std::string_view data, uint32_t prev_finalized) noexc
 }
 
 uint32_t crc32_combine(uint32_t crc_a, uint32_t crc_b, size_t len_b) noexcept {
-    // Both CRCs are standard finalized values (xorout=0xFFFFFFFF)
-    // Formula: c_AB = Z^{8*len_b}(c_A) ⊕ c_B
-    // Internal state: s = crc ^ CRC32_INIT
-    // Shift internal state, then xorout
-
-    uint32_t internal_a = crc_a ^ CRC32_INIT;
-    uint32_t internal_b = crc_b ^ CRC32_INIT;
-
-    // Apply M^len_b to internal_a
-    const auto& powers = crc32_combine_matrix();
-    size_t e = len_b;
-    int p = 0;
-    while (e) {
-        if (e & 1) internal_a = mat_times(powers[p], internal_a);
-        e >>= 1;
-        ++p;
-    }
-
-    uint32_t combined_internal = internal_a ^ internal_b;
-    return combined_internal ^ CRC32_INIT;
+    // Use zlib's proven crc32_combine.
+    // Our crc32() returns standard finalized CRC (init=0xFFFFFFFF, xorout=0xFFFFFFFF)
+    // which matches zlib's crc32(0, data, len) return value.
+    // zlib's crc32_combine(crc1, crc2, len2) expects:
+    //   crc1 = crc32(0, buf1, len1)  (standard finalized)
+    //   crc2 = crc32(0, buf2, len2)  (standard finalized)
+    //   Returns crc32(0, buf1+buf2, len1+len2) (standard finalized)
+    return ::crc32_combine(crc_a, crc_b, static_cast<uLong>(len_b));
 }
 
 uint32_t crc32_zeroed(std::string_view data, size_t offset) noexcept {
