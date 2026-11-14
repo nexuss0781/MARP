@@ -36,8 +36,8 @@ jobs:
           set -euo pipefail
           cd /tmp
           git clone --depth 1 --branch v1.17.0 https://github.com/google/googletest.git
-          cmake -S googletest -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_GMOCK=OFF -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=/tmp/googletest/build/lib
-          cmake --build build --target gtest gtest_main -j4
+          cmake -S googletest -B googletest/build -DCMAKE_BUILD_TYPE=Release -DBUILD_GMOCK=OFF
+          cmake --build googletest/build --target gtest gtest_main -j4
           find /tmp/googletest -maxdepth 4 -name 'libgtest*.a' -print
 
       - name: Build H1 binary and tests
