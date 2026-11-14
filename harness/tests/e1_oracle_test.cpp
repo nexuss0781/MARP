@@ -245,7 +245,8 @@ TEST(E1Oracle, BigInt_FromLEBytes) {
 }
 
 TEST(E1Oracle, BigInt_ToLEBytes) {
-    auto bi = from_decimal("0x01020304");
+    // 0x01020304 = 16909060 in decimal
+    auto bi = from_decimal("16909060");
     ASSERT_TRUE(bi);
     auto bytes = to_le_bytes(*bi);
     ASSERT_EQ(bytes.size(), 4u);
@@ -253,6 +254,12 @@ TEST(E1Oracle, BigInt_ToLEBytes) {
     EXPECT_EQ(bytes[1], 0x03);
     EXPECT_EQ(bytes[2], 0x02);
     EXPECT_EQ(bytes[3], 0x01);
+    
+    bi = from_decimal("1");
+    ASSERT_TRUE(bi);
+    bytes = to_le_bytes(*bi);
+    ASSERT_EQ(bytes.size(), 1u);
+    EXPECT_EQ(bytes[0], 0x01);
 }
 
 TEST(E1Oracle, BigInt_BitLength) {
