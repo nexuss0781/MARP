@@ -18,15 +18,14 @@ bool write_row(const fs::path& tsv_path, const Row& row) {
     // Ensure parent directory exists
     fs::create_directories(tsv_path.parent_path());
     
-    // Write to temporary file first
-    fs::path tmp_path = tsv_path;
-    tmp_path += ".tmp";
+    // Check if file exists and is empty (for header)
+    bool is_first = !fs::exists(tsv_path) || fs::file_size(tsv_path) == 0;
     
-    std::ofstream ofs(tmp_path, std::ios::app);
+    // Open target file in append mode
+    std::ofstream ofs(tsv_path, std::ios::app);
     if (!ofs) return false;
     
-    // Write header if file is empty (first row)
-    bool is_first = !fs::exists(tsv_path) || fs::file_size(tsv_path) == 0;
+    // Write header if first row
     if (is_first) {
         ofs << "gate\tfixture\tinput_bytes\twire_bytes\tratio_num\tratio_den\tsha_match\tverdict\tlog\n";
     }
@@ -42,13 +41,7 @@ bool write_row(const fs::path& tsv_path, const Row& row) {
         << row.verdict << '\t'
         << row.log << '\n';
     
-    ofs.close();
-    if (!ofs) return false;
-    
-    // Atomic rename
-    std::error_code ec;
-    fs::rename(tmp_path, tsv_path, ec);
-    return !ec;
+    return static_cast<bool>(ofs);
 }
 
 EnvRecord capture_env_record() {
