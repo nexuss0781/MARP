@@ -1,0 +1,50 @@
+date_utc: 2026-11-14T15:53:54Z
+host: runnervm8axu0
+kernel: 7.0.0-1017-azure
+nproc: 4
+mem_total_kib: 16367512
+disk: 86G
+compiler: g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+make: GNU Make 4.3
+engine_sha256: 2c8221279fcff59fd2f2fed0684d1d3f61179cc5ab4f9913500f2f5918e4c57a
+test_sha256: d020266bb7a0461c247cb2552b45c6c8daac5ec4cc18848e412cf21a1d0d17f6
+fixture_manifest_sha256: 4fd4f1c4cc18ddadc68e5987433aa5ff9862b4e39d1120a871e7b72652cd46e2
+command_line: ./bin/mapr_gate --gate E1-G --root .. --threads 4
+arith.add: total=10000 passed=10000 PASS
+arith.mul: total=10000 passed=10000 PASS
+arith.sub: total=4916 passed=4916 PASS
+arith.ring: total=1000 passed=1000 PASS
+div.divmod: total=9599 passed=9599 PASS
+digest.sha_incremental: message=0 tested=1 total=1 passed=1
+digest.sha_incremental: message=1 tested=4 total=4 passed=4
+digest.sha_incremental: message=2 tested=56 total=56 passed=56
+digest.sha_incremental: message=3 tested=57 total=57 passed=57
+digest.sha_incremental: message=4 tested=58 total=58 passed=58
+digest.sha_incremental: message=5 tested=64 total=64 passed=64
+digest.sha_incremental: message=6 tested=65 total=65 passed=65
+digest.sha_incremental: message=7 tested=66 total=66 passed=66
+digest.sha_incremental: message=8 tested=128 total=128 passed=128
+digest.sha_incremental: message=9 tested=129 total=129 passed=129
+digest.sha_incremental: message=10 tested=44 total=44 passed=44
+digest.sha_incremental: message=11 tested=1536 total=1048577 passed=1536
+digest.sha_incremental: tested=2208 passed=2208 PASS
+digest.crc_incremental: message=0 direct_splits=1/1
+digest.crc_incremental: message=1 direct_splits=4/4
+digest.crc_incremental: message=2 direct_splits=56/56
+digest.crc_incremental: message=3 direct_splits=57/57
+digest.crc_incremental: message=4 direct_splits=58/58
+digest.crc_incremental: message=5 direct_splits=64/64
+digest.crc_incremental: message=6 direct_splits=65/65
+digest.crc_incremental: message=7 direct_splits=66/66
+digest.crc_incremental: message=8 direct_splits=128/128
+digest.crc_incremental: message=9 direct_splits=129/129
+digest.crc_incremental: message=10 direct_splits=44/44
+digest.crc_incremental: message=11 combine_splits=1048577/1048577 incremental_sample=1536/1536
+digest.crc_incremental: combine=1048577/1048577 incremental=2208/2208 PASS
+digest.zeroed: total=1000 passed=1000 PASS
+gear.stable: total=100 passed=100 PASS
+corpus.determinism: rows=12820 second_rows=12820 PASS
+threads.identical: rows_1=6583 rows_4=6583 PASS
+evidence.present: entries=5 verify=PASS
+RESULT: PASS
+exit_code: 0

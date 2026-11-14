@@ -1,0 +1,4 @@
+check	corpus	item_id	input_sha256	expected	actual	verdict	log
+envelope.corrupted	MARP-H0	payload-bit-flip	b693e2a767cc800d9542c39f8ff04fa641c23d3b0ef7bb4a6eca477efd1e70ba	rejected	rejected	PASS	logs/E0-G.log#envelope.corrupted
+envelope.valid	MARP-H0	valid	6f40ea39219f811143f50acd463dd41bef2cda22294f05c5c57c17c400d199d1	accepted	accepted	PASS	logs/E0-G.log#envelope.valid
+false.gate	MARP-H0	scratch-tsv	e8c610dd3e0b7e54513025ac896de1ba56cd973e73676e94546e9ec7b019efef	RESULT: FAIL	RESULT: FAIL	PASS	logs/E0-G.log#false.gate

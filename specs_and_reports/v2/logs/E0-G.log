@@ -1,0 +1,17 @@
+date_utc: 2026-11-14T15:53:13Z
+host: runnervm8axu0
+kernel: 7.0.0-1017-azure
+nproc: 4
+mem_total_kib: 16367512
+disk: 86G
+compiler: g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+make: GNU Make 4.3
+engine_sha256: 2c8221279fcff59fd2f2fed0684d1d3f61179cc5ab4f9913500f2f5918e4c57a
+test_sha256: d020266bb7a0461c247cb2552b45c6c8daac5ec4cc18848e412cf21a1d0d17f6
+fixture_manifest_sha256: N/A
+command_line: ./bin/mapr_gate --gate E0-G --root ..
+envelope.valid: accepted=YES
+envelope.corrupted: rejected=YES
+false.gate: written=YES rendered=YES acceptance_untouched=YES
+RESULT: PASS
+exit_code: 0
