@@ -41,14 +41,6 @@ std::string hex_bytes(const std::vector<uint8_t>& bytes) {
     return out;
 }
 
-std::string hex_u64(uint64_t value) {
-    std::string out(16, '0');
-    for (int i = 15; i >= 0; --i) {
-        out[static_cast<size_t>(i)] = kHex[value & 0x0Fu];
-        value >>= 4;
-    }
-    return out;
-}
 
 // Deterministic replacement for std::uniform_int_distribution. mt19937_64
 // itself is standardised, so `rng() % span` is identical across libstdc++
