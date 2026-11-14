@@ -282,10 +282,14 @@ std::pair<BigInt, BigInt> divmod(const BigInt& a, const BigInt& b) {
 
     for (size_t i = ta.size(); i-- > 0;) {
         // remainder = remainder * BASE + ta[i] in little-endian limbs.
-        BigInt shifted(remainder.size() + 1, 0);
-        shifted[0] = ta[i];
-        for (size_t j = 0; j < remainder.size(); ++j) shifted[j + 1] = remainder[j];
-        remainder = trim(shifted);
+        remainder.push_back(0);
+        for (size_t j = remainder.size() - 1; j > 0; --j) {
+            remainder[j] = remainder[j - 1];
+        }
+        remainder[0] = ta[i];
+        while (remainder.size() > 1 && remainder.back() == 0) {
+            remainder.pop_back();
+        }
 
         Limb lo = 0;
         Limb hi = static_cast<Limb>(BASE - 1);
