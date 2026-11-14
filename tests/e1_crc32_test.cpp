@@ -11,14 +11,16 @@ TEST(E1Crc32, EmptyString) {
 }
 
 TEST(E1Crc32, KnownValues) {
-    // Standard CRC-32 test vectors
+    // Standard CRC-32 test vectors (ISO 3309 / IEEE 802.3)
+    // Polynomial: 0x04C11DB7 (reflected 0xEDB88320), init=0xFFFFFFFF, xorout=0xFFFFFFFF
     EXPECT_EQ(crc32(""), 0x00000000u);
     EXPECT_EQ(crc32("a"), 0xE8B7BE43u);
     EXPECT_EQ(crc32("abc"), 0x352441C2u);
     EXPECT_EQ(crc32("message digest"), 0x20159D7Fu);
     EXPECT_EQ(crc32("abcdefghijklmnopqrstuvwxyz"), 0x4C2750BDu);
-    EXPECT_EQ(crc32("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"), 0xD6A84C6Fu);
-    EXPECT_EQ(crc32("12345678901234567890123456789012345678901234567890123456789012345678901234567890"), 0x14B87C49u);
+    // Verified against standard test vector "123456789" = 0xCBF43926
+    EXPECT_EQ(crc32("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"), 0x1FC2E6D2u);
+    EXPECT_EQ(crc32("12345678901234567890123456789012345678901234567890123456789012345678901234567890"), 0x7CA94A72u);
 }
 
 TEST(E1Crc32, ZlibCompatibility) {
@@ -40,10 +42,10 @@ TEST(E1Crc32, IncrementalProperty) {
 }
 
 TEST(E1Crc32, StandardVsIncremental) {
-    // crc32() = zlib.crc32(0xFFFFFFFF, data) ^ 0xFFFFFFFF
+    // crc32() matches zlib.crc32(data) with init=0 (which equals ISO standard for standard test vectors)
     std::string data = "test data";
     uint32_t std_crc = crc32(data);
-    uint32_t zlib_crc = static_cast<uint32_t>(::crc32(0xFFFFFFFF, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size()))) ^ 0xFFFFFFFF;
+    uint32_t zlib_crc = static_cast<uint32_t>(::crc32(0, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size())));
     EXPECT_EQ(std_crc, zlib_crc);
 }
 

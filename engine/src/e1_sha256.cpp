@@ -132,8 +132,6 @@ Result<std::array<uint8_t, 32>> Sha256::finish() noexcept {
         digest[4*i + 3] = static_cast<uint8_t>(state_[i] & 0xFF);
     }
 
-    // Reset state
-    reset();
     return digest;
 }
 

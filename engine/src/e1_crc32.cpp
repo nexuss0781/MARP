@@ -87,6 +87,7 @@ const std::array<std::array<uint32_t, 32>, 32>& crc32_combine_matrix() noexcept 
 // ============================================================================
 
 uint32_t crc32(std::string_view data) noexcept {
+    // Standard CRC-32 (ISO 3309): init=0xFFFFFFFF, xorout=0xFFFFFFFF
     uint32_t crc = CRC32_INIT;
     const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data.data());
     for (size_t i = 0; i < data.size(); ++i) {

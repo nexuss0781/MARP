@@ -15,7 +15,7 @@ static constexpr uint32_t CRC32_XOROUT = 0xFFFFFFFFu;
 const std::array<uint32_t, 256>& crc32_table() noexcept;
 const std::array<std::array<uint32_t, 32>, 32>& crc32_combine_matrix() noexcept; // for O(log n) combine
 
-// One-shot CRC-32 (standard finalized value)
+// One-shot CRC-32 (standard finalized value: init=0xFFFFFFFF, xorout=0xFFFFFFFF)
 uint32_t crc32(std::string_view data) noexcept;
 
 // Incremental CRC-32 (zlib-compatible: init=0, no final XOR)
