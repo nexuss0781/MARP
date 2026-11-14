@@ -39,6 +39,9 @@ public:
     // One-shot convenience
     static Result<std::array<uint8_t, 32>> hash(std::string_view data) noexcept;
 
+    // Alias for hash (surface alias per SPECS §5.4)
+    static Result<std::array<uint8_t, 32>> of(std::string_view data) noexcept { return hash(data); }
+
 private:
     std::array<uint32_t, 8> state_ = IV;
     std::array<uint8_t, 64> buffer_;

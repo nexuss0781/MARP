@@ -24,34 +24,6 @@ TEST(E1Crc32, KnownValues) {
 }
 
 TEST(E1Crc32, ZlibCompatibility) {
-    // crc32_incremental with init=0 uses standard table with init=0 (no final XOR).
-    // This differs from zlib.crc32(0, data) which implements init=0 as init=0xFFFFFFFF with final XOR.
-    // Verify incremental property instead: crc(A‖B) = crc32_incremental(B, crc32_incremental(A, 0))
-    std::string a = "Hello, ";
-    std::string b = "World!";
-    std::string ab = a + b;
-
-    uint32_t crc_a = crc32_incremental(a);
-    uint32_t crc_ab = crc32_incremental(ab);
-    uint32_t crc_b_from_a = crc32_incremental(b, crc_a);
-    EXPECT_EQ(crc_b_from_a, crc_ab);
-
-    // Also verify crc32() = crc32_incremental(data, 0) ^ CRC32_XOROUT (since crc32 uses init=0xFFFFFFFF)
-    // Actually crc32() uses init=0xFFFFFFFF, so crc32(data) = crc32_incremental(data, CRC32_INIT) ^ CRC32_XOROUT
-    // But crc32_incremental with init=0 is a different variant. Just verify consistency.
-}
-
-TEST(E1Crc32, IncrementalProperty) {
-    std::string data = "The quick brown fox jumps over the lazy dog";
-    for (size_t cut = 0; cut <= data.size(); ++cut) {
-        uint32_t c1 = crc32_incremental(std::string_view(data).substr(0, cut));
-        uint32_t c2 = crc32_incremental(std::string_view(data).substr(cut), c1);
-        uint32_t c_full = crc32_incremental(data);
-        EXPECT_EQ(c2, c_full) << "Split at " << cut;
-    }
-}
-
-TEST(E1Crc32, StandardVsIncremental) {
     // crc32() matches zlib.crc32(data) with init=0 (which equals ISO standard for standard test vectors)
     std::string data = "test data";
     uint32_t std_crc = crc32(data);
@@ -59,12 +31,71 @@ TEST(E1Crc32, StandardVsIncremental) {
     EXPECT_EQ(std_crc, zlib_crc);
 }
 
+TEST(E1Crc32, IncrementalProperty) {
+    // crc32_incremental now accepts finalized CRC and returns finalized CRC
+    std::string data = "The quick brown fox jumps over the lazy dog";
+    for (size_t cut = 0; cut <= data.size(); ++cut) {
+        uint32_t c1 = crc32_incremental(std::string_view(data).substr(0, cut));
+        uint32_t c2 = crc32_incremental(std::string_view(data).substr(cut), c1);
+        uint32_t c_full = crc32_incremental(data);
+        EXPECT_EQ(c2, c_full) << "Split at " << cut;
+    }
+    
+    // Verify crc32_incremental(data) == crc32(data) (default arg is CRC32_XOROUT = finalized empty)
+    EXPECT_EQ(crc32_incremental(data), crc32(data));
+    
+    // Verify continuation: crc32_incremental(B, crc32(A)) == crc32(A+B)
+    std::string a = "Hello, ";
+    std::string b = "World!";
+    std::string ab = a + b;
+    EXPECT_EQ(crc32_incremental(b, crc32(a)), crc32(ab));
+}
+
+TEST(E1Crc32, StandardVsIncremental) {
+    // crc32() matches zlib.crc32(data) with init=0
+    std::string data = "test data";
+    uint32_t std_crc = crc32(data);
+    uint32_t zlib_crc = static_cast<uint32_t>(::crc32(0, reinterpret_cast<const Bytef*>(data.data()), static_cast<uInt>(data.size())));
+    EXPECT_EQ(std_crc, zlib_crc);
+}
+
 TEST(E1Crc32, Combine) {
-    // crc32_combine is tested via CombineMatrix test which verifies the matrix powers.
-    // The full combine property (c_AB = Z^{8·len(B)}(c_A) ⊕ c_B) has a known issue
-    // with the matrix vs table-based algorithm equivalence. See Math-SPECS C8.
-    // This test is disabled until the matrix equivalence is resolved.
-    SUCCEED() << "Combine test disabled - matrix equivalence issue (Math-SPECS C8)";
+    // crc32_combine(crc32(A), crc32(B), len(B)) == crc32(A+B)
+    std::string a = "Hello, ";
+    std::string b = "World!";
+    std::string ab = a + b;
+    
+    uint32_t crc_a = crc32(a);
+    uint32_t crc_b = crc32(b);
+    uint32_t crc_ab = crc32(ab);
+    uint32_t combined = crc32_combine(crc_a, crc_b, b.size());
+    EXPECT_EQ(combined, crc_ab);
+    
+    // Test with empty strings
+    EXPECT_EQ(crc32_combine(crc32(""), crc32("abc"), 3), crc32("abc"));
+    EXPECT_EQ(crc32_combine(crc32("abc"), crc32(""), 0), crc32("abc"));
+}
+
+TEST(E1Crc32, Combine1000Pairs) {
+    // 1000 random pairs for combine
+    std::mt19937 rng(0xDEADBEEF);
+    std::uniform_int_distribution<uint8_t> byte_dist(0, 255);
+    std::uniform_int_distribution<size_t> len_dist(0, 200);
+    
+    for (int iter = 0; iter < 1000; ++iter) {
+        size_t len_a = len_dist(rng);
+        size_t len_b = len_dist(rng);
+        std::string a(len_a, 0), b(len_b, 0);
+        for (size_t i = 0; i < len_a; ++i) a[i] = static_cast<char>(byte_dist(rng));
+        for (size_t i = 0; i < len_b; ++i) b[i] = static_cast<char>(byte_dist(rng));
+        
+        std::string ab = a + b;
+        uint32_t crc_a = crc32(a);
+        uint32_t crc_b = crc32(b);
+        uint32_t crc_ab = crc32(ab);
+        uint32_t combined = crc32_combine(crc_a, crc_b, b.size());
+        EXPECT_EQ(combined, crc_ab) << "Iter " << iter << ", len_a=" << len_a << ", len_b=" << len_b;
+    }
 }
 
 TEST(E1Crc32, ZeroedField) {
@@ -128,4 +159,33 @@ TEST(E1Crc32, CombineMatrix) {
     // Just verify it compiles and the matrix is non-trivial
     EXPECT_NE(powers[0][0], 0u);
     EXPECT_NE(powers[1][0], 0u);
+}
+
+// Crc32 class tests
+TEST(E1Crc32, Crc32Class) {
+    Crc32 crc;
+    crc.update("Hello, ");
+    crc.update("World!");
+    uint32_t result = crc.finish();
+    EXPECT_EQ(result, crc32("Hello, World!"));
+    
+    // Test reset
+    crc.update("test");
+    crc.reset();
+    crc.update("abc");
+    EXPECT_EQ(crc.finish(), crc32("abc"));
+    
+    // Test of()
+    EXPECT_EQ(Crc32::of("abc"), crc32("abc"));
+    
+    // Test of_with_zeroed()
+    std::string data = "12345678";
+    EXPECT_EQ(Crc32::of_with_zeroed(data, 2), crc32_zeroed(data, 2));
+}
+
+TEST(E1Crc32, Crc32ClassWithInitial) {
+    // Construct with initial finalized CRC
+    Crc32 crc(crc32("prefix"));
+    crc.update("suffix");
+    EXPECT_EQ(crc.finish(), crc32("prefixsuffix"));
 }

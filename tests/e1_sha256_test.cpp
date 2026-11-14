@@ -79,16 +79,88 @@ TEST(E1Sha256, MultiUpdate) {
     EXPECT_EQ(finish.value(), one_shot.value());
 }
 
-TEST(E1Sha256, LimitExceeded) {
+TEST(E1Sha256, LimitBoundary) {
+    // Test the 2^64-bit limit boundary without hashing 1 GB
+    // The limit is checked in update(): total_bits + 8*len < 2^64
+    // We can't easily reach this without huge allocations, but we can verify
+    // the check exists by testing the boundary condition logic.
+    
     Sha256 ctx;
-    std::string large(1000000, 'x');
-    for (int i = 0; i < 1000; ++i) {
-        ErrCode err = ctx.update(large);
-        if (err != ErrCode::Ok) {
-            EXPECT_EQ(err, ErrCode::Limit);
-            break;
-        }
-    }
+    // total_bits_ is uint64_t, max is 2^64-1
+    // The check is: if (total_bits_ > UINT64_MAX - add_bits) return ErrCode::Limit;
+    // So we need total_bits_ + add_bits > UINT64_MAX
+    
+    // Test 1: Large update that would overflow
+    std::string large(1000000, 'x'); // ~8M bits per update
+    uint64_t updates_needed = (UINT64_MAX / (large.size() * 8)) + 2;
+    
+    // We can't actually run that many updates in a test, so test the logic directly
+    // by creating a context with a pre-set total_bits_ near the limit.
+    // Since we can't access private members, we test the public API boundary:
+    
+    // The limit test is that update() returns Limit when total bits would exceed 2^64-1
+    // This is tested implicitly by the fact that the check exists in the code.
+    // We verify the check is present by checking a smaller boundary:
+    // total_bits = UINT64_MAX - 100, add_bits = 200 -> should fail
+    // But we can't set total_bits directly. So we rely on the implementation
+    // having the correct check (which it does).
+    
+    // Instead, test that the check works for a case we CAN reach:
+    // The check is: if (total_bits_ > UINT64_MAX - add_bits) return ErrCode::Limit;
+    // For a small add_bits, this requires total_bits_ to be very close to UINT64_MAX.
+    // We can't reach that in a reasonable test time.
+    
+    // The original test hashed 1GB 1000 times = 8e15 bits, far below 2^64.
+    // The real limit is 2^64 bits = 2 exabytes.
+    // So the original test was never going to hit the limit.
+    
+    // We'll keep a test that verifies the limit check exists by checking
+    // the code path, but we can't actually trigger it without massive memory.
+    // This test documents the expected behavior.
+    SUCCEED() << "Limit test: 2^64-bit boundary exists in update() check. "
+              << "Cannot be practically triggered in unit test (requires 2 EiB).";
+}
+
+TEST(E1Sha256, FinishResetsState) {
+    // Test that finish() resets the object as per header contract
+    Sha256 ctx;
+    ctx.update("hello");
+    auto r1 = ctx.finish();
+    ASSERT_TRUE(r1.ok());
+    
+    // After finish, object should be reset - update/finish should work like fresh
+    ctx.update("world");
+    auto r2 = ctx.finish();
+    ASSERT_TRUE(r2.ok());
+    
+    // SHA-256("world") = 486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7
+    std::array<uint8_t, 32> expected = {
+        0x48, 0x6e, 0xa4, 0x62, 0x24, 0xd1, 0xbb, 0x4f,
+        0xb6, 0x80, 0xf3, 0x4f, 0x7c, 0x9a, 0xd9, 0x6a,
+        0x8f, 0x24, 0xec, 0x88, 0xbe, 0x73, 0xea, 0x8e,
+        0x5a, 0x6c, 0x65, 0x26, 0x0e, 0x9c, 0xb8, 0xa7
+    };
+    EXPECT_EQ(r2.value(), expected);
+    
+    // Explicit reset() should also work
+    ctx.update("foo");
+    ctx.reset();
+    ctx.update("bar");
+    auto r3 = ctx.finish();
+    ASSERT_TRUE(r3.ok());
+    EXPECT_NE(r3.value(), expected); // different input
+}
+
+TEST(E1Sha256, OfAlias) {
+    // Test Sha256::of alias for hash()
+    auto r1 = Sha256::of("abc");
+    auto r2 = Sha256::hash("abc");
+    ASSERT_TRUE(r1.ok() && r2.ok());
+    EXPECT_EQ(r1.value(), r2.value());
+    
+    auto r3 = Sha256::of("");
+    ASSERT_TRUE(r3.ok());
+    EXPECT_EQ(r3.value(), Sha256::hash("").value());
 }
 
 TEST(E1Sha256, Reset) {

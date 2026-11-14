@@ -18,8 +18,10 @@ const std::array<std::array<uint32_t, 32>, 32>& crc32_combine_matrix() noexcept;
 // One-shot CRC-32 (standard finalized value: init=0xFFFFFFFF, xorout=0xFFFFFFFF)
 uint32_t crc32(std::string_view data) noexcept;
 
-// Incremental CRC-32 (zlib-compatible: init=0, no final XOR)
-uint32_t crc32_incremental(std::string_view data, uint32_t crc = 0) noexcept;
+// Incremental CRC-32: accepts a **finalized** CRC (xorout applied) and returns a finalized CRC.
+// This is the zlib continuation convention: crc32_incremental(B, crc32(A)) == crc32(A+B)
+// and crc32_incremental(data) == crc32(data) when called with default argument.
+uint32_t crc32_incremental(std::string_view data, uint32_t prev_finalized = CRC32_XOROUT) noexcept;
 
 // Combine: crc(A‖B) from crc(A), crc(B), len(B)
 // Both CRCs must be standard finalized values (crc32() output).
@@ -32,5 +34,38 @@ uint32_t crc32_zeroed(std::string_view data, size_t offset) noexcept;
 
 // Verify zeroed-field invariance (debug only)
 bool crc32_zeroed_invariant(std::string_view data, size_t offset) noexcept;
+
+// Crc32 class (surface alias per SPECS §5.4)
+class Crc32 {
+public:
+    Crc32() noexcept : state_(CRC32_INIT) {}
+    explicit Crc32(uint32_t initial_finalized) noexcept : state_(initial_finalized ^ CRC32_INIT) {}
+
+    void reset() noexcept { state_ = CRC32_INIT; }
+    void reset(uint32_t initial_finalized) noexcept { state_ = initial_finalized ^ CRC32_INIT; }
+
+    // Process data, returns *this for chaining
+    Crc32& update(std::string_view data) noexcept {
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data.data());
+        for (size_t i = 0; i < data.size(); ++i) {
+            state_ = crc32_table()[(state_ ^ bytes[i]) & 0xFF] ^ (state_ >> 8);
+        }
+        return *this;
+    }
+
+    // Finalize and return standard finalized CRC; resets to initial state
+    uint32_t finish() noexcept {
+        uint32_t result = state_ ^ CRC32_XOROUT;
+        state_ = CRC32_INIT;
+        return result;
+    }
+
+    // One-shot convenience
+    static uint32_t of(std::string_view data) noexcept { return crc32(data); }
+    static uint32_t of_with_zeroed(std::string_view data, size_t offset) noexcept { return crc32_zeroed(data, offset); }
+
+private:
+    uint32_t state_;
+};
 
 } // namespace mapr

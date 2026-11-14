@@ -96,13 +96,15 @@ uint32_t crc32(std::string_view data) noexcept {
     return crc ^ CRC32_XOROUT;
 }
 
-uint32_t crc32_incremental(std::string_view data, uint32_t crc) noexcept {
-    // zlib-compatible: init=0, no final XOR
+uint32_t crc32_incremental(std::string_view data, uint32_t prev_finalized) noexcept {
+    // Accept finalized CRC (with xorout applied), convert to internal state
+    uint32_t internal = prev_finalized ^ CRC32_INIT;
     const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data.data());
     for (size_t i = 0; i < data.size(); ++i) {
-        crc = crc32_table()[(crc ^ bytes[i]) & 0xFF] ^ (crc >> 8);
+        internal = crc32_table()[(internal ^ bytes[i]) & 0xFF] ^ (internal >> 8);
     }
-    return crc;
+    // Return finalized CRC
+    return internal ^ CRC32_XOROUT;
 }
 
 uint32_t crc32_combine(uint32_t crc_a, uint32_t crc_b, size_t len_b) noexcept {
