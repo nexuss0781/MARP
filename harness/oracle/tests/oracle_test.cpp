@@ -2470,16 +2470,35 @@ TEST(OracleCliAndDeterminism, CliSmokeAndDeterminism) {
 // Evidence writing helpers (clean-room C++20, matching H2 8-col TSV format)
 // =========================================================================
 
-bool check_source_independence(const std::filesystem::path& repo_root, std::string& detail) {
+bool check_source_independence(const std::filesystem::path& repo_root,
+                               std::string& detail,
+                               std::string& src_tree_sha256) {
     const auto oracle_dir = repo_root / "harness" / "oracle";
     if (!std::filesystem::exists(oracle_dir)) {
         detail = "harness/oracle directory not found";
+        src_tree_sha256 = sha256_of_string("missing");
         return false;
     }
+    std::vector<std::filesystem::path> files;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(
+             oracle_dir, std::filesystem::directory_options::follow_directory_symlink)) {
+        if (entry.is_regular_file()) {
+            files.push_back(entry.path());
+        }
+    }
+    std::sort(files.begin(), files.end());
+
+    std::string manifest_text;
     int files_scanned = 0;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(oracle_dir)) {
-        if (!entry.is_regular_file()) continue;
-        std::ifstream ifs(entry.path());
+    for (const auto& p : files) {
+        std::error_code rel_ec;
+        const auto rel = std::filesystem::relative(p, oracle_dir, rel_ec).generic_string();
+        manifest_text += rel;
+        manifest_text += ':';
+        manifest_text += sha256_of_file(p);
+        manifest_text += '\n';
+
+        std::ifstream ifs(p);
         std::string line;
         int lineno = 0;
         while (std::getline(ifs, line)) {
@@ -2491,12 +2510,14 @@ bool check_source_independence(const std::filesystem::path& repo_root, std::stri
             if (slash != std::string::npos && slash < pos) continue;
             if (line.find("mapr/", pos) != std::string::npos ||
                 line.find("marp/harness/", pos) != std::string::npos) {
-                detail = "forbidden include in " + entry.path().string() + ":" + std::to_string(lineno);
+                detail = "forbidden include in " + rel + ":" + std::to_string(lineno);
+                src_tree_sha256 = sha256_of_string(manifest_text);
                 return false;
             }
         }
         ++files_scanned;
     }
+    src_tree_sha256 = sha256_of_string(manifest_text);
     detail = "0 forbidden includes across " + std::to_string(files_scanned) + " oracle files";
     return files_scanned >= 7;
 }
@@ -2516,21 +2537,23 @@ int write_h3_evidence() {
     auto& col = collector();
     const auto root = col.evidence_root;
 
-    // 1) Independence check row
+    // 1) Independence check row (uses deterministic source-tree digest so TSV is host-independent)
     std::string inc_detail;
-    const bool src_indep = check_source_independence(root, inc_detail);
+    std::string src_tree_sha;
+    const bool src_indep = check_source_independence(root, inc_detail, src_tree_sha);
     const bool full_indep = src_indep && col.nm_verified_by_ci;
     const std::string bin_sha = (!col.oracle_bin.empty() && std::filesystem::exists(col.oracle_bin))
                                     ? sha256_of_file(col.oracle_bin)
                                     : sha256_of_string("no-oracle-bin");
     col.add_row(
         "independence", "ORACLE", "grep-and-nm-clean-room",
-        bin_sha,
+        src_tree_sha,
         "0 engine includes, 0 engine symbols",
         inc_detail + (col.nm_verified_by_ci ? "; nm_clean=YES" : "; nm_clean=NOT_RUN"),
         full_indep ? "PASS" : "FAIL",
         "logs/H3-ORACLE.log#independence");
     col.add_log("independence: " + inc_detail +
+                " src_tree_sha256=" + src_tree_sha +
                 " nm_verified_by_ci=" + std::string(col.nm_verified_by_ci ? "YES" : "NO"));
 
     // 2) Honest BLOCKED row for oracle.f00-f08 (NEVER PASS until E3 wires exist!)

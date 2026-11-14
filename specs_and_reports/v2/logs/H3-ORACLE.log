@@ -1,0 +1,28 @@
+date_utc: 2026-11-14T17:07:16Z
+host: e2b.local
+kernel: 6.1.158+
+nproc: 2
+compiler: 12.2.0
+oracle_bin_sha256: 911b4be773266664675f60d1a332b74637abc18300e38b5ed40e363aa6fc0bd3
+command_line: ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence ..
+digest.vectors: sha256_kats=4 crc32_kats=4 status=PASS
+wire.header: passed=22/22
+wire.bigint: passed=24/24
+wire.atoms: passed=11/11
+wire.nodes: passed=37/37
+wire.trailer: passed=5/5
+wire.index: passed=8/8
+wire.mutations: total=353 rejected=353 accepted_invalid=0
+eval.kinds: passed=13/13
+eval.morph: passed=21/21
+eval.predictor: passed=18/18
+eval.lfsr: passed=5/5
+eval.range: passed=7/7
+resource.limits: passed=6/6
+wire.stage_order: passed=11/11
+determinism: cli_bin=./bin/mapr_oracle status=PASS
+independence: 0 forbidden includes across 10 oracle files src_tree_sha256=f01e2422e9c331948fb49bf9e0296a85ddfecc39ccb92af009ea852acf130e41 nm_verified_by_ci=YES
+oracle.f00-f08: BLOCKED (E3 wire producer absent; unblocked once E3 emits F00-F08 wires)
+totals: total=18 pass=17 fail=0 blocked=1
+RESULT: BLOCKED (all implemented H3 oracle checks PASS; oracle.f00-f08 BLOCKED awaiting E3)
+exit_code: 0

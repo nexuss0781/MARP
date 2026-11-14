@@ -84,6 +84,16 @@ jobs:
           fi
           echo "PASS: Binary independence verified"
 
+      - name: Snapshot committed evidence (if present) and verify committed manifest
+        run: |
+          set -euo pipefail
+          rm -f /tmp/committed-H3-ORACLE.tsv
+          if [ -f specs_and_reports/v2/gates/H3-ORACLE.tsv ]; then
+            cp specs_and_reports/v2/gates/H3-ORACLE.tsv /tmp/committed-H3-ORACLE.tsv
+            sha256sum -c specs_and_reports/v2/evidence/H3/SHA256SUMS
+            echo "PASS: Committed H3 evidence manifest verified before CI run"
+          fi
+
       - name: Run H3 oracle test suite and write evidence
         env:
           LD_LIBRARY_PATH: /usr/local/lib
@@ -91,6 +101,14 @@ jobs:
           set -euo pipefail
           cd engine
           ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence ..
+
+      - name: Verify committed H3-ORACLE.tsv matches CI-generated TSV byte-for-byte
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/committed-H3-ORACLE.tsv ]; then
+            diff -u /tmp/committed-H3-ORACLE.tsv specs_and_reports/v2/gates/H3-ORACLE.tsv
+            echo "PASS: Committed H3-ORACLE.tsv is byte-for-byte identical to CI output"
+          fi
 
       - name: External determinism check (repeat run diff)
         env:
