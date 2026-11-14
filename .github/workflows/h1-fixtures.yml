@@ -38,6 +38,7 @@ jobs:
           git clone --depth 1 --branch v1.17.0 https://github.com/google/googletest.git
           cmake -S googletest -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_GMOCK=OFF -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=/tmp/googletest/build/lib
           cmake --build build --target gtest gtest_main -j4
+          find /tmp/googletest -maxdepth 4 -name 'libgtest*.a' -print
 
       - name: Build H1 binary and tests
         run: |
@@ -45,6 +46,15 @@ jobs:
           cd engine
           mkdir -p ../out
           make -f Makefile.h1 h1-all -j4 H1_GTEST_ROOT="$H1_GTEST_ROOT" 2>&1 | tee ../out/h1-build.log
+
+      - name: Annotate build failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          if [ -f out/h1-build.log ]; then
+            message="$(tail -c 6000 out/h1-build.log | jq -sRr @uri)"
+            echo "::error title=H1 build log::$message"
+          fi
 
       - name: Run H1 tests
         run: |
