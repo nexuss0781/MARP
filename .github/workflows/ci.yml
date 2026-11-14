@@ -120,6 +120,8 @@ jobs:
           make clean
           make test-san -j4
           make harness-test-san -j4
+          # Rebuild the gate binary for post-ASan verification (clean removed it).
+          make bin/mapr_gate -j4
 
       - name: Verify gate artifacts
         run: |
