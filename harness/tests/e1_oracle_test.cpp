@@ -256,10 +256,10 @@ TEST(E1Oracle, BigInt_ToLEBytes) {
 }
 
 TEST(E1Oracle, BigInt_BitLength) {
-    EXPECT_EQ(bit_length(BigInt{0}), 0);
-    EXPECT_EQ(bit_length(BigInt{1}), 1);
-    EXPECT_EQ(bit_length(BigInt{0xFFFFFFFF}), 32);
-    EXPECT_EQ(bit_length(BigInt{0x100000000ull}), 33); // 2^32
+    EXPECT_EQ(bit_length(BigInt(0)), 0);
+    EXPECT_EQ(bit_length(BigInt(1)), 1);
+    EXPECT_EQ(bit_length(BigInt(0xFFFFFFFFull)), 32);
+    EXPECT_EQ(bit_length(BigInt(0x100000000ull)), 33); // 2^32
 }
 
 TEST(E1Oracle, SelfCheck) {

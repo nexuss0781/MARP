@@ -116,7 +116,9 @@ TEST(HarnessGates, Render) {
     
     std::ifstream ifs(out);
     ASSERT_TRUE(ifs.is_open());
-    std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    std::stringstream ss;
+    ss << ifs.rdbuf();
+    std::string content = ss.str();
     EXPECT_NE(content.find("arith.add"), std::string::npos);
     EXPECT_NE(content.find("arith.mul"), std::string::npos);
     EXPECT_NE(content.find("PASS"), std::string::npos);
