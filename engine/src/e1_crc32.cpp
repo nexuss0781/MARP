@@ -1,9 +1,9 @@
 #include "mapr/e1_crc32.hpp"
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <string_view>
 #include <string>
-#include <zlib.h>
 
 namespace mapr {
 
@@ -109,14 +109,29 @@ uint32_t crc32_incremental(std::string_view data, uint32_t prev_finalized) noexc
 }
 
 uint32_t crc32_combine(uint32_t crc_a, uint32_t crc_b, size_t len_b) noexcept {
-    // Use zlib's proven crc32_combine.
-    // Our crc32() returns standard finalized CRC (init=0xFFFFFFFF, xorout=0xFFFFFFFF)
-    // which matches zlib's crc32(0, data, len) return value.
-    // zlib's crc32_combine(crc1, crc2, len2) expects:
-    //   crc1 = crc32(0, buf1, len1)  (standard finalized)
-    //   crc2 = crc32(0, buf2, len2)  (standard finalized)
-    //   Returns crc32(0, buf1+buf2, len1+len2) (standard finalized)
-    return static_cast<uint32_t>(::crc32_combine(crc_a, crc_b, static_cast<uLong>(len_b)));
+    // Math-SPECS C8: c_AB = Z^{8*len_b}(c_A) XOR c_B, where Z is the
+    // zero-bit linear operator over GF(2) for the reflected CRC-32 polynomial.
+    //
+    // The operator is applied in the finalized CRC domain (the same convention
+    // zlib uses). `crc32_combine_matrix()[i]` is the operator for 2^i zero
+    // bytes, so we apply exactly the powers selected by the bits of len_b.
+    // The operator is recomputed by repeated squaring instead of reading the
+    // table so that lengths above 2^32 bytes are handled too.
+    if (len_b == 0) return crc_a;
+
+    std::array<uint32_t, 32> op = crc32_combine_matrix()[0]; // one zero byte
+    uint32_t combined = crc_a;
+    size_t remaining = len_b;
+    while (remaining != 0) {
+        if (remaining & 1u) {
+            combined = mat_times(op, combined);
+        }
+        remaining >>= 1;
+        if (remaining != 0) {
+            op = mat_square(op);
+        }
+    }
+    return combined ^ crc_b;
 }
 
 uint32_t crc32_zeroed(std::string_view data, size_t offset) noexcept {

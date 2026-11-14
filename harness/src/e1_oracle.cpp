@@ -3,7 +3,6 @@
 #include <array>
 #include <cstring>
 #include <stdexcept>
-#include <zlib.h>
 
 namespace marp::harness::oracle {
 
@@ -150,16 +149,21 @@ std::vector<uint8_t> to_le_bytes(const BigInt& a) {
 }
 
 int bit_length(const BigInt& a) {
+    // Exact: convert the canonical magnitude to little-endian bytes and count
+    // the significant bits of the top byte. (Base-10^9 limbs are not a power
+    // of two, so a per-limb bit estimate would be inexact.)
     BigInt ta = trim(a);
-    if (ta.empty() || (ta.size() == 1 && ta[0] == 0)) return 0;
-    // Find highest non-zero limb
-    uint32_t top = ta.back();
-    int bits = 0;
-    while (top) {
+    if (ta.size() == 1 && ta[0] == 0) return 0;
+
+    const std::vector<uint8_t> bytes = to_le_bytes(ta);
+    if (bytes.empty()) return 0;
+    uint8_t top = bytes.back();
+    int bits = static_cast<int>((bytes.size() - 1) * 8);
+    while (top != 0) {
         top >>= 1;
-        bits++;
+        ++bits;
     }
-    return static_cast<int>((ta.size() - 1) * 30 + bits); // ~30 bits per limb (log2(10^9) ≈ 29.9)
+    return bits;
 }
 
 // ============================================================================
@@ -236,106 +240,73 @@ BigInt mul(const BigInt& a, const BigInt& b) {
 // Division
 // ============================================================================
 
+namespace {
+
+// Multiply a base-10^9 magnitude by a single limb (< BASE). Used only by the
+// deliberately simple schoolbook division below; the product always fits in
+// uint64_t because (BASE-1)^2 + (BASE-1) < 10^18.
+BigInt mul_scalar(const BigInt& a, Limb m) {
+    if (m == 0) return BigInt{0};
+    BigInt result(a.size() + 1, 0);
+    uint64_t carry = 0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        const uint64_t prod = static_cast<uint64_t>(a[i]) * m + carry;
+        result[i] = static_cast<Limb>(prod % BASE);
+        carry = prod / BASE;
+    }
+    result[a.size()] = static_cast<Limb>(carry);
+    return trim(result);
+}
+
+} // namespace
+
 std::pair<BigInt, BigInt> divmod(const BigInt& a, const BigInt& b) {
+    // Independent schoolbook long division. At each step the running remainder
+    // is < b, so after bringing down one limb it is < b*BASE and the quotient
+    // digit is in [0, BASE-1]. A binary search over that range costs O(log BASE)
+    // multiplications but is easy to audit and has no normalisation edge cases.
     BigInt ta = trim(a);
     BigInt tb = trim(b);
     if (tb.size() == 1 && tb[0] == 0) throw std::domain_error("Division by zero");
-    
-    int cmp = compare(ta, tb);
+
+    const int cmp = compare(ta, tb);
     if (cmp < 0) return {BigInt{0}, ta};
     if (cmp == 0) return {BigInt{1}, BigInt{0}};
     if (tb.size() == 1) {
         auto dm = divmod_scalar(ta, tb[0]);
         return {std::move(dm.first), BigInt{dm.second}};
     }
-    
-    // Knuth's Algorithm D (base BASE)
-    size_t n = tb.size();
-    size_t m = ta.size() - n;
-    
-    // Normalize: d = BASE / (v_{n-1} + 1)
-    uint64_t vn1 = tb[n - 1];
-    uint64_t d = BASE / (vn1 + 1);
-    
-    // v' = d * v
-    BigInt vn(n + 1, 0);
-    uint64_t carry = 0;
-    for (size_t i = 0; i < n; ++i) {
-        __uint128_t prod = (__uint128_t)tb[i] * d + carry;
-        vn[i] = static_cast<Limb>(prod % BASE);
-        carry = static_cast<uint64_t>(prod / BASE);
-    }
-    vn[n] = static_cast<Limb>(carry);
-    vn = trim(vn);
-    
-    // u' = d * u, padded to m+n+1
-    BigInt un(m + n + 1, 0);
-    carry = 0;
-    for (size_t i = 0; i < ta.size(); ++i) {
-        __uint128_t prod = (__uint128_t)ta[i] * d + carry;
-        un[i] = static_cast<Limb>(prod % BASE);
-        carry = static_cast<uint64_t>(prod / BASE);
-    }
-    un[ta.size()] = static_cast<Limb>(carry);
-    
-    BigInt q(m + 1, 0);
-    
-    for (size_t j = m; ; --j) {
-        // Estimate qhat
-        uint64_t un_jn = un[j + n];
-        uint64_t un_jn1 = un[j + n - 1];
-        uint64_t un_jn2 = (j + n - 2 < un.size()) ? un[j + n - 2] : 0;
-        uint64_t vn_n1 = vn[n - 1];
-        uint64_t vn_n2 = vn[n - 2];
-        
-        __uint128_t num = (__uint128_t)un_jn * BASE + un_jn1;
-        uint64_t qhat = static_cast<uint64_t>(num / vn_n1);
-        uint64_t rhat = static_cast<uint64_t>(num % vn_n1);
-        
-        // Correct qhat downward
-        while (qhat >= BASE || (__uint128_t)qhat * vn_n2 > (__uint128_t)rhat * BASE + un_jn2) {
-            --qhat;
-            rhat += vn_n1;
-            if (rhat >= BASE) break;
-        }
-        
-        // Multiply and subtract: un[j..j+n] -= qhat * vn
-        int64_t borrow = 0;
-        for (size_t i = 0; i < n; ++i) {
-            __uint128_t prod = (__uint128_t)qhat * vn[i] + borrow;
-            int64_t sub = static_cast<int64_t>(un[j + i]) - static_cast<int64_t>(prod % BASE);
-            un[j + i] = static_cast<Limb>((sub % BASE + BASE) % BASE);
-            borrow = static_cast<int64_t>(prod / BASE) + (sub < 0 ? 1 : 0);
-        }
-        int64_t un_jn_orig = static_cast<int64_t>(un[j + n]);
-        int64_t sub_top = un_jn_orig - borrow;
-        un[j + n] = static_cast<Limb>((sub_top % BASE + BASE) % BASE);
-        borrow = (sub_top < 0) ? 1 : 0;
-        
-        if (borrow != 0) {
-            --qhat;
-            uint64_t carry_add = 0;
-            for (size_t i = 0; i < n; ++i) {
-                uint64_t sum = static_cast<uint64_t>(un[j + i]) + vn[i] + carry_add;
-                un[j + i] = static_cast<Limb>(sum % BASE);
-                carry_add = sum / BASE;
+
+    BigInt remainder{0};
+    BigInt quotient(ta.size(), 0);
+
+    for (size_t i = ta.size(); i-- > 0;) {
+        // remainder = remainder * BASE + ta[i] in little-endian limbs.
+        remainder.insert(remainder.begin(), ta[i]);
+        remainder = trim(remainder);
+
+        Limb lo = 0;
+        Limb hi = static_cast<Limb>(BASE - 1);
+        while (lo < hi) {
+            const Limb mid = static_cast<Limb>(lo + (hi - lo + 1) / 2);
+            const BigInt prod = mul_scalar(tb, mid);
+            if (compare(prod, remainder) <= 0) {
+                lo = mid;
+            } else {
+                hi = static_cast<Limb>(mid - 1);
             }
-            uint64_t sum_top = un[j + n] + carry_add;
-            un[j + n] = static_cast<Limb>(sum_top % BASE);
         }
-        q[j] = static_cast<Limb>(qhat);
-        if (j == 0) break;
+
+        quotient[i] = lo;
+        if (lo != 0) {
+            const BigInt prod = mul_scalar(tb, lo);
+            auto diff = sub(remainder, prod);
+            if (!diff) throw std::logic_error("oracle divmod: subtraction underflow");
+            remainder = std::move(*diff);
+        }
     }
-    
-    q = trim(q);
-    
-    // Remainder = un[0..n-1] / d
-    BigInt rem_un(n, 0);
-    for (size_t i = 0; i < n; ++i) rem_un[i] = un[i];
-    rem_un = trim(rem_un);
-    
-    auto dm = divmod_scalar(rem_un, static_cast<Limb>(d));
-    return {std::move(q), std::move(dm.first)};
+
+    return {trim(quotient), trim(remainder)};
 }
 
 std::pair<BigInt, Limb> divmod_scalar(const BigInt& a, Limb d) {
@@ -504,15 +475,57 @@ uint32_t crc32_incremental(std::string_view data, uint32_t prev_finalized) {
     return internal ^ CRC32_XOROUT;
 }
 
+namespace {
+
+uint32_t gf2_matrix_times(const std::array<uint32_t, 32>& mat, uint32_t vec) {
+    uint32_t sum = 0;
+    for (int i = 0; i < 32; ++i) {
+        if (vec & 1u) sum ^= mat[static_cast<size_t>(i)];
+        vec >>= 1;
+    }
+    return sum;
+}
+
+void gf2_matrix_square(std::array<uint32_t, 32>& even,
+                       const std::array<uint32_t, 32>& odd) {
+    for (int i = 0; i < 32; ++i) {
+        even[static_cast<size_t>(i)] = gf2_matrix_times(odd, odd[static_cast<size_t>(i)]);
+    }
+}
+
+} // namespace
+
 uint32_t crc32_combine(uint32_t crc_a, uint32_t crc_b, size_t len_b) {
-    // Use zlib's proven crc32_combine.
-    // Our crc32() returns standard finalized CRC (init=0xFFFFFFFF, xorout=0xFFFFFFFF)
-    // which matches zlib's crc32(0, data, len) return value.
-    // zlib's crc32_combine(crc1, crc2, len2) expects:
-    //   crc1 = crc32(0, buf1, len1)  (standard finalized)
-    //   crc2 = crc32(0, buf2, len2)  (standard finalized)
-    //   Returns crc32(0, buf1+buf2, len1+len2) (standard finalized)
-    return static_cast<uint32_t>(::crc32_combine(crc_a, crc_b, static_cast<uLong>(len_b)));
+    // Independent GF(2) combination: apply the operator for `len_b` zero bytes
+    // to crc_a and XOR crc_b. Written separately from the E1 implementation.
+    if (len_b == 0) return crc_a;
+
+    std::array<uint32_t, 32> odd{};
+    odd[0] = CRC32_POLY; // operator for one zero bit
+    uint32_t row = 1;
+    for (int n = 1; n < 32; ++n) {
+        odd[static_cast<size_t>(n)] = row;
+        row <<= 1;
+    }
+
+    std::array<uint32_t, 32> even{};
+    gf2_matrix_square(even, odd); // two zero bits
+    gf2_matrix_square(odd, even); // four zero bits
+
+    uint32_t crc = crc_a;
+    size_t len = len_b;
+    do {
+        gf2_matrix_square(even, odd); // eight zero bits (one byte)
+        if (len & 1u) crc = gf2_matrix_times(even, crc);
+        len >>= 1;
+        if (len == 0) break;
+
+        gf2_matrix_square(odd, even);
+        if (len & 1u) crc = gf2_matrix_times(odd, crc);
+        len >>= 1;
+    } while (len != 0);
+
+    return crc ^ crc_b;
 }
 
 uint32_t crc32_zeroed(std::string_view data, size_t offset) {

@@ -1,4 +1,4 @@
-name: MARP E1 Foundation CI
+name: MARP H2 Gates CI
 
 on:
   push:
@@ -8,110 +8,139 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Verify commit
-      run: |
-        echo "Current commit: $(git rev-parse HEAD)"
-        echo "Branch: ${{ github.ref_name }}"
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential g++ cmake libgtest-dev zlib1g-dev
-
-    - name: Build googletest
-      run: |
-        cd /tmp
-        git clone --depth 1 https://github.com/google/googletest.git
-        cd googletest
-        mkdir build && cd build
-        cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-        make -j4
-        sudo make install
-        sudo ldconfig
-        echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
-        sudo ldconfig
-
-    - name: Configure and Build E1 + Harness
-      run: |
-        cd engine
-        make clean
-        make -j4
-      env:
-        LD_LIBRARY_PATH: /usr/local/lib:${LD_LIBRARY_PATH}
-        PKG_CONFIG_PATH: /usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}
-
-    - name: Run E1 Tests
-      run: |
-        cd engine
-        ./bin/mapr_tests
-
-    - name: Run Harness Tests
-      run: |
-        cd engine
-        ./bin/harness_tests
-
-    - name: Run E0-G Gate (Harness Self-Test)
-      run: |
-        cd engine
-        ./bin/mapr_gate --gate E0-G --root ..
-
-    - name: Run E1-G Gate
-      run: |
-        cd engine
-        ./bin/mapr_gate --gate E1-G --root ..
-
-    - name: Run with AddressSanitizer (E1 + Harness)
-      run: |
-        cd engine
-        make clean
-        make test-san -j4
-        make harness-test-san -j4
-
-    - name: Verify Gate Artifacts
-      run: |
-        ls -la specs_and_reports/v2/gates/
-        ls -la specs_and_reports/v2/logs/
-        ls -la specs_and_reports/v2/corpus/E1/
-        ls -la specs_and_reports/v2/evidence/E1/
-
-    - name: Verify Evidence Manifest
-      run: |
-        cd engine
-        ./bin/mapr_gate --verify-evidence --root ..
-
-    - name: Upload Gate Evidence
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: gate-evidence
-        path: specs_and_reports/v2/**
-        retention-days: 30
-
-  # Oracle isolation check - runs separately to ensure no E1 headers in oracle
   oracle-isolation:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Check oracle isolation
-      run: |
-        echo "Checking harness oracle for E1 header includes..."
-        if grep -r "mapr/e1_" harness/include/marp/harness/e1_oracle.hpp harness/src/e1_oracle.cpp 2>/dev/null; then
-          echo "FAIL: Oracle contains E1 header includes"
-          exit 1
-        fi
-        if grep -r "#include.*mapr/e1" harness/include/marp/harness/e1_oracle.hpp harness/src/e1_oracle.cpp 2>/dev/null; then
-          echo "FAIL: Oracle includes E1 headers"
-          exit 1
-        fi
-        echo "PASS: Oracle isolation verified"
+      - name: Check oracle isolation
+        run: |
+          set -euo pipefail
+          echo "Checking harness oracle for E1 header includes..."
+          if grep -nE '#include[[:space:]]*["<]mapr/e1_' harness/include/marp/harness/e1_oracle.hpp harness/src/e1_oracle.cpp; then
+            echo "FAIL: Oracle includes E1 headers"
+            exit 1
+          fi
+          echo "PASS: Oracle isolation verified"
+
+  build-test-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake libgtest-dev zlib1g-dev
+
+      - name: Build googletest
+        run: |
+          set -euo pipefail
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Build E1 and harness
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |
+          set -euo pipefail
+          cd engine
+          make clean
+          make -j4
+
+      - name: Run E1 tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/mapr_tests
+
+      - name: Run harness tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/harness_tests
+
+      - name: Run E0-G
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/mapr_gate --gate E0-G --root ..
+
+      - name: Run E1-G (1 thread)
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/mapr_gate --gate E1-G --root .. --threads 1
+
+      - name: External 1-vs-4 thread diff
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          cp ../specs_and_reports/v2/gates/E1-G.tsv ../specs_and_reports/v2/gates/E1-G.1.tsv
+          ./bin/mapr_gate --gate E1-G --root .. --threads 4
+          diff -u ../specs_and_reports/v2/gates/E1-G.1.tsv ../specs_and_reports/v2/gates/E1-G.tsv
+
+      - name: Run with AddressSanitizer (E1 + harness)
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |
+          set -euo pipefail
+          cd engine
+          make clean
+          make test-san -j4
+          make harness-test-san -j4
+
+      - name: Verify gate artifacts
+        run: |
+          set -euo pipefail
+          ls -la specs_and_reports/v2/gates/
+          ls -la specs_and_reports/v2/logs/
+          ls -la specs_and_reports/v2/corpus/E1/
+          ls -la specs_and_reports/v2/evidence/E1/
+
+      - name: Verify evidence manifest
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/mapr_gate --verify-evidence --root ..
+
+      - name: Upload gate evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-evidence-h2
+          path: specs_and_reports/v2/**
+          retention-days: 30

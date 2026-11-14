@@ -80,27 +80,16 @@ TEST(E1Sha256, MultiUpdate) {
 }
 
 TEST(E1Sha256, LimitBoundary) {
-    // Test the 2^64-bit limit boundary without hashing 1 GB
-    // The limit is checked in update(): total_bits + 8*len < 2^64
-    // We can't easily reach this without huge allocations, but we can verify
-    // the check exists by testing the boundary condition logic.
-    
-    // The limit test is that update() returns Limit when total bits would exceed 2^64-1
-    // This is tested implicitly by the fact that the check exists in the code.
-    // We verify the check is present by checking a smaller boundary:
-    // total_bits = UINT64_MAX - 100, add_bits = 200 -> should fail
-    // But we can't set total_bits directly. So we rely on the implementation
-    // having the correct check (which it does).
-    
-    // The original test hashed 1GB 1000 times = 8e15 bits, far below 2^64.
-    // The real limit is 2^64 bits = 2 exabytes.
-    // So the original test was never going to hit the limit.
-    
-    // We'll keep a test that verifies the limit check exists by checking
-    // the code path, but we can't actually trigger it without massive memory.
-    // This test documents the expected behavior.
-    SUCCEED() << "Limit test: 2^64-bit boundary exists in update() check. "
-              << "Cannot be practically triggered in unit test (requires 2 EiB).";
+    // Math-SPECS C2: update returns Err::Limit when total_bits + 8*len would
+    // exceed 2^64-1. Use the test-only bit counter hook to reach the boundary
+    // without hashing exabytes.
+    Sha256 ctx;
+    ctx.set_total_bits_for_test(UINT64_MAX - 7);
+    EXPECT_EQ(ctx.update("a"), ErrCode::Limit);
+
+    Sha256 boundary;
+    boundary.set_total_bits_for_test(UINT64_MAX - 8);
+    EXPECT_EQ(boundary.update("a"), ErrCode::Ok);
 }
 
 TEST(E1Sha256, FinishResetsState) {

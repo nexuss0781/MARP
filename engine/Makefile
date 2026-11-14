@@ -1,5 +1,5 @@
 CXX      := g++
-CXXFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O3 -pthread -I../include -I../harness/include -I/home/nexuss0781/.local/include
+CXXFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O3 -pthread -I../include -I../harness/include
 SANFLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -I../include -I../harness/include
 
 # Use pkg-config for gtest flags if available
@@ -22,18 +22,17 @@ HARNESS_LIB_SRCS := \
     ../harness/src/e0_selftest.cpp \
     ../harness/src/e1_gate.cpp \
     ../harness/src/e1_corpus.cpp \
-    ../harness/src/e1_oracle.cpp
+    ../harness/src/e1_oracle.cpp \
+    ../harness/src/e1_terms.cpp
 
 HARNESS_LIB_OBJS := $(patsubst ../harness/src/%.cpp,obj/harness/%.o,$(HARNESS_LIB_SRCS))
 
-# Harness main source (gate CLI)
+# Gate CLI
 HARNESS_MAIN_SRCS := ../harness/src/main.cpp
 HARNESS_MAIN_OBJS := $(patsubst ../harness/src/%.cpp,obj/harness/%.o,$(HARNESS_MAIN_SRCS))
-
-# All harness objects (for gate binary)
 HARNESS_OBJS := $(HARNESS_LIB_OBJS) $(HARNESS_MAIN_OBJS)
 
-# Test sources (relative to engine/ directory)
+# E1 tests
 TEST_SRCS := \
     ../tests/test_runner.cpp \
     ../tests/e1_bigint_test.cpp \
@@ -44,9 +43,8 @@ TEST_SRCS := \
 
 TEST_OBJS := $(patsubst ../tests/%.cpp,obj/tests/%.o,$(TEST_SRCS))
 
-# Harness test sources
+# Harness tests (use gtest_main, no custom runner)
 HARNESS_TEST_SRCS := \
-    ../harness/tests/test_runner.cpp \
     ../harness/tests/harness_gates_test.cpp \
     ../harness/tests/e1_oracle_test.cpp
 
@@ -54,7 +52,7 @@ HARNESS_TEST_OBJS := $(patsubst ../harness/tests/%.cpp,obj/harness_tests/%.o,$(H
 
 LIB_OBJS := $(E1_OBJS)
 
-.PHONY: all clean test test-san e1-test harness-test
+.PHONY: all clean test test-san e1-test harness-test harness-test-san
 
 all: bin/mapr_tests bin/mapr_gate bin/harness_tests
 
@@ -74,32 +72,30 @@ obj/harness_tests/%.o: ../harness/tests/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) -c $< -o $@
 
-# Only build the test binary for E1
 bin/mapr_tests: $(LIB_OBJS) $(TEST_OBJS)
 	@mkdir -p bin
-	$(CXX) $(CXXFLAGS) -o bin/mapr_tests $(LIB_OBJS) $(TEST_OBJS) $(GTEST_LIBS) -lz -lpthread
+	$(CXX) $(CXXFLAGS) -o $@ $(LIB_OBJS) $(TEST_OBJS) $(GTEST_LIBS) -lz -lpthread
 
 bin/mapr_tests_san: $(E1_SRCS) $(TEST_SRCS)
 	@mkdir -p bin
-	$(CXX) $(SANFLAGS) -o bin/mapr_tests_san $(E1_SRCS) $(TEST_SRCS) $(GTEST_LIBS) -lz -lpthread
+	$(CXX) $(SANFLAGS) $(GTEST_CFLAGS) -o $@ $(E1_SRCS) $(TEST_SRCS) $(GTEST_LIBS) -lz -lpthread
 
-# Gate runner binary
 bin/mapr_gate: $(LIB_OBJS) $(HARNESS_OBJS)
 	@mkdir -p bin
-	$(CXX) $(CXXFLAGS) -o bin/mapr_gate $(LIB_OBJS) $(HARNESS_OBJS) -lz -lpthread
+	$(CXX) $(CXXFLAGS) -o $@ $(LIB_OBJS) $(HARNESS_OBJS) -lpthread
 
-# Harness test binary (uses harness library without main.cpp)
 bin/harness_tests: $(LIB_OBJS) $(HARNESS_LIB_OBJS) $(HARNESS_TEST_OBJS)
 	@mkdir -p bin
-	$(CXX) $(CXXFLAGS) -o bin/harness_tests $(LIB_OBJS) $(HARNESS_LIB_OBJS) $(HARNESS_TEST_OBJS) $(GTEST_LIBS) -lz -lpthread
+	$(CXX) $(CXXFLAGS) -o $@ $(LIB_OBJS) $(HARNESS_LIB_OBJS) $(HARNESS_TEST_OBJS) $(GTEST_LIBS) -lpthread
 
-# Harness test with sanitizer
 bin/harness_tests_san: $(E1_SRCS) $(HARNESS_LIB_SRCS) $(HARNESS_TEST_SRCS)
 	@mkdir -p bin
-	$(CXX) $(SANFLAGS) -o bin/harness_tests_san $(E1_SRCS) $(HARNESS_LIB_SRCS) $(HARNESS_TEST_SRCS) $(GTEST_LIBS) -lz -lpthread
+	$(CXX) $(SANFLAGS) $(GTEST_CFLAGS) -o $@ $(E1_SRCS) $(HARNESS_LIB_SRCS) $(HARNESS_TEST_SRCS) $(GTEST_LIBS) -lpthread
 
 test: bin/mapr_tests
 	./bin/mapr_tests
+
+e1-test: test
 
 test-san: bin/mapr_tests_san
 	./bin/mapr_tests_san
@@ -109,9 +105,6 @@ harness-test: bin/harness_tests
 
 harness-test-san: bin/harness_tests_san
 	./bin/harness_tests_san
-
-e1-test: bin/mapr_tests
-	./bin/mapr_tests
 
 clean:
 	rm -rf obj bin
