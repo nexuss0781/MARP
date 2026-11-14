@@ -151,7 +151,12 @@ int run_e0_selftest(const fs::path& root, std::string_view command_line) {
 
     // 2. A deliberately corrupted envelope is rejected.
     std::vector<uint8_t> corrupted = serialized;
-    corrupted[16] ^= 0x01u;
+    if (corrupted.size() > 16) {
+        corrupted[16] ^= 0x01u;
+    } else {
+        // Should never happen for a valid envelope; treat as corruption failure.
+        all_checks = false;
+    }
     const bool rejected = !verify_envelope(corrupted);
     rows.push_back(make_row("envelope.corrupted", "MARP-H0", "payload-bit-flip",
                             sha256_hex(byte_view(corrupted)), "rejected",
