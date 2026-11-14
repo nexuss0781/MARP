@@ -1,0 +1,19 @@
+check	corpus	item_id	input_sha256	expected	actual	verdict	log
+determinism	ORACLE	repeat-decode-and-inspect	1130ac72277b17d56e11dbf36519ff6cb0b5ed146bb22bf61b189a89fcc4daa9	47377296e0967e194a1e3b3f28ef304ee9a013ce61ddcd071c3f76b9cc460333	47377296e0967e194a1e3b3f28ef304ee9a013ce61ddcd071c3f76b9cc460333	PASS	logs/H3-ORACLE.log#determinism
+digest.vectors	ORACLE	sha256-crc32-kat	ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad	8/8 published KATs match	8/8 published KATs match	PASS	logs/H3-ORACLE.log#digest.vectors
+eval.kinds	ORACLE	all-12-node-kinds	09bca9c4e1d739a9d7eb749aef839ea4e6e82ba41bd20288dbb6845cbc97859a	13/13 exact	13/13 exact	PASS	logs/H3-ORACLE.log#eval.kinds
+eval.lfsr	ORACLE	lfsr-kats-and-2p70-jump	51f618a4c72e72f710bc75bdda4bb6716b90578a914507f20e9146816fa52b44	5/5 exact	5/5 exact	PASS	logs/H3-ORACLE.log#eval.lfsr
+eval.morph	ORACLE	all-9-morphs-all-k	cd7cfe7aa91aafe8dea8d5d81d7445aca73e57bcd91a9794613d9ea8b5455117	21/21 exact	21/21 exact	PASS	logs/H3-ORACLE.log#eval.morph
+eval.predictor	ORACLE	all-5-predictors	ea0840ef05cf7b35ce661259262ce7f1ab9c0fc18a76fd7dce262a99f18a2a0b	18/18 exact	18/18 exact	PASS	logs/H3-ORACLE.log#eval.predictor
+eval.range	ORACLE	virtual-2p50-2p70-and-bounds	573bd465c6db384b4cc2a9484a531802b3c26f8ee99a85e17ebdfce43e67cfd6	7/7 exact	7/7 exact	PASS	logs/H3-ORACLE.log#eval.range
+independence	ORACLE	grep-and-nm-clean-room	f01e2422e9c331948fb49bf9e0296a85ddfecc39ccb92af009ea852acf130e41	0 engine includes, 0 engine symbols	0 forbidden includes across 10 oracle files; nm_clean=YES	PASS	logs/H3-ORACLE.log#independence
+oracle.f00-f08	ORACLE	f00-f08-cross-check	d07abede02a0272e95ebae76fd05d66eb66d0434ef9afceb90041a8362c5b5a6	byte-exact reproduction of E3 F00-F08 wires	BLOCKED: E3 wire producer absent	BLOCKED	logs/H3-ORACLE.log#oracle.f00-f08
+resource.limits	ORACLE	limits-oom-depth-expansion	e5fd7c1585e31580168d60589951e07d91bb4609c3e5e3d2413aaab08c5018c0	6/6 safe	6/6 safe	PASS	logs/H3-ORACLE.log#resource.limits
+wire.atoms	ORACLE	atom-table-rules	41319bd88e9bdaca6ed27f7c29d653dd25bce6058f824beb873e283c213ba54c	11/11 passed	11/11 passed	PASS	logs/H3-ORACLE.log#wire.atoms
+wire.bigint	ORACLE	canonical-uvarint-bigint	2635428d73f90942424ddec1195088528db3fe898cd940ec83d2946214805fe7	24/24 passed	24/24 passed	PASS	logs/H3-ORACLE.log#wire.bigint
+wire.header	ORACLE	stages-1-2-3-4-6-pinned	75d1ba312e42aa98297e8ff30ef9c0afb8f2c2455a1d7848c3a93e1eb48e439f	22/22 passed	22/22 passed	PASS	logs/H3-ORACLE.log#wire.header
+wire.index	ORACLE	seek-index-3mib	cc7439f84a41d57a2b114c6161a57775ac5ce45a19a8fb17ec91cc8aee09aebb	8/8 passed	8/8 passed	PASS	logs/H3-ORACLE.log#wire.index
+wire.mutations	ORACLE	exhaustive-byte-flip-and-trunc	6b29d8f74d43650ca4f1f4247379d981c1a519fb51ac8e41a11544fefc833784	353 rejected / 0 accepted	353 rejected / 0 accepted	PASS	logs/H3-ORACLE.log#wire.mutations
+wire.nodes	ORACLE	node-table-rules	9d7ebc04ac9933d3ccd6e60d3b56487744c8e545955d310bf543bb0e3f7fb95a	37/37 passed	37/37 passed	PASS	logs/H3-ORACLE.log#wire.nodes
+wire.stage_order	ORACLE	stages-1-to-11-precedence	ce84a409934c315e6a80055bbdf9a7328d54627774440f906c25429cd4e1ea17	11/11 ordered	11/11 ordered	PASS	logs/H3-ORACLE.log#wire.stage_order
+wire.trailer	ORACLE	stages-5-9-trailer-root	68270135764463ea7f26f81d550b53d2901d11354fec16389f5bae097e206e58	5/5 passed	5/5 passed	PASS	logs/H3-ORACLE.log#wire.trailer

@@ -1,0 +1,77 @@
+include Makefile
+
+# H3 ORACLE — Clean-room standalone v2 wire decoder/validator/evaluator.
+# Structural independence: NO -I../include, NO -I../harness/include, NO engine objects, NO zlib.
+
+H3_WARN_FLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -pthread
+H3_CXXFLAGS   := $(H3_WARN_FLAGS) -O3 -I../harness/oracle/include
+H3_SANFLAGS   := $(H3_WARN_FLAGS) -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -I../harness/oracle/include
+
+H3_GTEST_LIBS   := $(shell pkg-config --libs gtest 2>/dev/null || echo "-L/usr/local/lib -L/tmp/googletest/build/lib -lgtest")
+H3_GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null || echo "-I/usr/local/include -I/tmp/googletest/googletest/include")
+
+H3_LIB_SRCS := \
+    ../harness/oracle/src/bigint.cpp \
+    ../harness/oracle/src/crc32.cpp \
+    ../harness/oracle/src/sha256.cpp \
+    ../harness/oracle/src/decode.cpp \
+    ../harness/oracle/src/eval.cpp
+
+H3_CLI_SRC  := ../harness/oracle/src/cli.cpp
+H3_TEST_SRC := ../harness/oracle/tests/oracle_test.cpp
+
+H3_LIB_OBJS  := $(patsubst ../harness/oracle/src/%.cpp,obj/h3/%.o,$(H3_LIB_SRCS))
+H3_CLI_OBJ   := obj/h3/cli.o
+H3_TEST_OBJ  := obj/h3_tests/oracle_test.o
+
+.PHONY: h3-all h3-clean h3-test h3-test-san h3-independence
+
+h3-all: bin/mapr_oracle bin/oracle_tests
+
+obj/h3/%.o: ../harness/oracle/src/%.cpp ../harness/oracle/include/marp/oracle/oracle.hpp ../harness/oracle/src/oracle_internal.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(H3_CXXFLAGS) -c $< -o $@
+
+obj/h3_tests/oracle_test.o: ../harness/oracle/tests/oracle_test.cpp ../harness/oracle/tests/wire_builder.hpp ../harness/oracle/include/marp/oracle/oracle.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(H3_CXXFLAGS) -I../harness/oracle/tests $(H3_GTEST_CFLAGS) -c $< -o $@
+
+bin/mapr_oracle: $(H3_LIB_OBJS) $(H3_CLI_OBJ)
+	@mkdir -p bin
+	$(CXX) $(H3_CXXFLAGS) -o $@ $(H3_LIB_OBJS) $(H3_CLI_OBJ) -lpthread
+
+bin/oracle_tests: $(H3_LIB_OBJS) $(H3_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(H3_CXXFLAGS) -o $@ $(H3_LIB_OBJS) $(H3_TEST_OBJ) $(H3_GTEST_LIBS) -lpthread
+
+bin/oracle_tests_san: $(H3_LIB_SRCS) $(H3_TEST_SRC) ../harness/oracle/tests/wire_builder.hpp ../harness/oracle/include/marp/oracle/oracle.hpp ../harness/oracle/src/oracle_internal.hpp
+	@mkdir -p bin
+	$(CXX) $(H3_SANFLAGS) -I../harness/oracle/tests $(H3_GTEST_CFLAGS) -o $@ $(H3_LIB_SRCS) $(H3_TEST_SRC) $(H3_GTEST_LIBS) -lpthread
+
+bin/mapr_oracle_san: $(H3_LIB_SRCS) $(H3_CLI_SRC) ../harness/oracle/include/marp/oracle/oracle.hpp ../harness/oracle/src/oracle_internal.hpp
+	@mkdir -p bin
+	$(CXX) $(H3_SANFLAGS) -o $@ $(H3_LIB_SRCS) $(H3_CLI_SRC) -lpthread
+
+h3-test: bin/mapr_oracle bin/oracle_tests
+	./bin/oracle_tests --oracle-bin ./bin/mapr_oracle
+
+h3-test-san: bin/mapr_oracle_san bin/oracle_tests_san
+	./bin/oracle_tests_san --oracle-bin ./bin/mapr_oracle_san
+
+h3-independence: bin/mapr_oracle
+	@test -x bin/mapr_oracle || (echo "FAIL: bin/mapr_oracle missing"; exit 1)
+	@echo "Checking H3 oracle source tree for forbidden engine/harness includes..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/|marp/harness/)' ../harness/oracle/; then \
+		echo "FAIL: Forbidden include found in harness/oracle/"; exit 1; \
+	fi
+	@echo "Checking bin/mapr_oracle symbols via nm..."
+	@nm -C bin/mapr_oracle > /tmp/h3_nm_syms.txt
+	@if grep -E 'mapr::|marp::harness::|marp::v2::|test_wire' /tmp/h3_nm_syms.txt; then \
+		rm -f /tmp/h3_nm_syms.txt; \
+		echo "FAIL: Engine/harness/test symbol found in bin/mapr_oracle"; exit 1; \
+	fi
+	@rm -f /tmp/h3_nm_syms.txt
+	@echo "PASS: H3 oracle independence verified (grep + nm)"
+
+h3-clean:
+	rm -rf obj/h3 obj/h3_tests bin/mapr_oracle bin/mapr_oracle_san bin/oracle_tests bin/oracle_tests_san

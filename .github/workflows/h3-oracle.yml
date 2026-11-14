@@ -1,0 +1,169 @@
+name: MARP H3 Oracle CI
+
+on:
+  push:
+    branches: [h3-oracle, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  oracle-independence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify clean-room source independence
+        run: |
+          set -euo pipefail
+          echo "Checking harness/oracle/** for forbidden engine/harness includes..."
+          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/|marp/harness/)' harness/oracle/; then
+            echo "FAIL: Forbidden include found in harness/oracle/"
+            exit 1
+          fi
+          echo "Checking harness/oracle/** for non-C++ scripts..."
+          if find harness/oracle -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+            echo "FAIL: Script file found under harness/oracle/"
+            exit 1
+          fi
+          echo "PASS: Source-level clean-room independence verified"
+
+  build-test-oracle:
+    runs-on: ubuntu-latest
+    needs: [oracle-independence]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain only, no zlib)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+
+      - name: Build GoogleTest (tests only)
+        run: |
+          set -euo pipefail
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+
+      - name: Build H3 oracle and tests (strict -Werror)
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h3 h3-clean
+          make -f Makefile.h3 h3-all -j4
+
+      - name: Verify binary independence (grep, nm, ldd)
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h3 h3-independence
+          echo "Checking ldd on bin/mapr_oracle (must not link libz or gtest)..."
+          ldd bin/mapr_oracle
+          if ldd bin/mapr_oracle | grep -E 'libz|gtest'; then
+            echo "FAIL: bin/mapr_oracle links unexpected third-party library"
+            exit 1
+          fi
+          echo "PASS: Binary independence verified"
+
+      - name: Snapshot committed evidence (if present) and verify committed manifest
+        run: |
+          set -euo pipefail
+          rm -f /tmp/committed-H3-ORACLE.tsv
+          if [ -f specs_and_reports/v2/gates/H3-ORACLE.tsv ]; then
+            cp specs_and_reports/v2/gates/H3-ORACLE.tsv /tmp/committed-H3-ORACLE.tsv
+            sha256sum -c specs_and_reports/v2/evidence/H3/SHA256SUMS
+            echo "PASS: Committed H3 evidence manifest verified before CI run"
+          fi
+
+      - name: Run H3 oracle test suite and write evidence
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence ..
+
+      - name: Verify committed H3-ORACLE.tsv matches CI-generated TSV byte-for-byte
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/committed-H3-ORACLE.tsv ]; then
+            diff -u /tmp/committed-H3-ORACLE.tsv specs_and_reports/v2/gates/H3-ORACLE.tsv
+            echo "PASS: Committed H3-ORACLE.tsv is byte-for-byte identical to CI output"
+          fi
+
+      - name: External determinism check (repeat run diff)
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/h3-det
+          mkdir -p /tmp/h3-det/harness
+          ln -s "$PWD/harness/oracle" /tmp/h3-det/harness/oracle
+          cd engine
+          ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence /tmp/h3-det
+          diff -u ../specs_and_reports/v2/gates/H3-ORACLE.tsv /tmp/h3-det/specs_and_reports/v2/gates/H3-ORACLE.tsv
+          echo "PASS: Repeat run produced byte-identical H3-ORACLE.tsv"
+
+      - name: Verify evidence schema, manifest, and honest BLOCKED state
+        run: |
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/H3-ORACLE.tsv"
+          LOG="specs_and_reports/v2/logs/H3-ORACLE.log"
+          SUMS="specs_and_reports/v2/evidence/H3/SHA256SUMS"
+          test -s "$TSV"
+          test -s "$LOG"
+          test -s "$SUMS"
+          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $7 == "FAIL" { print; exit 1 }' "$TSV"; then
+            echo "PASS: 0 FAIL rows in H3-ORACLE.tsv"
+          else
+            echo "FAIL: FAIL verdict present in H3-ORACLE.tsv"
+            exit 1
+          fi
+          awk -F'\t' '$1 == "oracle.f00-f08" { found = 1; if ($7 != "BLOCKED") { print "Bad f00-f08 verdict: " $7; exit 1 } } END { if (!found) { print "Missing oracle.f00-f08 row"; exit 1 } }' "$TSV"
+          for req in wire.header wire.bigint wire.atoms wire.nodes wire.index wire.trailer wire.mutations wire.stage_order eval.kinds eval.morph eval.predictor eval.lfsr eval.range resource.limits independence determinism oracle.f00-f08; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+          sha256sum -c "$SUMS"
+          cat "$TSV"
+          cat "$LOG"
+
+      - name: Run H3 oracle suite with ASan and UBSan
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h3 h3-test-san -j4
+
+      - name: Upload H3 oracle evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: h3-evidence
+          path: |
+            specs_and_reports/v2/gates/H3-ORACLE.tsv
+            specs_and_reports/v2/logs/H3-ORACLE.log
+            specs_and_reports/v2/evidence/H3/SHA256SUMS
+          retention-days: 30
