@@ -16,16 +16,22 @@ E1_SRCS := \
 
 E1_OBJS := $(patsubst src/%.cpp,obj/%.o,$(E1_SRCS))
 
-# Harness sources
-HARNESS_SRCS := \
+# Harness library sources (without main.cpp)
+HARNESS_LIB_SRCS := \
     ../harness/src/gates.cpp \
     ../harness/src/e0_selftest.cpp \
     ../harness/src/e1_gate.cpp \
     ../harness/src/e1_corpus.cpp \
-    ../harness/src/e1_oracle.cpp \
-    ../harness/src/main.cpp
+    ../harness/src/e1_oracle.cpp
 
-HARNESS_OBJS := $(patsubst ../harness/src/%.cpp,obj/harness/%.o,$(HARNESS_SRCS))
+HARNESS_LIB_OBJS := $(patsubst ../harness/src/%.cpp,obj/harness/%.o,$(HARNESS_LIB_SRCS))
+
+# Harness main source (gate CLI)
+HARNESS_MAIN_SRCS := ../harness/src/main.cpp
+HARNESS_MAIN_OBJS := $(patsubst ../harness/src/%.cpp,obj/harness/%.o,$(HARNESS_MAIN_SRCS))
+
+# All harness objects (for gate binary)
+HARNESS_OBJS := $(HARNESS_LIB_OBJS) $(HARNESS_MAIN_OBJS)
 
 # Test sources (relative to engine/ directory)
 TEST_SRCS := \
@@ -40,6 +46,7 @@ TEST_OBJS := $(patsubst ../tests/%.cpp,obj/tests/%.o,$(TEST_SRCS))
 
 # Harness test sources
 HARNESS_TEST_SRCS := \
+    ../harness/tests/test_runner.cpp \
     ../harness/tests/harness_gates_test.cpp \
     ../harness/tests/e1_oracle_test.cpp
 
@@ -81,15 +88,15 @@ bin/mapr_gate: $(LIB_OBJS) $(HARNESS_OBJS)
 	@mkdir -p bin
 	$(CXX) $(CXXFLAGS) -o bin/mapr_gate $(LIB_OBJS) $(HARNESS_OBJS) -lz -lpthread
 
-# Harness test binary
-bin/harness_tests: $(LIB_OBJS) $(HARNESS_OBJS) $(HARNESS_TEST_OBJS)
+# Harness test binary (uses harness library without main.cpp)
+bin/harness_tests: $(LIB_OBJS) $(HARNESS_LIB_OBJS) $(HARNESS_TEST_OBJS)
 	@mkdir -p bin
-	$(CXX) $(CXXFLAGS) -o bin/harness_tests $(LIB_OBJS) $(HARNESS_OBJS) $(HARNESS_TEST_OBJS) $(GTEST_LIBS) -lz -lpthread
+	$(CXX) $(CXXFLAGS) -o bin/harness_tests $(LIB_OBJS) $(HARNESS_LIB_OBJS) $(HARNESS_TEST_OBJS) $(GTEST_LIBS) -lz -lpthread
 
 # Harness test with sanitizer
-bin/harness_tests_san: $(E1_SRCS) $(HARNESS_SRCS) $(HARNESS_TEST_SRCS)
+bin/harness_tests_san: $(E1_SRCS) $(HARNESS_LIB_SRCS) $(HARNESS_TEST_SRCS)
 	@mkdir -p bin
-	$(CXX) $(SANFLAGS) -o bin/harness_tests_san $(E1_SRCS) $(HARNESS_SRCS) $(HARNESS_TEST_SRCS) $(GTEST_LIBS) -lz -lpthread
+	$(CXX) $(SANFLAGS) -o bin/harness_tests_san $(E1_SRCS) $(HARNESS_LIB_SRCS) $(HARNESS_TEST_SRCS) $(GTEST_LIBS) -lz -lpthread
 
 test: bin/mapr_tests
 	./bin/mapr_tests
