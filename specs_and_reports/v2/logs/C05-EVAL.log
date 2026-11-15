@@ -1,0 +1,17 @@
+tool: C05-EVAL evidence harness
+root: ..
+command_line: ./bin/e2_c05_gate --root .. --write-evidence
+compiler: 12.2.0
+std: c++20 (build flags in engine/Makefile.c05)
+[o5.1_corpus] cumulative pass=132 fail=0
+[o5.2_virtual_and_jump] cumulative pass=137 fail=0
+[o5.2_predictor] cumulative pass=146 fail=0
+o5.3_64mib_stream: bytes=67108864 sha256=90bc8bade223433a6236fe228bdd2ea9ca40149e2796eaae54d32efe43144036 peak_scratch_bytes=65536 rss_before_kib=3420 rss_after_kib=3420 rss_delta_kib=0
+[o5.3_memory_and_stack] cumulative pass=150 fail=0
+[c05_wf_guards] cumulative pass=156 fail=0
+[c05_canon_coherence] cumulative pass=157 fail=0
+[c05_determinism] cumulative pass=158 fail=0
+[independence] cumulative pass=159 fail=0
+[coverage] cumulative pass=162 fail=0
+totals: checks=162 pass=162 fail=0
+RESULT: PASS (C05 EVAL)

@@ -25,7 +25,7 @@ atom-cases: passed=5/5
 canonical-key: passed=4/4
 budget-and-presupposition: passed=5/5
 determinism: passed=1/1
-independence: files=8 violations=0 tree_sha256=416da5cab0f3d0878ff62a7c1988831680f16b43cb2f6a4a26b6ec092839b5e1
+independence: files=11 violations=0 tree_sha256=98e9dab56ae7ea8760ca36f33631b2a156aef5e09330b03c5979162f6fb21048
 independence.library: violations=0
 independence: passed=2/2
 coverage: passed=3/3

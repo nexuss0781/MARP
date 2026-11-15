@@ -1,0 +1,101 @@
+# Isolated build for E2 ALGEBRA — C05 EVAL.
+#
+# Authority boundary: E2 may depend only on E1 and earlier E2 sub-components
+# (C03 TERM, C04 CANON).  This file compiles E1 + E2 (C03 + C04 + C05) and
+# refuses to pull in E3–E7, wire, container, discovery, rewrite, selection,
+# CLI, certificate, or harness code.
+
+CXX ?= g++
+C05_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+C05_INC  := -I. -I../include -Isrc/e2
+
+C05_CXXFLAGS ?= $(C05_WARN) -O2 $(C05_INC)
+C05_SANFLAGS := $(C05_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(C05_INC)
+
+GTEST_PREBUILT_INC := $(wildcard /tmp/googletest/googletest/include)
+GTEST_PREBUILT_LIB := $(wildcard /tmp/googletest/build/lib/libgtest.a)
+ifneq ($(GTEST_PREBUILT_INC),)
+  C05_GTEST_CFLAGS := -isystem $(GTEST_PREBUILT_INC) -isystem /usr/local/include
+else
+  C05_GTEST_CFLAGS := -isystem /usr/local/include
+endif
+ifneq ($(GTEST_PREBUILT_LIB),)
+  C05_GTEST_LIBS := -L/tmp/googletest/build/lib -lgtest -lgtest_main
+else
+  C05_GTEST_LIBS := -lgtest -lgtest_main
+endif
+
+C05_E1_SRCS := src/e1_bigint.cpp src/e1_length.cpp src/e1_sha256.cpp
+C05_E1_OBJS := $(patsubst src/%.cpp,obj/c05/%.o,$(C05_E1_SRCS))
+
+C05_LIB_SRCS := src/e2/e2_term.cpp src/e2/e2_canon.cpp src/e2/e2_eval.cpp
+C05_LIB_OBJS := $(patsubst src/%.cpp,obj/c05/%.o,$(C05_LIB_SRCS))
+
+C05_GATE_SRC := src/e2/e2_c05_gate.cpp
+C05_GATE_OBJ := obj/c05_gate/e2_c05_gate.o
+
+C05_TEST_SRC := tests/e2/e2_eval_test.cpp
+C05_TEST_OBJ := obj/c05_tests/e2_eval_test.o
+
+.PHONY: c05-all c05-test c05-test-san c05-evidence c05-isolation c05-clean
+
+c05-all: bin/e2_c05_gate bin/e2_c05_tests
+
+obj/c05/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C05_CXXFLAGS) -c $< -o $@
+
+obj/c05/e2/e2_term.o: src/e2/e2_term.cpp ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_eval.hpp
+obj/c05/e2/e2_canon.o: src/e2/e2_canon.cpp ../include/mapr/e2/e2_canon.hpp ../include/mapr/e2/e2_term.hpp
+obj/c05/e2/e2_eval.o: src/e2/e2_eval.cpp ../include/mapr/e2/e2_eval.hpp ../include/mapr/e2/e2_term.hpp
+
+$(C05_GATE_OBJ): $(C05_GATE_SRC) ../include/mapr/e2/e2_eval.hpp ../include/mapr/e2/e2_canon.hpp ../include/mapr/e2/e2_term.hpp src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C05_CXXFLAGS) -c $< -o $@
+
+$(C05_TEST_OBJ): $(C05_TEST_SRC) ../include/mapr/e2/e2_eval.hpp ../include/mapr/e2/e2_canon.hpp ../include/mapr/e2/e2_term.hpp src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C05_CXXFLAGS) $(C05_GTEST_CFLAGS) -c $< -o $@
+
+bin/e2_c05_gate: $(C05_E1_OBJS) $(C05_LIB_OBJS) $(C05_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C05_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e2_c05_tests: $(C05_E1_OBJS) $(C05_LIB_OBJS) $(C05_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C05_CXXFLAGS) -o $@ $^ $(C05_GTEST_LIBS) -pthread
+
+bin/e2_c05_tests_san: $(C05_E1_SRCS) $(C05_LIB_SRCS) $(C05_TEST_SRC) src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p bin
+	$(CXX) $(C05_SANFLAGS) $(C05_GTEST_CFLAGS) -o $@ $(C05_E1_SRCS) $(C05_LIB_SRCS) $(C05_TEST_SRC) $(C05_GTEST_LIBS) -pthread
+
+bin/e2_c05_gate_san: $(C05_E1_SRCS) $(C05_LIB_SRCS) $(C05_GATE_SRC) src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p bin
+	$(CXX) $(C05_SANFLAGS) -o $@ $(C05_E1_SRCS) $(C05_LIB_SRCS) $(C05_GATE_SRC) -pthread
+
+c05-test: bin/e2_c05_tests
+	./bin/e2_c05_tests
+
+c05-test-san: bin/e2_c05_tests_san
+	./bin/e2_c05_tests_san
+
+c05-evidence: bin/e2_c05_gate
+	./bin/e2_c05_gate --root .. --write-evidence
+
+# E2 may not link E3-E7, wire, container, discovery, rewrite, selection, CLI,
+# certificate, or harness code.
+c05-isolation: $(C05_E1_OBJS) $(C05_LIB_OBJS)
+	@if grep -rn -E '#include .*(wire|container|harness|cli|mau|certificate|discovery|rewrite|selection|e3|e4|e5|e6|e7)' ../include/mapr/e2 src/e2; then \
+	  echo "FAIL: forbidden include in E2"; exit 1; \
+	fi
+	@if nm -u $(C05_E1_OBJS) $(C05_LIB_OBJS) | grep -E 'marp::(wire|container|cli|cert|discover|rewrite|select|harness)'; then \
+	  echo "FAIL: forbidden symbol in C05 objects"; exit 1; \
+	fi
+	@echo "PASS: E2 C05 is link- and source-independent of E3-E7"
+
+c05-clean:
+	rm -rf obj/c05 obj/c05_gate obj/c05_tests
+	rm -f bin/e2_c05_gate bin/e2_c05_gate_san bin/e2_c05_tests bin/e2_c05_tests_san
