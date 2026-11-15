@@ -27,21 +27,23 @@ handoff and the honest list of what was not measured.
 | Repository | `nexuss0781/MARP` |
 | Branch | `arena/8997f281-marp` |
 | Base commit | `b6125cde28149a831566c7d15f90b83d1cfb5c17` (`h2-gates`, PR #5 merge of C05 EVAL) |
-| Implementation commit | `5567608200df829764190830c4303b1a285da9e4` |
+| Implementation commit | `5567608200df829764190830c4303b1a285da9e4` (C06 sources, tests, evidence) |
 | Evidence-bookkeeping commit | `6c72655` (source-scan rows, §2.1) |
-| **Authoritative CI run (C06 DAG, on `6c72655`)** | **`43697399789` — `MARP E2 C06 DAG CI` — conclusion `success`** (both jobs, 27/27 steps) |
-| **CI run URL** | https://github.com/nexuss0781/MARP/actions/runs/43697399789 |
-| No-regression, C03 TERM CI on `6c72655` | `43697399782` — `success` (18/18 steps) |
-| No-regression, C04 CANON CI on `6c72655` | `43697399836` — `success` (18/18 steps) |
-| No-regression, C05 EVAL CI on `6c72655` | `43697399777` — `success` (18/18 steps) |
-| No-regression, H3 Oracle CI on `6c72655` | `43697399833` — `success` (16/16 steps) |
+| Report commit / **final branch head** | **`94915a1`** (this file; documentation only — no source, no evidence file) |
+| **Authoritative CI run (C06 DAG, on `94915a1`)** | **`43697900521` — `MARP E2 C06 DAG CI` — conclusion `success`** (both jobs, 27/27 steps) |
+| **CI run URL** | https://github.com/nexuss0781/MARP/actions/runs/43697900521 |
+| First green C06 run (on the implementation+evidence commit `6c72655`) | `43697399789` — `success`, same 27/27 steps |
+| No-regression, C03 TERM CI on `94915a1` | `43697900496` — `success` (18/18 steps) |
+| No-regression, C04 CANON CI on `94915a1` | `43697900473` — `success` (18/18 steps) |
+| No-regression, C05 EVAL CI on `94915a1` | `43697900493` — `success` (18/18 steps) |
+| No-regression, H3 Oracle CI on `94915a1` | `43697900506` — `success` (16/16 steps) |
 | Local toolchain | Debian `g++ 12.2.0`, GNU make 4.3, x86-64 |
 | CI toolchain | `ubuntu-latest` (Ubuntu 24.04), `g++ 13.3.0` (recorded as a CI notice, not in the manifest — §6.2) |
 | Flags | `-std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O2` (E2 §12.4 build level); sanitizer variants add `-fsanitize=address,undefined -fno-sanitize-recover=all -O1 -g` |
 | Evidence harness | `engine/src/e2/e2_c06_gate.cpp` → `bin/e2_c06_gate --root .. --write-evidence` |
 | Unit tests | `engine/tests/e2/e2_dag_test.cpp` → `bin/e2_c06_tests` (20 cases) |
 
-The C06 CI job on `6c72655` re-verified, on GitHub's infrastructure: the strict `-Werror`
+The C06 CI job on `94915a1` re-verified, on GitHub's infrastructure: the strict `-Werror`
 build, source- and link-level isolation from E3–E7/harness, all 20 unit tests, the
 byte-for-byte identity between the committed `C06-DAG.tsv`/`C06-DAG.log` and the
 CI-generated ones, the evidence schema and every required check, an independent re-run
@@ -50,7 +52,7 @@ manifest, and that the C03/C04/C05 evidence files were **not** modified by the C
 The whole-workflow conclusion is `success`.
 
 `ci.yml` triggers on `master`/`main`/`h2-gates` and does not run on `arena/**` branches, so
-the push of `6c72655` triggered exactly the five workflows listed above.
+each push to this branch triggers exactly the five workflows listed above.
 
 ### 1.1 What CI actually asserted (C06 job)
 
@@ -131,7 +133,7 @@ no verdict changed. `C05-EVAL.log` was restored byte-for-byte (it carries a proc
 figure, so re-running the harness on a differently-loaded machine perturbs it); only the
 source-scan row of `C05-EVAL.tsv` changes, and `evidence/C05/SHA256SUMS` was recomputed
 over the unchanged log and the refreshed TSV. CI verified all of this: the C03/C04/C05 jobs
-reproduce their committed evidence byte for byte on `6c72655`.
+reproduce their committed evidence byte for byte on `6c72655` and again on `94915a1`.
 
 ---
 
@@ -269,9 +271,10 @@ deliberately not (`canon(dag) preserves denotation`), and 1 — `e-zero-2pow40` 
 declared length above the harness's 4 MiB materialisation cap, so its denotation row pins
 that the C03 surface returns `Limit` rather than approximating (§7.1).
 
-The harness is deterministic: two independent CI runs and repeated local runs produce
-byte-identical `C06-DAG.tsv` and `C06-DAG.log`, and the ASan+UBSan build reproduces the same
-TSV.
+The harness is deterministic: two independent green CI runs (`43697399789` and
+`43697900521`, on different commits and therefore different checkouts of the harness) plus
+repeated local runs all produce a byte-identical `C06-DAG.tsv` and `C06-DAG.log`, and the
+ASan+UBSan build reproduces the same TSV.
 
 ### 4.1 What would have to break for a false PASS
 
@@ -425,7 +428,7 @@ wall-clock or RSS number that would make the artifact irreproducible.
 5. **No wire byte identity.** C06 proves structural `Ir` identity (ids, params, lengths,
    payload bytes/digests), not wire identity — that is E3's.
 6. **The C03/C04/C05 evidence bookkeeping change** described in §2.1 is additive and was
-   re-proven by the C03/C04/C05 CI jobs on `6c72655`, but it *is* a change to four earlier
+   re-proven by the C03/C04/C05 CI jobs on `6c72655` and `94915a1`, but it *is* a change to four earlier
    evidence files (one row each, `PASS` → `PASS`) and is disclosed here rather than buried.
 
 ### 7.2 Handoff to E2-G
@@ -464,7 +467,7 @@ identity over the whole corpus; `E2-G.tsv`, `E2-G.log`, `corpus.tsv`, `rewrites.
 - [x] Deterministic and reentrant; no E3–E7 linkage or behaviour (binary `nm` check +
       source scan); no H1/H2/H3 evidence regressions.
 - [x] Evidence/log/manifest/report generated, committed, and matching the final green CI run
-      `43697399789`.
+      `43697900521`.
 - [x] `REPORT/E2/C06-DAG-REPORT.md` committed.
 
 **C06 DAG is complete.** **E2-G is not claimed.**
