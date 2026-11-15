@@ -38,11 +38,16 @@ E2G_ORACLE_SRCS := ../harness/oracle/src/bigint.cpp \
                    ../harness/oracle/src/eval.cpp
 E2G_ORACLE_OBJS := $(patsubst ../harness/oracle/src/%.cpp,obj/e2g_oracle/%.o,$(E2G_ORACLE_SRCS))
 
-E2G_HARNESS_SRCS := src/e2/e2g_terms.cpp src/e2/e2g_oracle.cpp \
-                    src/e2/e2g_corpus.cpp src/e2/e2g_report.cpp
+# The gate's own sources live in `src/e2g/`, *not* in `src/e2/`.  The C03-C06
+# gates hash the file listing of `include/mapr/e2` + `engine/src/e2` into their
+# `independence` evidence row, so putting harness code there would change four
+# earlier components' evidence for no reason.  E2's own library directory stays
+# exactly as C06 left it.
+E2G_HARNESS_SRCS := src/e2g/e2g_terms.cpp src/e2g/e2g_oracle.cpp \
+                    src/e2g/e2g_corpus.cpp src/e2g/e2g_report.cpp
 E2G_HARNESS_OBJS := $(patsubst src/%.cpp,obj/e2g_harness/%.o,$(E2G_HARNESS_SRCS))
 
-E2G_GATE_SRC := src/e2/e2g_gate.cpp
+E2G_GATE_SRC := src/e2g/e2g_gate.cpp
 E2G_GATE_OBJ := obj/e2g_gate/e2g_gate.o
 
 .PHONY: e2g-all e2g-evidence e2g-isolation e2g-check e2g-clean e2g-summary
@@ -61,8 +66,8 @@ obj/e2g_harness/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(E2G_CXXFLAGS) -c $< -o $@
 
-$(E2G_GATE_OBJ): $(E2G_GATE_SRC) src/e2/e2g_corpus.hpp src/e2/e2g_terms.hpp \
-                 src/e2/e2g_oracle.hpp src/e2/e2g_report.hpp \
+$(E2G_GATE_OBJ): $(E2G_GATE_SRC) src/e2g/e2g_corpus.hpp src/e2g/e2g_terms.hpp \
+                 src/e2g/e2g_oracle.hpp src/e2g/e2g_report.hpp \
                  ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp \
                  ../include/mapr/e2/e2_eval.hpp ../include/mapr/e2/e2_dag.hpp
 	@mkdir -p $(dir $@)
@@ -73,7 +78,7 @@ bin/e2_g_gate: $(E2G_E1_OBJS) $(E2G_LIB_OBJS) $(E2G_ORACLE_OBJS) $(E2G_HARNESS_O
 	$(CXX) $(E2G_CXXFLAGS) -o $@ $^ -pthread
 
 bin/e2_g_gate_san: $(E2G_E1_SRCS) $(E2G_LIB_SRCS) $(E2G_HARNESS_SRCS) $(E2G_GATE_SRC) \
-                   $(E2G_ORACLE_SRCS) src/e2/c03_build.hpp src/e2/c03_reference.hpp
+                   $(E2G_ORACLE_SRCS)
 	@mkdir -p bin
 	$(CXX) $(E2G_SANFLAGS) -o $@ $(E2G_E1_SRCS) $(E2G_LIB_SRCS) $(E2G_HARNESS_SRCS) \
 	    $(E2G_GATE_SRC) $(E2G_ORACLE_SRCS) -pthread
@@ -86,10 +91,10 @@ e2g-evidence: bin/e2_g_gate
 e2g-isolation: bin/e2_g_gate
 	@echo "Checking E2-G sources for forbidden E3-E7 includes..."
 	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' \
-	    src/e2/e2g_gate.cpp src/e2/e2g_terms.cpp src/e2/e2g_oracle.cpp \
-	    src/e2/e2g_corpus.cpp src/e2/e2g_report.cpp \
-	    src/e2/e2g_corpus.hpp src/e2/e2g_terms.hpp src/e2/e2g_oracle.hpp \
-	    src/e2/e2g_report.hpp; then \
+	    src/e2g/e2g_gate.cpp src/e2g/e2g_terms.cpp src/e2g/e2g_oracle.cpp \
+	    src/e2g/e2g_corpus.cpp src/e2g/e2g_report.cpp \
+	    src/e2g/e2g_corpus.hpp src/e2g/e2g_terms.hpp src/e2g/e2g_oracle.hpp \
+	    src/e2g/e2g_report.hpp; then \
 	  echo "FAIL: forbidden include in E2-G sources"; exit 1; \
 	fi
 	@echo "Checking the oracle for mapr/ includes (must be zero)..."

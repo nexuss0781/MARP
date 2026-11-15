@@ -28,7 +28,7 @@ adds no C03/C04/C05/C06 semantics, and changes no earlier component's evidence.
 | Sanitizer build | `bin/e2_g_gate_san`, `-O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all` |
 | Gate binary | `engine/bin/e2_g_gate` |
 | Invocation | `cd engine && ./bin/e2_g_gate --root .. --write-evidence` |
-| Evidence | `specs_and_reports/v2/{gates/E2-G.tsv, logs/E2-G.log, corpus/E2/{corpus,rewrites}.tsv, evidence/E2/{critical_pairs.md, SHA256SUMS}}` |
+| Evidence | `specs_and_reports/v2/{gates/E2-G.tsv, logs/E2-G.log, corpus/E2/{corpus,rewrites}.tsv, evidence/E2G/{critical_pairs.md, SHA256SUMS}}` |
 
 `E2-G.log` records the tool, root, exact command line and the fixed build-flag set, and is
 deliberately compiler-version free — the same property C06 adopted (§6.2 of the C06
@@ -44,11 +44,11 @@ report), so the log is byte-reproducible on any conforming C++20 toolchain and t
 | Path | Role |
 |---|---|
 | `Makefile.e2g` | isolated build: E1 + E2 (all four sub-components) + E2-G harness + H3 oracle; target `bin/e2_g_gate`, `bin/e2_g_gate_san`, `e2g-isolation`, `e2g-evidence`, `e2g-clean` |
-| `src/e2/e2g_terms.hpp/.cpp` | `Desc` description arena, `bind()` (description → engine `Ir`), canonical digests, T-BAD constraint plumbing |
-| `src/e2/e2g_oracle.hpp/.cpp` | adapter from an engine `Ir` to the H3 oracle's `ParsedContainer`, plus exact-byte range/length/LFSR entry points |
-| `src/e2/e2g_corpus.hpp/.cpp` | the six corpus families (§12.2) and the T-CRIT critical-pair templates |
-| `src/e2/e2g_report.hpp/.cpp` | evidence writers: TSV rows, log, `corpus/E2/*.tsv`, `evidence/E2/critical_pairs.md` |
-| `src/e2/e2g_gate.cpp` | the gate: steps 0–13, verdict, evidence writing, `SHA256SUMS` |
+| `src/e2g/e2g_terms.hpp/.cpp` | `Desc` description arena, `bind()` (description → engine `Ir`), canonical digests, T-BAD constraint plumbing |
+| `src/e2g/e2g_oracle.hpp/.cpp` | adapter from an engine `Ir` to the H3 oracle's `ParsedContainer`, plus exact-byte range/length/LFSR entry points |
+| `src/e2g/e2g_corpus.hpp/.cpp` | the six corpus families (§12.2) and the T-CRIT critical-pair templates |
+| `src/e2g/e2g_report.hpp/.cpp` | evidence writers: TSV rows, log, `corpus/E2/*.tsv`, `evidence/E2G/critical_pairs.md` |
+| `src/e2g/e2g_gate.cpp` | the gate: steps 0–13, verdict, evidence writing, `SHA256SUMS` |
 
 **Added under `harness/oracle/`:** three *accessors* only —
 `detail::eval_node_range_iterative` (the same function `eval_full_stream`/`eval_range_stream`
@@ -56,6 +56,25 @@ already call), `detail::oracle_node_length` (the stage-8 validator's own length 
 and the LFSR primitives `lfsr_jump_bytes`/`lfsr_emit`. No oracle behaviour changed; they were
 made callable so the gate can compare bytes, lengths and jump-ahead states directly instead of
 re-deriving them. The H3 workflow continues to pass.
+
+**Why `src/e2g/` and not `src/e2/`.** Each of C03–C06 hashes the file listing of
+`include/mapr/e2` + `engine/src/e2` into its `independence` evidence row. Putting E2-G's nine
+source files in `engine/src/e2` therefore changed all four earlier components' evidence (the
+C03 row moved from "14 files" to "23 files") for a reason that has nothing to do with them.
+E2-G's harness now lives in `engine/src/e2g/`, which is where non-library gate code belongs;
+`engine/src/e2/` is exactly as C06 left it and C03–C06 regenerate their committed bytes.
+
+**Why `evidence/E2G/` and not `evidence/E2/`.** `evidence/E2/SHA256SUMS` is written by the
+**C03** gate, which truncates and rewrites that file on every run. E2-G initially appended to
+it, which meant the two gates silently clobbered each other's evidence depending on run order.
+E2-G now owns `evidence/E2G/` (`critical_pairs.md`, `SHA256SUMS`) and the CI job fails if
+anything under `evidence/E2/` changes during an E2-G run.
+
+**One source-level coupling remains, and it is upstream.** H3's oracle test hashes its own
+source tree into `src_tree_sha256`, so *any* change under `harness/oracle/` invalidates the
+committed `H3-ORACLE.log` and `H3-ORACLE.tsv` until H3's evidence is regenerated. The three
+accessors E2-G needed (§2) are such a change. Regenerating H3's evidence is H3's own workflow's
+job and is done in the same commit; the E2-G workflow does not and cannot do it.
 
 **Added evidence:** the six files in §1, plus `.github/workflows/e2-g.yml` and this report.
 
@@ -86,7 +105,7 @@ re-deriving them. The H3 workflow continues to pass.
 
 Every row is written to `gates/E2-G.tsv` with
 `check corpus item_id input_sha256 expected actual verdict log`, so a failure names the term
-and the expected value, and `evidence/E2/critical_pairs.md` carries the 1000-pair table.
+and the expected value, and `evidence/E2G/critical_pairs.md` carries the 1000-pair table.
 
 ---
 

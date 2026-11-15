@@ -108,8 +108,8 @@ jobs:
           set -euo pipefail
           cp specs_and_reports/v2/gates/E2-G.tsv /tmp/committed-E2-G.tsv
           cp specs_and_reports/v2/logs/E2-G.log /tmp/committed-E2-G.log
-          cp specs_and_reports/v2/evidence/E2/SHA256SUMS /tmp/committed-E2-SHA256SUMS
-          sha256sum -c specs_and_reports/v2/evidence/E2/SHA256SUMS
+          cp specs_and_reports/v2/evidence/E2G/SHA256SUMS /tmp/committed-E2-SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/E2G/SHA256SUMS
           echo "PASS: committed E2 evidence manifest verified before regeneration"
 
       - name: Generate E2-G evidence
@@ -123,7 +123,7 @@ jobs:
           set -euo pipefail
           diff -u /tmp/committed-E2-G.tsv specs_and_reports/v2/gates/E2-G.tsv
           diff -u /tmp/committed-E2-G.log specs_and_reports/v2/logs/E2-G.log
-          diff -u /tmp/committed-E2-SHA256SUMS specs_and_reports/v2/evidence/E2/SHA256SUMS
+          diff -u /tmp/committed-E2-SHA256SUMS specs_and_reports/v2/evidence/E2G/SHA256SUMS
           echo "PASS: committed E2-G.tsv, E2-G.log and SHA256SUMS are byte-for-byte identical to CI output"
 
       - name: Evidence schema, verdicts and required checks
@@ -131,7 +131,7 @@ jobs:
           set -euo pipefail
           TSV="specs_and_reports/v2/gates/E2-G.tsv"
           LOG="specs_and_reports/v2/logs/E2-G.log"
-          SUMS="specs_and_reports/v2/evidence/E2/SHA256SUMS"
+          SUMS="specs_and_reports/v2/evidence/E2G/SHA256SUMS"
           test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
           head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
           awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
@@ -207,7 +207,7 @@ jobs:
           ./bin/e2_g_gate --root .. --write-evidence
           diff -u /tmp/committed-E2-G.tsv ../specs_and_reports/v2/gates/E2-G.tsv
           diff -u /tmp/committed-E2-G.log ../specs_and_reports/v2/logs/E2-G.log
-          diff -u /tmp/committed-E2-SHA256SUMS ../specs_and_reports/v2/evidence/E2/SHA256SUMS
+          diff -u /tmp/committed-E2-SHA256SUMS ../specs_and_reports/v2/evidence/E2G/SHA256SUMS
           echo "PASS: repeat run produced byte-identical E2 evidence"
 
       - name: AddressSanitizer + UBSan E2-G evidence run
@@ -234,7 +234,7 @@ jobs:
           diff -u /tmp/committed-E2-G.tsv ../specs_and_reports/v2/gates/E2-G.tsv
           diff -u /tmp/committed-E2-G.log ../specs_and_reports/v2/logs/E2-G.log
           cd ..
-          sha256sum -c specs_and_reports/v2/evidence/E2/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/E2G/SHA256SUMS
           echo "PASS: primary E2 evidence restored and self-consistent"
 
       - name: No-regression check (C03-C06 and H3 evidence untouched)
@@ -250,11 +250,18 @@ jobs:
                 specs_and_reports/v2/logs/C05-EVAL.log \
                 specs_and_reports/v2/logs/C06-DAG.log \
                 specs_and_reports/v2/evidence/H3/SHA256SUMS \
+                specs_and_reports/v2/evidence/E2/SHA256SUMS \
                 harness/oracle; then
             echo "FAIL: an earlier component's evidence or the H3 oracle changed"
             exit 1
           fi
-          echo "PASS: C03/C04/C05/C06 evidence and the H3 oracle are unchanged by the E2-G run"
+          # evidence/E2 belongs to the C03 gate; E2-G must write only evidence/E2G.
+          if git status --porcelain --untracked-files=all -- specs_and_reports/v2/evidence/E2 \
+                  | grep -q .; then
+            echo "FAIL: E2-G wrote into evidence/E2 (C03's directory)"
+            exit 1
+          fi
+          echo "PASS: C03/C04/C05/C06 evidence, evidence/E2 and the H3 oracle are unchanged by the E2-G run"
 
       - name: Upload E2-G evidence artifact
         uses: actions/upload-artifact@v4
@@ -266,6 +273,6 @@ jobs:
             specs_and_reports/v2/logs/E2-G.log
             specs_and_reports/v2/corpus/E2/corpus.tsv
             specs_and_reports/v2/corpus/E2/rewrites.tsv
-            specs_and_reports/v2/evidence/E2/critical_pairs.md
-            specs_and_reports/v2/evidence/E2/SHA256SUMS
+            specs_and_reports/v2/evidence/E2G/critical_pairs.md
+            specs_and_reports/v2/evidence/E2G/SHA256SUMS
           retention-days: 30

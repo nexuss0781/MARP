@@ -5,8 +5,8 @@
 //   specs_and_reports/v2/logs/E2-G.log
 //   specs_and_reports/v2/corpus/E2/corpus.tsv
 //   specs_and_reports/v2/corpus/E2/rewrites.tsv
-//   specs_and_reports/v2/evidence/E2/critical_pairs.md
-//   specs_and_reports/v2/evidence/E2/SHA256SUMS
+//   specs_and_reports/v2/evidence/E2G/critical_pairs.md
+//   specs_and_reports/v2/evidence/E2G/SHA256SUMS
 //
 // Implements SPECS/COMPONENTS/e2-algebra/SPECS.md §12.4 steps 1–13 exactly, with
 // the corpus of §12.3.  Never asserts: every obligation becomes one TSV row with
@@ -1994,7 +1994,7 @@ bool Gate::write_evidence() {
     std::filesystem::create_directories(base + "/gates", ec);
     std::filesystem::create_directories(base + "/logs", ec);
     std::filesystem::create_directories(base + "/corpus/E2", ec);
-    std::filesystem::create_directories(base + "/evidence/E2", ec);
+    std::filesystem::create_directories(base + "/evidence/E2G", ec);
 
     // gates/E2-G.tsv
     {
@@ -2033,11 +2033,11 @@ bool Gate::write_evidence() {
         out << text;
         if (!out) return false;
     }
-    // evidence/E2/critical_pairs.md
+    // evidence/E2G/critical_pairs.md
     {
         std::string text;
         write_critical_pairs_md(text);
-        std::ofstream out(base + "/evidence/E2/critical_pairs.md",
+        std::ofstream out(base + "/evidence/E2G/critical_pairs.md",
                           std::ios::binary | std::ios::trunc);
         out << text;
         if (!out) return false;
@@ -2052,7 +2052,7 @@ namespace e2g {
 
 std::string environment_record(const std::string& root, const char* command_line) {
     // §12.11 environment record.  Deliberately compiler-version free so the log
-    // (covered by evidence/E2/SHA256SUMS) is byte-reproducible on any conforming
+    // (covered by evidence/E2G/SHA256SUMS) is byte-reproducible on any conforming
     // C++20 toolchain; the authoritative toolchain is recorded in
     // REPORT/E2/E2-GATE-REPORT.md §1 and in the CI run log.
     std::string text;
@@ -2067,7 +2067,7 @@ std::string environment_record(const std::string& root, const char* command_line
     text += "determinism: corpus seeds and description digests recorded in "
             "corpus/E2/corpus.tsv\n";
     text += "evidence: gates/E2-G.tsv logs/E2-G.log corpus/E2/{corpus,rewrites}.tsv "
-            "evidence/E2/{critical_pairs.md,SHA256SUMS}\n";
+            "evidence/E2G/{critical_pairs.md,SHA256SUMS}\n";
     text += "threads: corpus and gate are single-threaded except the explicit "
             "1-vs-4 thread check (step 12)\n";
     return text;
@@ -2121,30 +2121,17 @@ int run_main(int argc, char** argv) {
         std::fprintf(stderr, "failed to write evidence\n");
         return 1;
     }
-    // evidence/E2/SHA256SUMS: manifest of the files this gate produces.  Lines
-    // already present (the C03–C06 evidence it must not disturb) are preserved
-    // verbatim.  Every path is repo-root relative, matching the convention of
-    // E1/C04/C05/C06, so `sha256sum -c` works from the repo root.
+    // evidence/E2G/SHA256SUMS: manifest of exactly the files this gate produces.
+    // It is deliberately *not* `evidence/E2/SHA256SUMS` — that file belongs to the
+    // C03 gate, which rewrites it from scratch on every run; sharing it would make
+    // each gate clobber the other's evidence.  Paths are repo-root relative,
+    // matching E1/C04/C05/C06, so `sha256sum -c` works from the repo root.
     const std::string base = root + "/specs_and_reports/v2";
-    const std::string sums_path = base + "/evidence/E2/SHA256SUMS";
+    const std::string sums_path = base + "/evidence/E2G/SHA256SUMS";
     std::map<std::string, std::string> sums;
-    {
-        std::ifstream in(sums_path);
-        std::string line;
-        while (std::getline(in, line)) {
-            const std::size_t space = line.find("  ");
-            if (space == std::string::npos) continue;
-            const std::string rel = line.substr(space + 2);
-            // Drop legacy entries written relative to `specs_and_reports/v2`;
-            // only repo-root-relative paths survive, so `sha256sum -c` run from
-            // the repo root resolves every line.
-            if (rel.rfind("specs_and_reports/", 0) != 0) continue;
-            sums[rel] = line.substr(0, space);
-        }
-    }
     for (const char* rel_ptr : {"gates/E2-G.tsv", "logs/E2-G.log",
                                 "corpus/E2/corpus.tsv", "corpus/E2/rewrites.tsv",
-                                "evidence/E2/critical_pairs.md"}) {
+                                "evidence/E2G/critical_pairs.md"}) {
         const std::string rel = rel_ptr;
         sums["specs_and_reports/v2/" + rel] = sha_of_file(base + "/" + rel);
     }

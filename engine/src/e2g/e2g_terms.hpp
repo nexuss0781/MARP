@@ -36,7 +36,6 @@
 #include <utility>
 #include <vector>
 
-#include "c03_build.hpp"
 #include "mapr/e1_bigint.hpp"
 #include "mapr/e1_sha256.hpp"
 #include "mapr/e2/e2_dag.hpp"
@@ -45,7 +44,20 @@
 namespace e2g {
 
 using namespace marp::v2;  // NOLINT
-using c03::pattern;
+
+// Byte pattern used for atom payloads, kept byte-identical to the C03 builder's
+// `pattern(n, seed)` so corpus digests do not depend on which gate produced them.
+// It is duplicated here rather than included from `src/e2/` so that E2-G does not
+// depend on an earlier component's private build header.
+inline std::vector<u8> pattern(std::size_t n, u8 seed = 0) {
+    std::vector<u8> out(n);
+    u8 state = seed;
+    for (std::size_t i = 0; i < n; ++i) {
+        state = static_cast<u8>((static_cast<unsigned>(state) * 37u + 11u) & 0xFFu);
+        out[i] = state;
+    }
+    return out;
+}
 
 // ---------------------------------------------------------------------------
 // Stable text encoding (used for corpus digests and for `expected` columns).

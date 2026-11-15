@@ -24,5 +24,5 @@ Build any of them against the gate's objects, e.g.
 ```
 cd engine
 g++ -std=c++20 -O1 -I. -I../include -Isrc/e2 -o /tmp/probe33 ../scratch/probe33.cpp \
-    obj/e2g_harness/e2/e2g_terms.o obj/e2g/e2/*.o obj/e2g/e1_*.o -pthread
+    obj/e2g_harness/e2g/e2g_terms.o obj/e2g/e2/*.o obj/e2g/e1_*.o -pthread
 ```
