@@ -1,0 +1,283 @@
+name: MARP E3 C07 WIRE CI
+
+# Isolated workflow for C07 WIRE (E3 WIRE, the v2 canonical container).
+# It builds only E1 + E2 (frozen) + C07 through engine/Makefile.c07 and proves
+# that no E4-E7 (container / discovery / selection / CLI), no v1/legacy path, and
+# no harness object is linked.  Nothing in this workflow touches another
+# component's build, and no other workflow is modified by the C07 addition.
+#
+# Scope note (honest): this is the C06-style component gate, C07-scoped.  It is
+# NOT E3-G.  E3-G additionally needs C08 LEGACY (v1 decode), the `W-V1` legacy
+# corpus, the 100 000-case fuzz campaign, and the full E3 §13.4 gate matrix; none
+# of that is claimed here.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  c07-independence:
+    name: C07 independence (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E4-E7 / v1 / harness includes in C07 sources
+        run: |-
+          set -euo pipefail
+          # Scanned by explicit file list, never a glob over engine/src/e3: that
+          # directory is shared with C08 LEGACY (e3_legacy.cpp, which legitimately
+          # names decode_v1 and lives on h2-gates).  A glob here would fail on
+          # every pull_request once C08 merges, which is exactly what happened once.
+          C07_FILES="include/mapr/e3/e3_wire.hpp
+          engine/src/e3/e3_wire.cpp
+          engine/src/e3/e3_wire_read.cpp
+          engine/src/e3/e3_wire_index.cpp
+          engine/src/e3/e3_wire_internal.hpp"
+          echo "Scanning the C07 file list for forbidden includes..."
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' $C07_FILES; then
+            echo "FAIL: forbidden include found in C07 sources"
+            exit 1
+          fi
+          echo "PASS: no E4-E7 or harness include in C07 sources"
+          # C08 LEGACY must never be reachable from the C07 surface or implementation.
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<]mapr/e3/e3_legacy\.hpp' $C07_FILES; then
+            echo "FAIL: C07 source includes the C08 legacy header"
+            exit 1
+          fi
+          echo "PASS: no C07 source includes the C08 legacy header"
+
+      - name: Reject v1/legacy and environment access in C07 code
+        run: |-
+          set -euo pipefail
+          # Explicit C07 file list (see the note above: engine/src/e3 is shared with
+          # C08 LEGACY).  Comments are stripped first: the C07 header documents that
+          # `decode_v1` is absent, which is not a dependency.
+          C07_FILES="include/mapr/e3/e3_wire.hpp
+          engine/src/e3/e3_wire.cpp
+          engine/src/e3/e3_wire_read.cpp
+          engine/src/e3/e3_wire_index.cpp
+          engine/src/e3/e3_wire_internal.hpp"
+          if sed -E 's://.*::' $C07_FILES \
+             | grep -nE '(decode_v1|looks_like_v1|getenv|std::getenv|std::chrono|time\(|locale)'; then
+            echo "FAIL: legacy or environment dependency in C07 code"
+            exit 1
+          fi
+          echo "PASS: no v1/legacy path and no clock/locale/environment access in C07 code"
+
+      - name: Reject non-C++ artefacts in C07 paths
+        run: |-
+          set -euo pipefail
+          if find include/mapr/e3/e3_wire.hpp engine/src/e3/e3_wire.cpp \
+                    engine/src/e3/e3_wire_read.cpp engine/src/e3/e3_wire_index.cpp \
+                    engine/src/e3/e3_wire_internal.hpp engine/src/e3g engine/tests/e3 \
+                    -type f \( -name '*.py' -o -name '*.sh' \) 2>/dev/null | grep -q .; then
+            echo "FAIL: script file found under a C07 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under C07 paths"
+
+      - name: Confirm every earlier evidence manifest still verifies
+        run: |-
+          set -euo pipefail
+          # Every manifest that exists before C07 is enumerated from the tree, so a
+          # component directory added later is covered automatically.  C07 is
+          # excluded here because its own manifest is verified in the build job.
+          count=0
+          for sums in specs_and_reports/v2/evidence/*/SHA256SUMS; do
+            case "$sums" in
+              */C07/SHA256SUMS) continue ;;
+            esac
+            sha256sum -c "$sums"
+            echo "OK: $sums"
+            count=$((count + 1))
+          done
+          if [ "$count" -lt 8 ]; then
+            echo "FAIL: expected at least 8 prior evidence manifests, found $count"
+            exit 1
+          fi
+          echo "PASS: $count prior evidence manifests still verify (no regression)"
+
+  build-test-evidence:
+    name: C07 build, tests, evidence
+    runs-on: ubuntu-latest
+    needs: [c07-independence]
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |-
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Record toolchain (not covered by the evidence manifest)
+        run: |-
+          set -euo pipefail
+          g++ --version | head -1
+          echo "::notice::compiler=$(g++ -dumpfullversion -dumpversion)"
+
+      - name: Build C07 (strict -Werror -O2) and the H3 oracle
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c07 c07-clean
+          make -f Makefile.c07 c07-all -j4
+          # The H3 oracle is an independent decoder; it is built here only so the
+          # C07 harness can cross-check against it through a separate process.
+          make -f Makefile.h3 bin/mapr_oracle -j4
+
+      - name: Verify C07 independence (grep + nm on built objects)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c07 c07-isolation
+
+      - name: Snapshot committed evidence and verify manifest
+        run: |-
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C07-WIRE.tsv /tmp/committed-C07-WIRE.tsv
+          cp specs_and_reports/v2/logs/C07-WIRE.log /tmp/committed-C07-WIRE.log
+          sha256sum -c specs_and_reports/v2/evidence/C07/SHA256SUMS
+          echo "PASS: committed C07 evidence manifest verified before regeneration"
+
+      - name: Run C07 unit tests
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/c07_tests --gtest_color=no
+
+      - name: Generate C07 evidence
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/c07_wire_gate --root .. --oracle-bin bin/mapr_oracle --write-evidence
+
+      - name: Committed C07 evidence must match the CI-generated files byte for byte
+        run: |-
+          set -euo pipefail
+          diff -u /tmp/committed-C07-WIRE.tsv specs_and_reports/v2/gates/C07-WIRE.tsv
+          diff -u /tmp/committed-C07-WIRE.log specs_and_reports/v2/logs/C07-WIRE.log
+          echo "PASS: committed C07-WIRE.tsv and C07-WIRE.log are byte-for-byte identical to CI output"
+
+      - name: Evidence schema, verdicts and required checks
+        run: |-
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/C07-WIRE.tsv"
+          LOG="specs_and_reports/v2/logs/C07-WIRE.log"
+          SUMS="specs_and_reports/v2/evidence/C07/SHA256SUMS"
+          test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
+          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\twire_sha256\twire_bytes\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 10 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $9 != "PASS" { print; exit 1 }' "$TSV"; then
+            echo "PASS: every C07 row is PASS"
+          else
+            echo "FAIL: non-PASS verdict present in C07-WIRE.tsv"
+            exit 1
+          fi
+          for req in o7.1.encoded_size o7.1.region_offsets o7.1.region_sum \
+                     o7.2.decode_encode o7.3.encode_decode o7.6.fixed_point \
+                     encode.flags validate.accept validate.output_sha256 \
+                     decode_stream.equals_ir truncation.rejected \
+                     codec.uvarint codec.bigint codec.uvarint.roundtrip codec.bigint.roundtrip \
+                     determinism.repeat determinism.threads determinism.threads_roundtrip \
+                     fuzz.mutants fuzz.rejected \
+                     coverage.kind coverage.morph coverage.predictor coverage.bigint_tag \
+                     coverage.length_form coverage.index_state coverage.atom_at_max \
+                     isolation.header isolation.no_legacy \
+                     oracle.summary c07.summary c07.verdict; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+          # Every stage of §5.1 must appear as the stage of at least one non-canonical
+          # rejection row, and every noncanon row must PASS.
+          for stage in stage1_size stage2_header stage3_bounds stage4_header_crc \
+                       stage5_trailer stage6_regions stage7_atoms stage8_nodes \
+                       stage10_index stage11_eval; do
+            awk -F'\t' -v s="$stage" '$1 ~ /^noncanon\./ && index($7, s) > 0 { found = 1 } END { if (!found) { print "Missing rejection case for " s; exit 1 } }' "$TSV"
+          done
+          awk -F'\t' '$1 ~ /^noncanon\./ { n++ } END { if (n < 20) { print "too few noncanon rows: " n; exit 1 } }' "$TSV"
+          # Coverage must be complete.
+          awk -F'\t' '$1 == "coverage.kind" { if ($7 != "12" || $8 != "12") { print "kind coverage not complete: " $8; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "coverage.morph" { if ($7 != "9" || $8 != "9") { print "morph coverage not complete: " $8; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "coverage.predictor" { if ($7 != "5" || $8 != "5") { print "predictor coverage not complete: " $8; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "coverage.bigint_tag" { if ($8 != "3") { print "bigint tag coverage not complete: " $8; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "coverage.length_form" { if ($8 != "2") { print "length form coverage not complete: " $8; exit 1 } }' "$TSV"
+          # The oracle must actually have run and agreed on every compared container.
+          awk -F'\t' '$1 == "oracle.summary" { split($8, parts, "/"); if (parts[1] != parts[2] || parts[1] + 0 < 20) { print "oracle cross-check incomplete: " $8; exit 1 } }' "$TSV"
+          grep -q '^RESULT: PASS (C07 WIRE)$' "$LOG"
+          sha256sum -c "$SUMS"
+          echo "PASS: C07 evidence schema and manifest verified"
+          tail -3 "$LOG"
+
+      - name: Determinism (independent re-run must reproduce the evidence)
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/c07_wire_gate --root .. --oracle-bin bin/mapr_oracle --write-evidence
+          diff -u /tmp/committed-C07-WIRE.tsv ../specs_and_reports/v2/gates/C07-WIRE.tsv
+          diff -u /tmp/committed-C07-WIRE.log ../specs_and_reports/v2/logs/C07-WIRE.log
+          echo "PASS: repeat run produced byte-identical C07 evidence"
+
+      - name: AddressSanitizer + UBSan C07 unit tests
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c07 c07-test-san -j4
+
+      - name: AddressSanitizer + UBSan C07 evidence run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c07 bin/c07_wire_gate_san -j4
+          cp ../specs_and_reports/v2/gates/C07-WIRE.tsv /tmp/san-C07-WIRE.tsv
+          ./bin/c07_wire_gate_san --root .. --oracle-bin bin/mapr_oracle --write-evidence
+          diff -u /tmp/san-C07-WIRE.tsv ../specs_and_reports/v2/gates/C07-WIRE.tsv
+          echo "PASS: sanitizer build produced identical C07 evidence"
+
+      - name: No regression in other components' builds
+        run: |-
+          set -euo pipefail
+          # C07 is additive: every other makefile and workflow is untouched, and the
+          # E2/C06 build still succeeds with the C07 sources present.
+          cd engine
+          make -f Makefile.c06 c06-all -j4
+          ./bin/e2_c06_tests --gtest_color=no
+          echo "PASS: E2 C06 build and tests unaffected by the C07 addition"
+
+      - name: Upload C07 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: c07-wire-evidence
+          path: |
+            specs_and_reports/v2/gates/C07-WIRE.tsv
+            specs_and_reports/v2/logs/C07-WIRE.log
+            specs_and_reports/v2/evidence/C07/SHA256SUMS
+          if-no-files-found: error
