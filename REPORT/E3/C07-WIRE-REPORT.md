@@ -2,9 +2,20 @@
 
 **Component**: C07 WIRE (E3 WIRE, first sub-component of E3).
 **Branch**: `arena/0c5e3d50-marp` (base `abe500b4a98725a214c7074ab0aa4ef90b0fbd18`).
-**Green CI run**: **[43743973411](https://github.com/nexuss0781/MARP/actions/runs/43743973411)** —
-conclusion `success`, commit **`4cd3b6f90e13aa737705dc15bb2fed71cbf1187b`**.
-Both jobs passed: `C07 independence (source level)` and `C07 build, tests, evidence`.
+**Green CI run**: **[43739655357](https://github.com/nexuss0781/MARP/actions/runs/43739655357)** —
+conclusion `success`, at the **implementation commit
+`0e21cb1bb55d32493d7e0c9b6356eecd5b7b9a45`**, which is the commit whose tree holds
+the code and the evidence this report describes.  Both jobs passed:
+`C07 independence (source level)` and `C07 build, tests, evidence`.
+
+The run is cited at the implementation commit on purpose: this report lives in a
+later commit, so citing "HEAD" would name a commit whose tree the cited run
+cannot have built.  Every later commit on the branch is documentation only, and
+the evidence blobs are byte-identical across all of them — the same
+`C07-WIRE.tsv` and `C07-WIRE.log` blob hashes (`e001b5f1…`, `80d15b82…`) at
+`0e21cb1`, `93f7d67`, `4cd3b6f` and the tip confirm it.  The workflow re-ran green
+at every one of those commits, including the tip (run `43744345725`), and its
+`diff` step proves the committed evidence matches what that run regenerated.
 
 **Status: C07 WIRE is complete and green.** 1170 of 1170 evidence rows `PASS`, 0 `FAIL`,
 0 `BLOCKED`. 48 of 48 unit tests pass in the strict build *and* under
@@ -318,8 +329,10 @@ hand-edited value would fail the build.
 
 ## 8. CI, and how it maps to the §10 checklist
 
-Green run: **[43743973411](https://github.com/nexuss0781/MARP/actions/runs/43743973411)**
-at commit `4cd3b6f90e13aa737705dc15bb2fed71cbf1187b` — `success`.
+Green run: **[43739655357](https://github.com/nexuss0781/MARP/actions/runs/43739655357)**
+at the implementation commit `0e21cb1bb55d32493d7e0c9b6356eecd5b7b9a45` — `success`
+(see the note at the top of this report on why the implementation commit is the
+anchor rather than the documentation tip).
 
 | §10 requirement | How CI proves it | Result |
 |---|---|---|
@@ -420,9 +433,9 @@ refused with `Limit` and documented in §6.
 
 1170/1170 evidence rows `PASS`; 48/48 unit tests pass in the strict build and
 under ASan+UBSan; CI run
-[43743973411](https://github.com/nexuss0781/MARP/actions/runs/43743973411) is green
-at commit `4cd3b6f90e13aa737705dc15bb2fed71cbf1187b`, and the committed evidence
-is byte-identical to what that run generated.
+[43739655357](https://github.com/nexuss0781/MARP/actions/runs/43739655357) is green
+at the implementation commit `0e21cb1bb55d32493d7e0c9b6356eecd5b7b9a45`, and the
+committed evidence is byte-identical to what that run regenerated.
 
 **E3-G is not claimed.** C08 LEGACY, the 100 000-case fuzz campaign, the `W-V1`
 and `W-SEED` corpora, and virtual-range decoding remain open, as listed in §9.
