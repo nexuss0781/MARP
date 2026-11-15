@@ -29,19 +29,40 @@ jobs:
       - name: Reject E4-E7 / v1 / harness includes in C07 sources
         run: |-
           set -euo pipefail
-          echo "Scanning include/mapr/e3 and engine/src/e3 for forbidden includes..."
-          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' include/mapr/e3 engine/src/e3; then
+          # Scanned by explicit file list, never a glob over engine/src/e3: that
+          # directory is shared with C08 LEGACY (e3_legacy.cpp, which legitimately
+          # names decode_v1 and lives on h2-gates).  A glob here would fail on
+          # every pull_request once C08 merges, which is exactly what happened once.
+          C07_FILES="include/mapr/e3/e3_wire.hpp
+          engine/src/e3/e3_wire.cpp
+          engine/src/e3/e3_wire_read.cpp
+          engine/src/e3/e3_wire_index.cpp
+          engine/src/e3/e3_wire_internal.hpp"
+          echo "Scanning the C07 file list for forbidden includes..."
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' $C07_FILES; then
             echo "FAIL: forbidden include found in C07 sources"
             exit 1
           fi
           echo "PASS: no E4-E7 or harness include in C07 sources"
+          # C08 LEGACY must never be reachable from the C07 surface or implementation.
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<]mapr/e3/e3_legacy\.hpp' $C07_FILES; then
+            echo "FAIL: C07 source includes the C08 legacy header"
+            exit 1
+          fi
+          echo "PASS: no C07 source includes the C08 legacy header"
 
       - name: Reject v1/legacy and environment access in C07 code
         run: |-
           set -euo pipefail
-          # Comments are stripped first: the header documents that `decode_v1` is
-          # absent, which is not a dependency.
-          if sed -E 's://.*::' include/mapr/e3/e3_wire.hpp engine/src/e3/*.cpp engine/src/e3/*.hpp \
+          # Explicit C07 file list (see the note above: engine/src/e3 is shared with
+          # C08 LEGACY).  Comments are stripped first: the C07 header documents that
+          # `decode_v1` is absent, which is not a dependency.
+          C07_FILES="include/mapr/e3/e3_wire.hpp
+          engine/src/e3/e3_wire.cpp
+          engine/src/e3/e3_wire_read.cpp
+          engine/src/e3/e3_wire_index.cpp
+          engine/src/e3/e3_wire_internal.hpp"
+          if sed -E 's://.*::' $C07_FILES \
              | grep -nE '(decode_v1|looks_like_v1|getenv|std::getenv|std::chrono|time\(|locale)'; then
             echo "FAIL: legacy or environment dependency in C07 code"
             exit 1
@@ -51,7 +72,10 @@ jobs:
       - name: Reject non-C++ artefacts in C07 paths
         run: |-
           set -euo pipefail
-          if find include/mapr/e3 engine/src/e3 engine/src/e3g engine/tests/e3 -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+          if find include/mapr/e3/e3_wire.hpp engine/src/e3/e3_wire.cpp \
+                    engine/src/e3/e3_wire_read.cpp engine/src/e3/e3_wire_index.cpp \
+                    engine/src/e3/e3_wire_internal.hpp engine/src/e3g engine/tests/e3 \
+                    -type f \( -name '*.py' -o -name '*.sh' \) 2>/dev/null | grep -q .; then
             echo "FAIL: script file found under a C07 path"
             exit 1
           fi
