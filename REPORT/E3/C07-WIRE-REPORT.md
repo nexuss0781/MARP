@@ -349,10 +349,21 @@ anchor rather than the documentation tip).
 | No build artefacts committed | Only sources, `Makefile.c07`, the workflow, and the three evidence files are added | **PASS** |
 | ASan + UBSan clean | `c07-test-san` (48/48) and a sanitizer evidence run whose output `diff`s identically | **PASS** |
 
-Every other workflow also ran green on the same commit — E2 C03, C04, C05, C06,
-E2-G, and H3 Oracle — so the C07 addition regresses nothing. The E2-G run
-(43740087529) is the one that matters most for the "no regression" claim, because
-it is the gate that owns the E2 surfaces C07 builds on.
+Every other workflow also ran green with the C07 tree present — E2 C03, C04, C05,
+C06, E2-G, and H3 Oracle — so the C07 addition regresses nothing. E2-G is the one
+that matters most for the "no regression" claim, because it owns the E2 surfaces
+C07 builds on; it passed at run
+[43743973276](https://github.com/nexuss0781/MARP/actions/runs/43743973276) on
+commit `4cd3b6f`, whose tree differs from the implementation commit only in this
+documentation file (`git diff --name-only 0e21cb1..4cd3b6f` lists exactly
+`REPORT/E3/C07-WIRE-REPORT.md`). Its independence job and its
+build/isolation/gate/evidence job both passed.
+
+The C07 diff is verifiably additive: `git diff --stat abe500b..HEAD` shows 9410
+insertions and 0 deletions across 21 new files, and
+`git diff --name-only abe500b..HEAD` matches no path under `engine/src/e2/`,
+`include/mapr/e2/`, `engine/src/e1*`, `include/mapr/e1*`, `engine/Makefile.e2g`
+or `.github/workflows/e2-*`.
 
 The H3 cross-check is a genuine independent decoder: `harness/oracle/` is a
 clean-room implementation that shares no code with C07. The harness reaches it
