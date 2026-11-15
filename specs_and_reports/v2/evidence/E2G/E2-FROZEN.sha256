@@ -1,0 +1,4 @@
+281fb69efea73fadb5d6bb5e16cb0e050b988582c1dad3fda59eaf76f08ac916  include/mapr/e2/e2_canon.hpp
+acec199a41848de0033780f0959d28e139548d985ad7ee018930bab3c48fa0e6  include/mapr/e2/e2_dag.hpp
+035462bf450056eb26a3b385ed4b07bbf55b588d12f96e5b266f63784bae6349  include/mapr/e2/e2_eval.hpp
+ee314d4b702fb7a9205134e09065a493b196cffc020a6ede8483ecb43ab06265  include/mapr/e2/e2_term.hpp

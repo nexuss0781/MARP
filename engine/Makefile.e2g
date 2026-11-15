@@ -50,7 +50,7 @@ E2G_HARNESS_OBJS := $(patsubst src/%.cpp,obj/e2g_harness/%.o,$(E2G_HARNESS_SRCS)
 E2G_GATE_SRC := src/e2g/e2g_gate.cpp
 E2G_GATE_OBJ := obj/e2g_gate/e2g_gate.o
 
-.PHONY: e2g-all e2g-evidence e2g-isolation e2g-check e2g-clean e2g-summary
+.PHONY: e2g-all e2g-evidence e2g-isolation e2g-check e2g-clean e2g-summary e2g-frozen
 
 e2g-all: bin/e2_g_gate
 
@@ -112,6 +112,24 @@ e2g-isolation: bin/e2_g_gate
 
 e2g-check: e2g-isolation
 	@echo "PASS: E2-G structural checks complete"
+
+# E2 is frozen.  `include/mapr/e2/**` is the contract E3-E7 consume; after the
+# E2-G merge it may only change deliberately.  Its hashes are recorded in
+# specs_and_reports/v2/evidence/E2G/E2-FROZEN.sha256, and this target fails the
+# build when the two disagree.  To change an E2 header on purpose, update the
+# hash in the same commit: the change then shows up in review as a one-line
+# diff against a frozen contract instead of passing silently.
+e2g-frozen:
+	@echo "Checking that include/mapr/e2 is still the frozen contract..."
+	@if ! ( cd .. && sha256sum -c --quiet specs_and_reports/v2/evidence/E2G/E2-FROZEN.sha256 ); then \
+	  echo "FAIL: include/mapr/e2 changed after the E2 freeze."; \
+	  echo "      E2 is gated by E2-G; see REPORT/E2/E2-GATE-REPORT.md §9."; \
+	  echo "      If the change is intentional, update"; \
+	  echo "      specs_and_reports/v2/evidence/E2G/E2-FROZEN.sha256 in the same commit."; \
+	  exit 1; \
+	fi
+	@echo "PASS: include/mapr/e2 matches the frozen E2 contract:" && \
+	  sed 's/^/    /' ../specs_and_reports/v2/evidence/E2G/E2-FROZEN.sha256
 
 e2g-clean:
 	rm -rf obj/e2g obj/e2g_oracle obj/e2g_harness obj/e2g_gate

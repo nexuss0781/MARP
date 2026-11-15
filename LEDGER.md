@@ -46,3 +46,20 @@ This file is the single source of truth for Stage 2 defect closures, gate measur
 | Z.4 benchmark report | 2026-11-12 | `MARP/specs_and_reports/BENCHMARK_REPORT.md` updated with Stage 2 completion addendum (gate measurements, implementation highlights, verification summary). |
 | Z.5 gate transcript | 2026-11-12 | `MARP/specs_and_reports/stage2/GATE_TRANSCRIPT_STAGE2.md` recorded with build/test, gate evidence, and verification artifacts. |
 | Z.3 fuzz | 2026-11-12 | 500/500 adversarial cases rejected in every `make test`. 100k-mutation campaign (`MARP/SPECS/fuzz_100k.py`, `small.mapr`, final Stage 2 binary): **total=100000 rejected=100000 accepted=0, 0 crashes** (log `/tmp/marp_fuzz_100k.log`). |
+
+## E2 ALGEBRA — gated and frozen (2026-11-15)
+
+E2 `ALGEBRA` is complete: all five sub-components (C03 TERM → C04 CANON → C05 EVAL →
+C06 DAG → E2-G) have their own isolated build, their own CI workflow, and their own
+committed evidence. Merged in PR #7 (merge commit `abe500be`, tree-identical to the
+reviewed head `076a360`).
+
+| item | date | evidence |
+|---|---|---|
+| E2-G gate | 2026-11-15 | `engine/bin/e2_g_gate --root .. --write-evidence` → `RESULT: PASS`, **89 729 rows / 89 729 PASS / 0 FAIL** (`specs_and_reports/v2/logs/E2-G.log`). Clean under ASan+UBSan. Evidence byte-identical from local `g++ 12.2.0` and CI `g++ 13.3.0`. |
+| E2-G corpus (spec §12.2) | 2026-11-15 | T-BAD 64, T-BIG 64, T-CRIT 1000, T-GEN 5000, T-KAT 128, T-NONCANON 200 — all exact, re-asserted by CI. Coverage: rules 13/13, kinds 12/12, morphs 9/9, predictors 5/5. |
+| E2-G authoritative CI | 2026-11-15 | `MARP E2-G ALGEBRA CI` run `43719480511` on `076a360` — `success` (20/20 steps); re-run on `h2-gates` at `abe500b` — `success`. |
+| No regression | 2026-11-15 | C03 TERM, C04 CANON, C05 EVAL, C06 DAG and H3 Oracle CI all `success` on `076a360` and on `abe500b`. C03–C06 each regenerate their committed evidence byte for byte after an E2-G run. |
+| Report | 2026-11-15 | `REPORT/E2/E2-GATE-REPORT.md` — decisions (§6) and limitations (§7). |
+| **E2 is frozen** | 2026-11-15 | `include/mapr/e2/**` is frozen for consumers. File hashes are recorded in `specs_and_reports/v2/evidence/E2G/FROZEN.json` and verified by `engine/Makefile.e2g` target `e2g-frozen`, which runs inside `MARP E2-G ALGEBRA CI`. A SHA-256 in `FROZEN.json` must be updated in the same PR as any intentional change. |
+| Observable limitation carried forward | 2026-11-15 | `C05-EVAL.log` records `rss_before_kib`, a process-residency measurement: it reads 3420 in isolation and 3424 on a machine that has just run heavy jobs. Pre-existing; C05 evidence was not re-baselined by E2-G. |
