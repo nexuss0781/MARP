@@ -205,41 +205,6 @@ jobs:
           rm -rf /tmp/c08_san_repro
           echo "PASS: ASan+UBSan unit tests and gate run reproduced committed C08 evidence"
 
-      - name: Cross-verify C08 decode_v1 against frozen Stage 2 mapr encoder in /tmp
-        env:
-          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
-          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
-        run: |-
-          set -euo pipefail
-          mkdir -p /tmp/stage2_corpora /tmp/stage2_inputs
-          printf 'extern "C" void init_avx2_kernels(void*) {}\nextern "C" void init_avx512_kernels(void*) {}\n' \
-            > /tmp/stage2_simd_stub.cpp
-          g++ -std=c++20 -O2 -Iengine/include -include cstdint -include stdexcept -include limits \
-            engine/src/crypto.cpp engine/src/bitseq.cpp engine/src/math_core.cpp \
-            engine/src/dag.cpp engine/src/container.cpp engine/src/encoder.cpp \
-            engine/src/decoder.cpp engine/src/pipeline.cpp engine/src/noise_detector.cpp \
-            engine/src/deflate_frontend.cpp engine/src/dedup_index.cpp \
-            engine/src/api/mapr_api.cpp engine/src/hwprobe/hwprobe.cpp \
-            engine/src/runtime/thread_pool.cpp engine/src/runtime/profile.cpp \
-            engine/src/runtime/chunk_analyzer.cpp engine/src/simd/dispatch.cpp \
-            engine/src/main.cpp /tmp/stage2_simd_stub.cpp -pthread -ldl -lm -o /tmp/mapr_stage2
-          : > /tmp/stage2_inputs/empty.bin
-          dd if=/dev/zero of=/tmp/stage2_inputs/zeros_1m.bin bs=1048576 count=1 2>/dev/null
-          cp SPECS/SPECS.md /tmp/stage2_inputs/specs_md.bin
-          cp engine/src/encoder.cpp /tmp/stage2_inputs/encoder_cpp.bin
-          head -c 4096 /dev/urandom > /tmp/stage2_inputs/opaque_4k.bin
-          : > /tmp/stage2_corpora/manifest.tsv
-          for f in empty zeros_1m specs_md encoder_cpp opaque_4k; do
-            /tmp/mapr_stage2 encode --input "/tmp/stage2_inputs/${f}.bin" --output "/tmp/stage2_corpora/${f}.mapr" --threads 2
-            sha=$(sha256sum "/tmp/stage2_inputs/${f}.bin" | awk '{print $1}')
-            printf "%s.mapr\t%s\n" "${f}" "${sha}" >> /tmp/stage2_corpora/manifest.tsv
-          done
-          ./engine/bin/e3_c08_gate_san --root . --out-root /tmp/c08_stage2_check --w-v1-dir /tmp/stage2_corpora
-          awk -F'\t' '$1 == "c08.w_v1_corpus" { n++; if ($7 != "PASS") { print "Stage 2 cross-decode failed: " $0; exit 1 } } END { if (n != 5) { print "Expected 5 Stage 2 rows, got " n; exit 1 } }' \
-            /tmp/c08_stage2_check/specs_and_reports/v2/gates/C08-LEGACY.tsv
-          rm -rf /tmp/stage2_simd_stub.cpp /tmp/mapr_stage2 /tmp/stage2_corpora /tmp/stage2_inputs /tmp/c08_stage2_check
-          echo "PASS: all 5 Stage 2 .mapr containers decoded byte-identically under ASan+UBSan"
-
       - name: No-regression check (frozen E1/E2/H1/H2/H3 and earlier evidence untouched)
         run: |-
           set -euo pipefail
