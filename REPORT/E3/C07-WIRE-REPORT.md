@@ -2,8 +2,8 @@
 
 **Component**: C07 WIRE (E3 WIRE, first sub-component of E3).
 **Branch**: `arena/0c5e3d50-marp` (base `abe500b4a98725a214c7074ab0aa4ef90b0fbd18`).
-**Green CI run**: **[43739655357](https://github.com/nexuss0781/MARP/actions/runs/43739655357)** —
-conclusion `success`, commit **`0e21cb1bb55d32493d7e0c9b6356eecd5b7b9a45`**.
+**Green CI run**: **[43740087464](https://github.com/nexuss0781/MARP/actions/runs/43740087464)** —
+conclusion `success`, commit **`93f7d6751b0d46839a8d3b760d7752ce71f38b0b`**.
 Both jobs passed: `C07 independence (source level)` and `C07 build, tests, evidence`.
 
 **Status: C07 WIRE is complete and green.** 1170 of 1170 evidence rows `PASS`, 0 `FAIL`,
@@ -318,8 +318,8 @@ hand-edited value would fail the build.
 
 ## 8. CI, and how it maps to the §10 checklist
 
-Green run: **[43739655357](https://github.com/nexuss0781/MARP/actions/runs/43739655357)**
-at commit `0e21cb1bb55d32493d7e0c9b6356eecd5b7b9a45` — `success`.
+Green run: **[43740087464](https://github.com/nexuss0781/MARP/actions/runs/43740087464)**
+at commit `93f7d6751b0d46839a8d3b760d7752ce71f38b0b` — `success`.
 
 | §10 requirement | How CI proves it | Result |
 |---|---|---|
@@ -335,6 +335,11 @@ at commit `0e21cb1bb55d32493d7e0c9b6356eecd5b7b9a45` — `success`.
 | Committed evidence matches the green run | `diff` of the CI-generated TSV/log against the committed copies, byte for byte | **PASS** |
 | No build artefacts committed | Only sources, `Makefile.c07`, the workflow, and the three evidence files are added | **PASS** |
 | ASan + UBSan clean | `c07-test-san` (48/48) and a sanitizer evidence run whose output `diff`s identically | **PASS** |
+
+Every other workflow also ran green on the same commit — E2 C03, C04, C05, C06,
+E2-G, and H3 Oracle — so the C07 addition regresses nothing. The E2-G run
+(43740087529) is the one that matters most for the "no regression" claim, because
+it is the gate that owns the E2 surfaces C07 builds on.
 
 The H3 cross-check is a genuine independent decoder: `harness/oracle/` is a
 clean-room implementation that shares no code with C07. The harness reaches it
@@ -415,8 +420,8 @@ refused with `Limit` and documented in §6.
 
 1170/1170 evidence rows `PASS`; 48/48 unit tests pass in the strict build and
 under ASan+UBSan; CI run
-[43739655357](https://github.com/nexuss0781/MARP/actions/runs/43739655357) is green
-at commit `0e21cb1bb55d32493d7e0c9b6356eecd5b7b9a45`, and the committed evidence
+[43740087464](https://github.com/nexuss0781/MARP/actions/runs/43740087464) is green
+at commit `93f7d6751b0d46839a8d3b760d7752ce71f38b0b`, and the committed evidence
 is byte-identical to what that run generated.
 
 **E3-G is not claimed.** C08 LEGACY, the 100 000-case fuzz campaign, the `W-V1`
