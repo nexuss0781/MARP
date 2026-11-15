@@ -29,6 +29,27 @@ adds no C03/C04/C05/C06 semantics, and changes no earlier component's evidence.
 | Gate binary | `engine/bin/e2_g_gate` |
 | Invocation | `cd engine && ./bin/e2_g_gate --root .. --write-evidence` |
 | Evidence | `specs_and_reports/v2/{gates/E2-G.tsv, logs/E2-G.log, corpus/E2/{corpus,rewrites}.tsv, evidence/E2G/{critical_pairs.md, SHA256SUMS}}` |
+| Implementation commits | `1242858` (gate, corpus, evidence, CI), `597665f` (harness tree / evidence dir separation), `f04ab63` (H3 evidence regeneration) |
+| **Authoritative CI run (E2-G)** | **`43718664622` — `MARP E2-G ALGEBRA CI` — conclusion `success`** (both jobs, 20/20 steps) on `f04ab63` |
+| CI run URL | https://github.com/nexuss0781/MARP/actions/runs/43718664622 |
+| No-regression, C03 TERM CI on `f04ab63` | `43718664548` — `success` |
+| No-regression, C04 CANON CI on `f04ab63` | `43718664543` — `success` |
+| No-regression, C05 EVAL CI on `f04ab63` | `43718664563` — `success` |
+| No-regression, C06 DAG CI on `f04ab63` | `43718664544` — `success` |
+| No-regression, H3 Oracle CI on `f04ab63` | `43718664616` — `success` |
+| CI toolchain | `g++ 13.3.0`; the evidence is byte-identical to the local `g++ 12.2.0` run |
+
+### 1.1 What CI actually asserted
+
+`MARP E2-G ALGEBRA CI`, run `43718664622`, 20 steps, all `success`:
+
+| Job | Steps |
+|---|---|
+| `independence` (5) | checkout; reject E3–E7/harness includes in E2 sources; the H3 oracle includes no `mapr/` header; reject non-C++ artefacts under E2 paths; the E1/H1/H3/C04/C05/C06 manifests still verify |
+| `isolation` (15) | checkout; verify commit; install toolchain; record toolchain (`compiler=13.3.0`); **build `-Werror -O2`**; `e2g-isolation` (source grep + `nm` symbol scan, 2 290 symbols, 0 forbidden); snapshot + verify committed manifest; generate evidence; **committed = CI output byte for byte**; schema/verdict/corpus-size/coverage/`t_big`/`t_crit` assertions and `sha256sum -c`; determinism re-run diff; **ASan+UBSan evidence run**; restore primary evidence; no-regression over C03–C06 evidence, `evidence/E2` and `harness/oracle`; upload artifact |
+
+The CI run used `g++ 13.3.0` and the local run used `g++ 12.2.0`; both produce the same
+`E2-G.tsv` and the same `E2-G.log`, which is itself a determinism data point.
 
 `E2-G.log` records the tool, root, exact command line and the fixed build-flag set, and is
 deliberately compiler-version free — the same property C06 adopted (§6.2 of the C06
