@@ -396,7 +396,7 @@ budget-default-64x	T-BUDGET	default-budget	8118fc5eb10268ec5df039b56455bbd71a6e0
 presupposition-wf-required	T-BUDGET	non-wf-argc0	5c0428103c6f11d801bb7489c613f303e10737f55c25014d8039143d78761da3	Invalid	Invalid	PASS	budget
 report-accounting	T-BUDGET	nodes-atoms-accounting	3506ddf4d76090cdc3a49c73337c2fe5546c2118c2271fb1db765c83452e4808	nodes_in/atoms_in/nodes_out/atoms_out consistent	consistent	PASS	budget
 determinism-repeat-corpus	T-KAT	all-corpus-terms	f723e6c99c64713e0d5b95252a3f9bf7ba658a168d8de4cea791fa97a48d81b8	0 mismatched terms	0 mismatched	PASS	determinism
-independence	C04	source-scan	416da5cab0f3d0878ff62a7c1988831680f16b43cb2f6a4a26b6ec092839b5e1	0 forbidden includes	0 forbidden includes across 8 files	PASS	source-scan
+independence	C04	source-scan	98e9dab56ae7ea8760ca36f33631b2a156aef5e09330b03c5979162f6fb21048	0 forbidden includes	0 forbidden includes across 11 files	PASS	source-scan
 independence.library	C04	library-scan	b718f1354f7247312eca086d9a024afe5fa717ddea5adeddd6f12bcf945b2e8c	0 harness/test includes in library	0 violations	PASS	source-scan
 coverage.kind	C04	all-12-kinds	f6b1a520a9e0d54c9dc8eadc9a9840ef10717313cfbc5e13d1491fefb5074d3c	12/12	12/12	PASS	all-12-kinds
 coverage.morph	C04	all-9-morphs	fa51619db5c750c6f29b7459cd289c552cfa8f99eb4c030a798da9f59bd6ade0	9/9	9/9	PASS	all-9-morphs

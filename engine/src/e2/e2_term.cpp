@@ -12,12 +12,14 @@
 
 #include <algorithm>
 #include <cstring>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "mapr/e1_sha256.hpp"
+#include "mapr/e2/e2_eval.hpp"
 
 namespace marp::v2 {
 namespace {
@@ -62,10 +64,6 @@ Result<u64> bi_to_u64(const BigInt& value) {
     auto v = value.to_u64_checked();
     if (!v.has_value()) return Code::Limit;
     return *v;
-}
-
-BigInt bi_max(const BigInt& x, const BigInt& y) {
-    return x.compare(y) >= 0 ? x : y;
 }
 
 BigInt bi_min(const BigInt& x, const BigInt& y) {
@@ -985,265 +983,206 @@ Status lfsr_read_range(u64 conn, u64 init, const BigInt& byte_offset, std::span<
 }
 
 // ---------------------------------------------------------------------------
-// Denotation (E2 §4.9, §5.3–5.5)
+// Denotation & C05 Evaluation Core (E2 §4.9, §5.3–5.5, §11)
+//
+// Zero C++ call-stack recursion: all full/range/cursor evaluations execute on
+// an explicit heap-allocated frame stack bounded by `limits.wf.max_depth`
+// (W7 = 2^16), streaming through fixed block buffers with bounded scratch
+// memory and per-session predictor/LFSR rolling state.
 // ---------------------------------------------------------------------------
 
 namespace {
 
-constexpr u64 kPredictorWindowCap = 16ull << 20;  // 16 MiB resource policy (§5.5 Limit)
+constexpr std::size_t kConcatBinarySearchMinArgs = 8u;
+constexpr std::size_t kMaxPredSlotsPerNode = 4u;
+constexpr std::size_t kMaxPredRollingSlots = 32u;
+constexpr std::size_t kMaxLfsrSlots = 16u;
+constexpr std::size_t kDeepStackThreshold = 64u;
+constexpr std::size_t kDeepXorChunkCap = 256u;
+constexpr std::size_t kDeepPredChunkCap = 1024u;
 
-// Reads ⟦node⟧[start, start + out.size()); requires the range to be inside
-// ℓ(node) (checked by the caller).
-Status read_range_impl(const Ir& ir, const std::vector<BigInt>& len, u32 node_id,
-                       const BigInt& start, std::span<u8> out);
+Gf2Matrix64 gf2_power_counted(const Gf2Matrix64& base, const BigInt& exponent, u64* mul_ops) {
+    Gf2Matrix64 result;  // identity
+    for (unsigned i = 0; i < 64; ++i) result.col[i] = u64{1} << i;
 
-Status read_child(const Ir& ir, const std::vector<BigInt>& len, u32 child, const BigInt& offset,
-                  std::span<u8> out) {
-    return read_range_impl(ir, len, child, offset, out);
-}
-
-Status read_concat(const Ir& ir, const std::vector<BigInt>& len, const Node& node,
-                   const BigInt& start, std::span<u8> out) {
-    const auto end = bi_add(start, BigInt(static_cast<u64>(out.size())));
-    if (!end.ok()) return end.code();
-    BigInt pos = BigInt::zero();
-    std::size_t written = 0;
-    for (u32 child : node.args) {
-        if (written >= out.size()) break;
-        const BigInt& child_len = len[child];
-        auto child_end = bi_add(pos, child_len);
-        if (!child_end.ok()) return child_end.code();
-        const BigInt lo = bi_max(start, pos);
-        const BigInt hi = bi_min(end.value(), child_end.value());
-        if (lo.compare(hi) < 0) {
-            auto child_offset = bi_sub(lo, pos);
-            if (!child_offset.ok()) return child_offset.code();
-            auto take = bi_sub(hi, lo);
-            if (!take.ok()) return take.code();
-            auto count = bi_to_u64(take.value());
-            if (!count.ok()) return count.code();
-            const auto slice = out.subspan(written, static_cast<std::size_t>(count.value()));
-            const Status st = read_child(ir, len, child, child_offset.value(), slice);
-            if (!st.ok()) return st;
-            written += static_cast<std::size_t>(count.value());
-        }
-        pos = std::move(child_end.value());
-        if (pos.compare(end.value()) >= 0) break;
-    }
-    if (written != out.size()) return Code::Invalid;
-    return Status{};
-}
-
-Status read_repeat(const Ir& ir, const std::vector<BigInt>& len, const Node& node,
-                   const BigInt& start, std::span<u8> out) {
-    const u32 child = node.args[0];
-    const BigInt& period = len[child];
-    if (period.is_zero()) return Code::Invalid;
-    const auto copies_bytes = bi_mul(node.a, period);
-    if (!copies_bytes.ok()) return copies_bytes.code();
-    const auto end = bi_add(start, BigInt(static_cast<u64>(out.size())));
-    if (!end.ok()) return end.code();
-
-    BigInt pos = start;
-    std::size_t written = 0;
-    while (written < out.size()) {
-        BigInt child_offset;
-        BigInt remaining_at_pos;
-        if (pos.compare(copies_bytes.value()) < 0) {
-            auto rem = bi_sub(copies_bytes.value(), pos);
-            if (!rem.ok()) return rem.code();
-            auto within = bi_mod(pos, period);
-            if (!within.ok()) return within.code();
-            const auto avail = bi_sub(period, within.value());
-            if (!avail.ok()) return avail.code();
-            remaining_at_pos = std::move(rem.value());
-            auto take = min_u64(avail.value(), remaining_at_pos,
-                                static_cast<u64>(out.size() - written));
-            if (!take.ok()) return take.code();
-            const auto slice = out.subspan(written, static_cast<std::size_t>(take.value()));
-            const Status st = read_child(ir, len, child, within.value(), slice);
-            if (!st.ok()) return st;
-            written += static_cast<std::size_t>(take.value());
-            auto next = bi_add(pos, BigInt(take.value()));
-            if (!next.ok()) return next.code();
-            pos = std::move(next.value());
-            continue;
-        }
-        // Prefix region: ⟦c⟧[0, r) after q copies.
-        auto off = bi_sub(pos, copies_bytes.value());
-        if (!off.ok()) return off.code();
-        auto to_end = bi_sub(end.value(), pos);
-        if (!to_end.ok()) return to_end.code();
-        auto take = min_u64(to_end.value(), node.b,
-                            static_cast<u64>(out.size() - written));
-        if (!take.ok()) return take.code();
-        if (take.value() == 0) return Code::Invalid;
-        const auto slice = out.subspan(written, static_cast<std::size_t>(take.value()));
-        const Status st = read_child(ir, len, child, off.value(), slice);
-        if (!st.ok()) return st;
-        written += static_cast<std::size_t>(take.value());
-        auto next = bi_add(pos, BigInt(take.value()));
-        if (!next.ok()) return next.code();
-        pos = std::move(next.value());
-    }
-    return Status{};
-}
-
-Status read_morph(const Ir& ir, const std::vector<BigInt>& len, const Node& node,
-                  const BigInt& start, std::span<u8> out) {
-    const u32 child = node.args[0];
-    const BigInt& child_len = len[child];
-    const u8 morph = node.morph;
-    const u8 k = node.morph_k;
-    const u32 block = morph_block_size(morph);
-
-    if (morph_is_byte_local(morph)) {
-        const Status read_st = read_child(ir, len, child, start, out);
-        if (!read_st.ok()) return read_st;
-        return apply_morph_to_buffer(morph, k, out);
-    }
-
-    if (block != 0) {
-        auto begin_div = start.divmod_scalar(block);
-        if (!begin_div.ok()) return to_status(begin_div.error());
-        const auto begin_q = bi_mul(begin_div.value().first, BigInt(block));
-        if (!begin_q.ok()) return begin_q.code();
-
-        const auto end = bi_add(start, BigInt(static_cast<u64>(out.size())));
-        if (!end.ok()) return end.code();
-        auto end_div = end.value().divmod_scalar(block);
-        if (!end_div.ok()) return to_status(end_div.error());
-        BigInt block_end = bi_mul(end_div.value().first, BigInt(block)).value();
-        if (end_div.value().second != 0) {
-            auto bump = bi_add(block_end, BigInt(block));
-            if (!bump.ok()) return bump.code();
-            block_end = std::move(bump.value());
-        }
-        if (block_end.compare(child_len) > 0) block_end = child_len;
-
-        auto span_len = bi_sub(block_end, begin_q.value());
-        if (!span_len.ok()) return span_len.code();
-        auto span_count = bi_to_u64(span_len.value());
-        if (!span_count.ok()) return span_count.code();
-        std::vector<u8> expanded(static_cast<std::size_t>(span_count.value()));
-        const Status read_st = read_child(ir, len, child, begin_q.value(), expanded);
-        if (!read_st.ok()) return read_st;
-        const Status morph_st = apply_morph_to_buffer(morph, k, expanded);
-        if (!morph_st.ok()) return morph_st;
-        auto offset = bi_sub(start, begin_q.value());
-        if (!offset.ok()) return offset.code();
-        auto offset_u64 = bi_to_u64(offset.value());
-        if (!offset_u64.ok()) return offset_u64.code();
-        const std::size_t from = static_cast<std::size_t>(offset_u64.value());
-        if (from + out.size() > expanded.size()) return Code::Invalid;
-        std::memcpy(out.data(), expanded.data() + from, out.size());
-        return Status{};
-    }
-
-    // Mirrored morphs 8 and 9: out[j] = f(in[n-1-j]).
-    auto mirrored_start = bi_sub(child_len, start);
-    if (!mirrored_start.ok()) return mirrored_start.code();
-    const auto span = BigInt(static_cast<u64>(out.size()));
-    auto from = bi_sub(mirrored_start.value(), span);
-    if (!from.ok()) return from.code();
-    const Status read_st = read_child(ir, len, child, from.value(), out);
-    if (!read_st.ok()) return read_st;
-    std::reverse(out.begin(), out.end());
-    if (morph == 9) {
-        for (u8& byte : out) byte = bit_reverse8(byte);
-    }
-    return Status{};
-}
-
-Status read_xor(const Ir& ir, const std::vector<BigInt>& len, const Node& node,
-                const BigInt& start, std::span<u8> out) {
-    std::vector<u8> left(out.size());
-    std::vector<u8> right(out.size());
-    Status st = read_child(ir, len, node.args[0], start, left);
-    if (!st.ok()) return st;
-    st = read_child(ir, len, node.args[1], start, right);
-    if (!st.ok()) return st;
-    for (std::size_t i = 0; i < out.size(); ++i) {
-        out[i] = static_cast<u8>(left[i] ^ right[i]);
-    }
-    return Status{};
-}
-
-Status read_interleave(const Ir& ir, const std::vector<BigInt>& len, const Node& node,
-                       const BigInt& start, std::span<u8> out) {
-    auto stride_res = interleave_stride(node);
-    if (!stride_res.ok()) return stride_res.code();
-    const u64 stride = stride_res.value();
-    if (stride == 0) return Code::Invalid;
-    const u64 k = static_cast<u64>(node.args.size());
-    const u64 block_bytes = k * stride;  // <= 2^24 * 2^32
-    const BigInt block_big(block_bytes);
-
-    BigInt pos = start;
-    std::size_t written = 0;
-    while (written < out.size()) {
-        auto div = pos.divmod(block_big);
-        if (!div.ok()) return to_status(div.error());
-        const BigInt& block_index = div.value().first;
-        const auto within_big = bi_to_u64(div.value().second);
-        if (!within_big.ok()) return within_big.code();
-        const u64 within = within_big.value();
-        const u64 child_index = within / stride;
-        const u64 within_child = within % stride;
-        if (child_index >= k) return Code::Invalid;
-        const u64 take = std::min<u64>(static_cast<u64>(out.size() - written),
-                                       stride - within_child);
-        auto base = bi_mul(block_index, BigInt(stride));
-        if (!base.ok()) return base.code();
-        auto child_offset = bi_add(base.value(), BigInt(within_child));
-        if (!child_offset.ok()) return child_offset.code();
-        const auto slice = out.subspan(written, static_cast<std::size_t>(take));
-        const Status st = read_child(ir, len, node.args[static_cast<std::size_t>(child_index)],
-                                     child_offset.value(), slice);
-        if (!st.ok()) return st;
-        written += static_cast<std::size_t>(take);
-        auto next = bi_add(pos, BigInt(take));
-        if (!next.ok()) return next.code();
-        pos = std::move(next.value());
-    }
-    return Status{};
-}
-
-Status read_predictor(const Ir& ir, const std::vector<BigInt>& len, const Node& node,
-                      const BigInt& start, std::span<u8> out) {
-    const u8 pid = node.predictor_id;
-    const u32 param = node.predictor_param;
-    if (!check_predictor_params(pid, param).ok()) return Code::Invalid;
-    if (start.compare(predictor_prefix_limit()) > 0) return Code::Limit;
-
-    const u32 residual_id = node.args[0];
-    const BigInt& total = len[residual_id];
-    const BigInt prefix_end = bi_min(start, total);
-    auto prefix_u64 = bi_to_u64(prefix_end);
-    if (!prefix_u64.ok()) return prefix_u64.code();
-    const u64 prefix = prefix_u64.value();
-
-    std::size_t window = 0;
-    if (pid == 3 || pid == 4) {
-        const BigInt param_big(param);
-        if (param_big.compare(total) < 0) {
-            window = param;
-            if (window > kPredictorWindowCap) return Code::Limit;
+    const std::size_t limbs = exponent.limb_count();
+    bool started = false;
+    u64 ops = 0;
+    for (std::size_t k = limbs; k-- > 0;) {
+        const mapr::Limb word = exponent.limb(k);
+        for (int bit = 31; bit >= 0; --bit) {
+            if (started) {
+                result = gf2_compose(result, result);
+                ++ops;
+            }
+            if (((word >> static_cast<unsigned>(bit)) & 1u) != 0) {
+                result = gf2_compose(base, result);
+                ++ops;
+                started = true;
+            }
         }
     }
-    std::vector<u8> ring(window, 0);
+    if (mul_ops != nullptr) *mul_ops += ops;
+    return result;
+}
 
+Result<u64> lfsr_state_at_byte_offset_counted(u64 conn, u64 init, const BigInt& byte_offset,
+                                              u64* mul_ops) {
+    if (!check_lfsr_conn(conn).ok()) return Code::Invalid;
+    if (byte_offset.is_zero()) return init;
+    auto bits = byte_offset.shl(3);  // 8 bit-steps per byte
+    if (!bits.ok()) return to_status(bits.error()).code();
+    const Gf2Matrix64 map = gf2_power_counted(lfsr_step_matrix(conn), bits.value(), mul_ops);
+    return gf2_apply(map, init);
+}
+
+// Validates only the subterm reachable from `subterm_root` (used exclusively by
+// C03's `denote_node` test/harness helper, where sibling nodes in a shared
+// Builder may be unreferenced).  All normative C05 entry points (`eval_stream`,
+// `eval_range`, `read_range`, `TermCursor`, `PreparedEval`) enforce full `WF(ir)`.
+Status check_subterm_well_formed(const Ir& ir, u32 subterm_root, const Limits& limits,
+                                 const LengthTable& table, std::vector<char>& out_reach) {
+    const std::size_t node_count = ir.nodes.size();
+    const std::size_t atom_count = ir.atoms.size();
+    if (node_count > limits.max_nodes || atom_count > limits.max_atoms) return Code::Invalid;
+    if (subterm_root >= node_count) return Code::Invalid;
+
+    const ReachResult reach = compute_reachability(ir, subterm_root);
+    if (!reach.arg_range_ok) return Code::Invalid;
+
+    std::vector<u32> depth(node_count, 0);
+    for (u32 i = 0; i < node_count; ++i) {
+        if (reach.reachable[i] == 0) continue;
+        const Node& node = ir.nodes[i];
+        if (node.flags != 0) return Code::Invalid;
+        Kind parsed = Kind::Empty;
+        if (!parse_kind(static_cast<u8>(node.kind), parsed)) return Code::Invalid;
+        for (u32 arg : node.args) {
+            if (arg >= i) return Code::Invalid;
+        }
+        if (table.known[i] == 0) return Code::Invalid;
+        if (table.length[i].compare(node.length) != 0) return Code::Invalid;
+
+        if (node.kind != Kind::Empty) {
+            u32 d = 0;
+            for (u32 arg : node.args) d = std::max(d, depth[arg]);
+            if (d >= limits.max_depth) return Code::Limit;
+            depth[i] = d + 1;
+        }
+
+        const std::size_t argc = node.args.size();
+        switch (node.kind) {
+            case Kind::Empty:
+            case Kind::Zero:
+            case Kind::Affine:
+                if (argc != 0) return Code::Invalid;
+                break;
+            case Kind::Atom: {
+                if (argc != 0) return Code::Invalid;
+                auto atom_id = node.a.to_u64_checked();
+                if (!atom_id.has_value() || *atom_id >= atom_count) return Code::Invalid;
+                const Atom& atom = ir.atoms[static_cast<std::size_t>(*atom_id)];
+                if (atom.flags != 0) return Code::Invalid;
+                auto decl = atom.length.to_u64_checked();
+                if (!decl.has_value() || *decl != static_cast<u64>(atom.payload.size())) {
+                    return Code::Invalid;
+                }
+                break;
+            }
+            case Kind::Concat:
+                if (argc < 2) return Code::Invalid;
+                break;
+            case Kind::Repeat: {
+                if (argc != 1) return Code::Invalid;
+                if (node.a.is_zero()) {
+                    if (!node.b.is_zero()) return Code::Invalid;
+                } else if (node.b.compare(table.length[node.args[0]]) >= 0) {
+                    return Code::Invalid;
+                }
+                break;
+            }
+            case Kind::Slice: {
+                if (argc != 1) return Code::Invalid;
+                const BigInt& cl = table.length[node.args[0]];
+                if (node.a.compare(cl) > 0) return Code::Invalid;
+                auto end = bi_add(node.a, node.b);
+                if (!end.ok()) return Code::Limit;
+                if (end.value().compare(cl) > 0) return Code::Invalid;
+                break;
+            }
+            case Kind::Morph: {
+                if (argc != 1) return Code::Invalid;
+                const Status st = check_morph_params(node.morph, node.morph_k,
+                                                     table.length[node.args[0]]);
+                if (!st.ok()) return st;
+                break;
+            }
+            case Kind::Xor:
+                if (argc != 2) return Code::Invalid;
+                if (table.length[node.args[0]].compare(table.length[node.args[1]]) != 0) {
+                    return Code::Invalid;
+                }
+                break;
+            case Kind::Interleave: {
+                if (argc < 1) return Code::Invalid;
+                auto stride = interleave_stride(node);
+                if (!stride.ok() || stride.value() == 0) return Code::Invalid;
+                const BigInt& first = table.length[node.args[0]];
+                for (std::size_t k = 1; k < argc; ++k) {
+                    if (table.length[node.args[k]].compare(first) != 0) return Code::Invalid;
+                }
+                auto rem = first.divmod_scalar(stride.value());
+                if (!rem.ok()) return to_status(rem.error());
+                if (rem.value().second != 0) return Code::Invalid;
+                break;
+            }
+            case Kind::Lfsr:
+                if (argc != 0 || node.lfsr_conn == 0) return Code::Invalid;
+                break;
+            case Kind::Predictor: {
+                if (argc != 1) return Code::Invalid;
+                const Status st = check_predictor_params(node.predictor_id,
+                                                         node.predictor_param);
+                if (!st.ok()) return st;
+                break;
+            }
+        }
+    }
+
+    if (limits.enforce_output_cap &&
+        table.length[subterm_root].compare(max_output_bytes()) > 0) {
+        return Code::Limit;
+    }
+
+    out_reach = reach.reachable;
+    return Status{};
+}
+
+void swap_blocks_in_place(u32 block, std::span<u8> buf) noexcept {
+    const std::size_t b = static_cast<std::size_t>(block);
+    for (std::size_t base = 0; base + b <= buf.size(); base += b) {
+        std::reverse(buf.begin() + static_cast<std::ptrdiff_t>(base),
+                     buf.begin() + static_cast<std::ptrdiff_t>(base + b));
+    }
+}
+
+struct PredRunState {
+    u8 pid = 0;
+    u32 param = 0;
     u8 prev1 = 0;
     u8 prev2 = 0;
-    std::vector<u8> buffer(kEvalBlock);
+    u8 seeded = 0;                  // 0 at offset 0, 1 at offset 1, 2 at offset >= 2
+    std::size_t window = 0;         // ring size (0 for pid 0..2 or when window unused)
+    std::size_t ring_slot = 0;      // current index % window
+    std::vector<u8> ring;
+    bool cacheable = true;          // false only when param > window_cap and end <= param
 
-    auto step = [&](u64 index, u8 residual_byte) -> u8 {
-        u8 value;
+    u8 step_byte(u8 residual_byte) noexcept {
+        u8 value = 0;
         if (pid == 2) {
-            if (index == 0) {
+            if (seeded < 2) {
                 value = residual_byte;
-            } else if (index == 1) {
-                value = residual_byte;
+                ++seeded;
             } else {
                 value = apply_predictor_step(pid, param, residual_byte, prev1, prev2);
             }
@@ -1252,54 +1191,1119 @@ Status read_predictor(const Ir& ir, const std::vector<BigInt>& len, const Node& 
             return value;
         }
         if (pid == 3 || pid == 4) {
-            u8 previous = 0;
             if (window != 0) {
-                const std::size_t slot = static_cast<std::size_t>(index % window);
-                previous = ring[slot];
+                const u8 previous = ring[ring_slot];
                 value = apply_predictor_step(pid, param, residual_byte, previous, 0);
-                ring[slot] = value;
+                ring[ring_slot] = value;
+                ++ring_slot;
+                if (ring_slot == window) ring_slot = 0;
             } else {
                 value = apply_predictor_step(pid, param, residual_byte, 0, 0);
             }
+            if (seeded < 2) ++seeded;
             return value;
         }
-        value = apply_predictor_step(pid, param, residual_byte, prev1, prev2);
+        value = apply_predictor_step(pid, param, residual_byte, prev1, 0);
         prev1 = value;
+        if (seeded < 2) ++seeded;
         return value;
+    }
+
+    void discard_span(std::span<const u8> residual) noexcept {
+        for (u8 b : residual) (void)step_byte(b);
+    }
+
+    void emit_in_place(std::span<u8> buf) noexcept {
+        for (u8& b : buf) b = step_byte(b);
+    }
+};
+
+}  // namespace
+
+namespace detail {
+
+struct PredictorSlot {
+    u32 node = 0;
+    BigInt offset;
+    u8 prev1 = 0;
+    u8 prev2 = 0;
+    u8 seeded = 0;
+    std::size_t ring_slot = 0;
+    std::vector<u8> ring;
+    u64 last_use = 0;
+    bool pinned_checkpoint = false;
+};
+
+struct LfsrSlot {
+    u32 node = 0;
+    BigInt offset;
+    u64 state = 0;
+    u64 last_use = 0;
+};
+
+struct StreamSession {
+    std::vector<PredictorSlot> pred_slots;
+    std::vector<LfsrSlot> lfsr_slots;
+    std::vector<std::vector<u8>> scratch_pool;
+    std::size_t rolling_ring_bytes = 0;
+    u64 use_clock = 0;
+    u64 work_bytes = 0;
+};
+
+Result<EvalPlanData> build_eval_plan(const Ir& ir, const EvalLimits& limits,
+                                     bool full_wf, u32 subterm_root) {
+    if (limits.block_bytes == 0) return Code::Invalid;
+
+    if (full_wf) {
+        const WfReport wf = check_well_formed_report(ir, limits.wf);
+        if (!wf.ok()) return wf.code;
+        if (subterm_root >= ir.nodes.size()) return Code::Invalid;
+    }
+
+    auto lengths_res = compute_lengths(ir);
+    if (!lengths_res.ok()) return lengths_res.code();
+    LengthTable& table = lengths_res.value();
+
+    std::vector<char> reachable;
+    if (!full_wf) {
+        const Status sub_st =
+            check_subterm_well_formed(ir, subterm_root, limits.wf, table, reachable);
+        if (!sub_st.ok()) return sub_st.code();
+    } else {
+        for (std::size_t i = 0; i < table.known.size(); ++i) {
+            if (table.known[i] == 0) return Code::Invalid;
+        }
+    }
+
+    EvalPlanData plan;
+    plan.ir = &ir;
+    plan.limits = limits;
+    plan.concat_cum.resize(ir.nodes.size());
+    for (u32 i = 0; i < ir.nodes.size(); ++i) {
+        if (!full_wf && reachable[i] == 0) continue;
+        const Node& node = ir.nodes[i];
+        if (node.kind == Kind::Concat && node.args.size() >= kConcatBinarySearchMinArgs) {
+            std::vector<BigInt> cum;
+            cum.reserve(node.args.size() + 1);
+            BigInt acc = BigInt::zero();
+            cum.push_back(acc);
+            for (u32 child : node.args) {
+                auto next = bi_add(acc, table.length[child]);
+                if (!next.ok()) return next.code();
+                acc = std::move(next.value());
+                cum.push_back(acc);
+            }
+            plan.concat_cum[i] = std::move(cum);
+        }
+    }
+    plan.lengths = std::move(table.length);
+    return plan;
+}
+
+Status validate_checkpoint_against_plan(const EvalPlanData& plan,
+                                        const PredictorCheckpoint& cp) {
+    const Ir& ir = *plan.ir;
+    if (cp.node >= ir.nodes.size()) return Code::Invalid;
+    const Node& node = ir.nodes[cp.node];
+    if (node.kind != Kind::Predictor) return Code::Invalid;
+    const u8 pid = node.predictor_id;
+    const u32 param = node.predictor_param;
+    if (!check_predictor_params(pid, param).ok()) return Code::Invalid;
+    const BigInt& total = plan.lengths[cp.node];
+    if (cp.offset.compare(total) > 0) return Code::Invalid;
+
+    if (cp.offset.is_zero()) {
+        if (cp.prev1 != 0 || cp.prev2 != 0 || !cp.window.empty()) return Code::Invalid;
+        return Status{};
+    }
+
+    if (pid == 0 || pid == 1) {
+        if (cp.prev2 != 0 || !cp.window.empty()) return Code::Invalid;
+        return Status{};
+    }
+    if (pid == 2) {
+        if (!cp.window.empty()) return Code::Invalid;
+        if (cp.offset.compare(BigInt(1)) == 0 && cp.prev2 != 0) return Code::Invalid;
+        return Status{};
+    }
+    // pid 3 or 4 (stride predictors)
+    if (cp.prev1 != 0 || cp.prev2 != 0) return Code::Invalid;
+    if (BigInt(param).compare(total) < 0) {
+        if (static_cast<std::size_t>(param) > plan.limits.max_predictor_window) {
+            return Code::Limit;
+        }
+        if (cp.window.size() != static_cast<std::size_t>(param)) return Code::Invalid;
+    } else {
+        if (!cp.window.empty()) {
+            if (static_cast<std::size_t>(param) > plan.limits.max_predictor_window) {
+                return Code::Limit;
+            }
+            if (cp.window.size() != static_cast<std::size_t>(param)) return Code::Invalid;
+        }
+    }
+    return Status{};
+}
+
+namespace {
+
+Status seed_checkpoint_slot(const EvalPlanData& plan, StreamSession& session,
+                            const PredictorCheckpoint& cp) {
+    const Status valid = validate_checkpoint_against_plan(plan, cp);
+    if (!valid.ok()) return valid;
+
+    PredictorSlot slot;
+    slot.node = cp.node;
+    slot.offset = cp.offset;
+    slot.prev1 = cp.prev1;
+    slot.prev2 = cp.prev2;
+    slot.seeded = cp.offset.is_zero() ? 0u : (cp.offset.compare(BigInt(1)) == 0 ? 1u : 2u);
+    slot.pinned_checkpoint = true;
+    slot.last_use = ++session.use_clock;
+
+    const Node& node = plan.ir->nodes[cp.node];
+    if ((node.predictor_id == 3 || node.predictor_id == 4) &&
+        BigInt(node.predictor_param).compare(plan.lengths[cp.node]) < 0) {
+        const std::size_t w = static_cast<std::size_t>(node.predictor_param);
+        if (w > plan.limits.max_scratch_bytes) return Code::Limit;
+        if (cp.offset.is_zero()) {
+            slot.ring.assign(w, 0u);
+            slot.ring_slot = 0;
+        } else {
+            auto rem = cp.offset.divmod_scalar(node.predictor_param);
+            if (!rem.ok()) return to_status(rem.error());
+            slot.ring = cp.window;
+            slot.ring_slot = static_cast<std::size_t>(rem.value().second);
+        }
+    }
+    session.pred_slots.push_back(std::move(slot));
+    return Status{};
+}
+
+void evict_oldest_rolling_pred_slot(StreamSession& session, bool rings_only) {
+    std::size_t victim = session.pred_slots.size();
+    u64 best_clock = ~u64{0};
+    for (std::size_t i = 0; i < session.pred_slots.size(); ++i) {
+        const PredictorSlot& s = session.pred_slots[i];
+        if (s.pinned_checkpoint) continue;
+        if (rings_only && s.ring.empty()) continue;
+        if (s.last_use < best_clock) {
+            best_clock = s.last_use;
+            victim = i;
+        }
+    }
+    if (victim < session.pred_slots.size()) {
+        session.rolling_ring_bytes -= session.pred_slots[victim].ring.size();
+        session.pred_slots.erase(session.pred_slots.begin() +
+                                 static_cast<std::ptrdiff_t>(victim));
+    }
+}
+
+void store_rolling_pred_slot(const EvalPlanData& plan, StreamSession& session,
+                             u32 node_id, const BigInt& new_offset,
+                             PredRunState&& state) {
+    if (!state.cacheable) return;
+    const std::size_t ring_bytes = state.ring.size();
+    if (ring_bytes > plan.limits.max_scratch_bytes) return;
+
+    // Deduplicate: if another DAG branch already cached `new_offset` for `node_id`,
+    // simply refresh its LRU timestamp.
+    for (PredictorSlot& slot : session.pred_slots) {
+        if (!slot.pinned_checkpoint && slot.node == node_id &&
+            slot.offset.compare(new_offset) == 0) {
+            slot.last_use = ++session.use_clock;
+            return;
+        }
+    }
+
+    // Enforce per-node rolling slot cap (keeps recent offsets alive so sibling
+    // DAG branches reading the same chunk hit the predecessor offset with gap == 0).
+    std::size_t per_node = 0;
+    std::size_t oldest_for_node = session.pred_slots.size();
+    u64 oldest_node_clock = ~u64{0};
+    std::size_t total_rolling = 0;
+    for (std::size_t i = 0; i < session.pred_slots.size(); ++i) {
+        const PredictorSlot& s = session.pred_slots[i];
+        if (s.pinned_checkpoint) continue;
+        ++total_rolling;
+        if (s.node == node_id) {
+            ++per_node;
+            if (s.last_use < oldest_node_clock) {
+                oldest_node_clock = s.last_use;
+                oldest_for_node = i;
+            }
+        }
+    }
+    if (per_node >= kMaxPredSlotsPerNode && oldest_for_node < session.pred_slots.size()) {
+        session.rolling_ring_bytes -= session.pred_slots[oldest_for_node].ring.size();
+        session.pred_slots.erase(session.pred_slots.begin() +
+                                 static_cast<std::ptrdiff_t>(oldest_for_node));
+        --total_rolling;
+    }
+    if (total_rolling >= kMaxPredRollingSlots) {
+        evict_oldest_rolling_pred_slot(session, false);
+    }
+    while (session.rolling_ring_bytes + ring_bytes > plan.limits.max_scratch_bytes) {
+        const std::size_t before = session.pred_slots.size();
+        evict_oldest_rolling_pred_slot(session, true);
+        if (session.pred_slots.size() == before) return;
+    }
+
+    PredictorSlot fresh;
+    fresh.node = node_id;
+    fresh.offset = new_offset;
+    fresh.prev1 = state.prev1;
+    fresh.prev2 = state.prev2;
+    fresh.seeded = state.seeded;
+    fresh.ring_slot = state.ring_slot;
+    fresh.ring = std::move(state.ring);
+    fresh.last_use = ++session.use_clock;
+    session.rolling_ring_bytes += fresh.ring.size();
+    session.pred_slots.push_back(std::move(fresh));
+}
+
+bool lookup_lfsr_slot(StreamSession& session, u32 node_id, const BigInt& offset, u64& out_state) {
+    for (LfsrSlot& slot : session.lfsr_slots) {
+        if (slot.node == node_id && slot.offset.compare(offset) == 0) {
+            slot.last_use = ++session.use_clock;
+            out_state = slot.state;
+            return true;
+        }
+    }
+    return false;
+}
+
+void store_lfsr_slot(StreamSession& session, u32 node_id, const BigInt& old_offset,
+                     const BigInt& new_offset, u64 state) {
+    for (LfsrSlot& slot : session.lfsr_slots) {
+        if (slot.node == node_id && slot.offset.compare(old_offset) == 0) {
+            slot.offset = new_offset;
+            slot.state = state;
+            slot.last_use = ++session.use_clock;
+            return;
+        }
+    }
+    if (session.lfsr_slots.size() >= kMaxLfsrSlots) {
+        std::size_t victim = 0;
+        for (std::size_t i = 1; i < session.lfsr_slots.size(); ++i) {
+            if (session.lfsr_slots[i].last_use < session.lfsr_slots[victim].last_use) {
+                victim = i;
+            }
+        }
+        session.lfsr_slots[victim] = LfsrSlot{node_id, new_offset, state, ++session.use_clock};
+        return;
+    }
+    session.lfsr_slots.push_back(LfsrSlot{node_id, new_offset, state, ++session.use_clock});
+}
+
+struct EvalFrame {
+    u32 node_id = 0;
+    BigInt start;
+    std::span<u8> out;
+    u8 phase = 0;
+    u8 aux_u8 = 0;
+
+    std::size_t aux_idx = 0;
+    std::size_t aux_last_idx = 0;
+    std::size_t aux_written = 0;
+    std::size_t aux_take = 0;
+    u64 stride = 0;
+    BigInt aux_pos;
+    BigInt aux_bound;
+    std::array<u8, 8> block_buf{};
+    std::vector<u8> scratch;
+    PredRunState pred;
+};
+
+// Executes one chunk `[root_start, root_start + root_out.size())` with
+// `0 < root_out.size() <= kEvalBlock` on an explicit heap stack.
+Status run_chunk_explicit_stack(const EvalPlanData& plan, u32 root_node,
+                                const BigInt& root_start, std::span<u8> root_out,
+                                StreamSession& session, EvalStats* stats) {
+    const Ir& ir = *plan.ir;
+    const std::vector<BigInt>& len = plan.lengths;
+    const std::size_t max_depth = static_cast<std::size_t>(plan.limits.wf.max_depth);
+
+    std::vector<EvalFrame> stack;
+    stack.reserve(32);
+
+    std::size_t active_scratch = 0;
+    auto charge_work = [&](std::size_t bytes) -> Status {
+        if (plan.limits.max_work_bytes != 0) {
+            const u64 add = static_cast<u64>(bytes);
+            if (add > plan.limits.max_work_bytes ||
+                session.work_bytes > plan.limits.max_work_bytes - add) {
+                return Code::Limit;
+            }
+            session.work_bytes += add;
+        }
+        return Status{};
     };
 
-    // Pass 1: residual [0, prefix) — state restoration, output discarded.
+    auto reserve_scratch = [&](std::size_t current_owned, std::size_t wanted) -> Status {
+        if (wanted <= current_owned) {
+            active_scratch -= (current_owned - wanted);
+            return Status{};
+        }
+        const std::size_t delta = wanted - current_owned;
+        if (delta > plan.limits.max_scratch_bytes ||
+            active_scratch > plan.limits.max_scratch_bytes - delta) {
+            return Code::Limit;
+        }
+        while (active_scratch + session.rolling_ring_bytes + delta >
+               plan.limits.max_scratch_bytes) {
+            const std::size_t before = session.pred_slots.size();
+            evict_oldest_rolling_pred_slot(session, true);
+            if (session.pred_slots.size() == before) break;
+        }
+        active_scratch += delta;
+        if (stats != nullptr && active_scratch > stats->peak_scratch_bytes) {
+            stats->peak_scratch_bytes = active_scratch;
+        }
+        return Status{};
+    };
+
+    auto recycle_scratch_vec = [&](std::vector<u8>& v) noexcept {
+        if (v.capacity() > 0 && v.capacity() <= kEvalBlock && session.scratch_pool.size() < 8u) {
+            v.clear();
+            session.scratch_pool.push_back(std::move(v));
+        } else {
+            std::vector<u8>().swap(v);
+        }
+    };
+
+    auto acquire_scratch = [&](std::vector<u8>& v, std::size_t wanted) -> Status {
+        const Status st = reserve_scratch(v.size(), wanted);
+        if (!st.ok()) return st;
+        if (v.capacity() < wanted && !session.scratch_pool.empty()) {
+            recycle_scratch_vec(v);
+            v = std::move(session.scratch_pool.back());
+            session.scratch_pool.pop_back();
+        }
+        v.resize(wanted);
+        return Status{};
+    };
+
+    auto release_frame_scratch = [&](EvalFrame& f) noexcept {
+        const std::size_t owned = f.scratch.size() + f.pred.ring.size();
+        if (active_scratch >= owned) active_scratch -= owned;
+        else active_scratch = 0;
+        recycle_scratch_vec(f.scratch);
+        std::vector<u8>().swap(f.pred.ring);
+    };
+
+    auto pop_top = [&]() noexcept {
+        release_frame_scratch(stack.back());
+        stack.pop_back();
+    };
+
+    auto push_frame = [&](u32 node_id, BigInt start_off, std::span<u8> dst,
+                          bool is_subterm) -> Status {
+        if (stack.size() > max_depth + 1u) return Code::Limit;
+        EvalFrame frame;
+        frame.node_id = node_id;
+        frame.start = std::move(start_off);
+        frame.out = dst;
+        stack.push_back(std::move(frame));
+        if (stats != nullptr) {
+            ++stats->frames_pushed;
+            if (is_subterm) ++stats->subterms_touched;
+            const u32 d = static_cast<u32>(stack.size());
+            if (d > stats->peak_stack_depth) stats->peak_stack_depth = d;
+        }
+        return Status{};
+    };
+
     {
-        u64 index = 0;
-        BigInt pos = BigInt::zero();
-        while (index < prefix) {
-            const u64 take = std::min<u64>(static_cast<u64>(buffer.size()), prefix - index);
-            const std::span<u8> chunk(buffer.data(), static_cast<std::size_t>(take));
-            const Status st = read_child(ir, len, residual_id, pos, chunk);
-            if (!st.ok()) return st;
-            for (std::size_t j = 0; j < chunk.size(); ++j) (void)step(index + j, chunk[j]);
-            index += take;
-            auto next = bi_add(pos, BigInt(take));
+        const Status st = push_frame(root_node, root_start, root_out, false);
+        if (!st.ok()) return st;
+    }
+
+    while (!stack.empty()) {
+        EvalFrame& cur = stack.back();
+        if (cur.out.empty()) {
+            pop_top();
+            continue;
+        }
+        const u32 cur_id = cur.node_id;
+        const Node& node = ir.nodes[cur_id];
+
+        switch (node.kind) {
+            case Kind::Empty:
+                return Code::Invalid;
+
+            case Kind::Atom: {
+                const Status wk = charge_work(cur.out.size());
+                if (!wk.ok()) return wk;
+                auto atom_id = node.a.to_u64_checked();
+                if (!atom_id.has_value() || *atom_id >= ir.atoms.size()) return Code::Invalid;
+                const Atom& atom = ir.atoms[static_cast<std::size_t>(*atom_id)];
+                auto off = bi_to_u64(cur.start);
+                if (!off.ok()) return off.code();
+                const std::size_t from = static_cast<std::size_t>(off.value());
+                if (from + cur.out.size() > atom.payload.size()) return Code::Invalid;
+                std::memcpy(cur.out.data(), atom.payload.data() + from, cur.out.size());
+                pop_top();
+                continue;
+            }
+
+            case Kind::Zero: {
+                const Status wk = charge_work(cur.out.size());
+                if (!wk.ok()) return wk;
+                std::memset(cur.out.data(), 0, cur.out.size());
+                pop_top();
+                continue;
+            }
+
+            case Kind::Affine: {
+                const Status wk = charge_work(cur.out.size());
+                if (!wk.ok()) return wk;
+                auto rem = cur.start.divmod_scalar(256);
+                if (!rem.ok()) return to_status(rem.error());
+                unsigned val = (static_cast<unsigned>(node.affine_start) +
+                                static_cast<unsigned>(rem.value().second) *
+                                    static_cast<unsigned>(node.affine_step)) &
+                               0xFFu;
+                const unsigned step = static_cast<unsigned>(node.affine_step);
+                for (std::size_t j = 0; j < cur.out.size(); ++j) {
+                    cur.out[j] = static_cast<u8>(val);
+                    val = (val + step) & 0xFFu;
+                }
+                pop_top();
+                continue;
+            }
+
+            case Kind::Lfsr: {
+                const Status wk = charge_work(cur.out.size());
+                if (!wk.ok()) return wk;
+                u64 state = 0;
+                if (cur.start.is_zero()) {
+                    state = node.lfsr_init;
+                } else if (!lookup_lfsr_slot(session, cur_id, cur.start, state)) {
+                    u64 mul_ops = 0;
+                    auto jumped = lfsr_state_at_byte_offset_counted(
+                        node.lfsr_conn, node.lfsr_init, cur.start, &mul_ops);
+                    if (!jumped.ok()) return jumped.code();
+                    state = jumped.value();
+                    if (stats != nullptr) {
+                        ++stats->lfsr_jumps;
+                        stats->lfsr_gf2_mul_ops += mul_ops;
+                    }
+                }
+                for (u8& b : cur.out) b = lfsr_next_byte(state, node.lfsr_conn);
+                if (stats != nullptr) stats->lfsr_byte_steps += cur.out.size();
+                auto next_off = bi_add(cur.start, BigInt(static_cast<u64>(cur.out.size())));
+                if (!next_off.ok()) return next_off.code();
+                store_lfsr_slot(session, cur_id, cur.start, next_off.value(), state);
+                pop_top();
+                continue;
+            }
+
+            case Kind::Slice: {
+                auto child_start = bi_add(node.a, cur.start);
+                if (!child_start.ok()) return child_start.code();
+                cur.start = std::move(child_start.value());
+                cur.node_id = node.args[0];
+                cur.phase = 0;
+                if (stats != nullptr) ++stats->subterms_touched;
+                continue;
+            }
+
+            case Kind::Concat: {
+                const std::size_t argc = node.args.size();
+                if (cur.phase == 0) {
+                    const auto& cum = plan.concat_cum[cur_id];
+                    if (!cum.empty()) {
+                        std::size_t lo = 0;
+                        std::size_t hi = argc;
+                        while (lo + 1u < hi) {
+                            const std::size_t mid = lo + (hi - lo) / 2u;
+                            if (cum[mid].compare(cur.start) <= 0) lo = mid;
+                            else hi = mid;
+                        }
+                        cur.aux_idx = lo;
+                        cur.aux_pos = cum[lo];
+                        if (stats != nullptr) stats->concat_children_skipped += lo;
+                    } else {
+                        BigInt pos = BigInt::zero();
+                        std::size_t idx = 0;
+                        while (idx < argc) {
+                            const BigInt& cl = len[node.args[idx]];
+                            auto cend = bi_add(pos, cl);
+                            if (!cend.ok()) return cend.code();
+                            if (cend.value().compare(cur.start) > 0) break;
+                            pos = std::move(cend.value());
+                            ++idx;
+                        }
+                        cur.aux_idx = idx;
+                        cur.aux_pos = std::move(pos);
+                        if (stats != nullptr) stats->concat_children_skipped += idx;
+                    }
+                    cur.aux_last_idx = cur.aux_idx;
+                    cur.aux_written = 0;
+                    cur.phase = 1;
+                }
+
+                // Skip any zero-length children before dispatching.
+                while (cur.aux_written < cur.out.size() && cur.aux_idx < argc &&
+                       len[node.args[cur.aux_idx]].is_zero()) {
+                    if (stats != nullptr) ++stats->concat_children_skipped;
+                    ++cur.aux_idx;
+                }
+
+                if (cur.aux_written == cur.out.size()) {
+                    if (stats != nullptr && cur.aux_last_idx + 1u < argc) {
+                        stats->concat_children_skipped += (argc - 1u - cur.aux_last_idx);
+                    }
+                    pop_top();
+                    continue;
+                }
+                if (cur.aux_idx >= argc) return Code::Invalid;
+
+                const u32 child = node.args[cur.aux_idx];
+                const BigInt& child_len = len[child];
+                auto req_pos = bi_add(cur.start, BigInt(static_cast<u64>(cur.aux_written)));
+                if (!req_pos.ok()) return req_pos.code();
+                auto child_off = bi_sub(req_pos.value(), cur.aux_pos);
+                if (!child_off.ok()) return child_off.code();
+                auto avail = bi_sub(child_len, child_off.value());
+                if (!avail.ok()) return avail.code();
+                const u64 want = static_cast<u64>(cur.out.size() - cur.aux_written);
+                auto take_res = min_u64(avail.value(), avail.value(), want);
+                if (!take_res.ok()) return take_res.code();
+                const std::size_t take = static_cast<std::size_t>(take_res.value());
+                if (take == 0) return Code::Invalid;
+
+                const std::span<u8> slice = cur.out.subspan(cur.aux_written, take);
+                cur.aux_last_idx = cur.aux_idx;
+                cur.aux_written += take;
+                auto consumed = bi_add(child_off.value(), BigInt(static_cast<u64>(take)));
+                if (!consumed.ok()) return consumed.code();
+                if (consumed.value().compare(child_len) == 0) {
+                    auto next_pos = bi_add(cur.aux_pos, child_len);
+                    if (!next_pos.ok()) return next_pos.code();
+                    cur.aux_pos = std::move(next_pos.value());
+                    ++cur.aux_idx;
+                }
+                const Status pst = push_frame(child, std::move(child_off.value()), slice, true);
+                if (!pst.ok()) return pst;
+                continue;
+            }
+
+            case Kind::Repeat: {
+                const u32 child = node.args[0];
+                const BigInt& period = len[child];
+                if (cur.phase == 0) {
+                    if (period.is_zero()) return Code::Invalid;
+                    auto copies_bytes = bi_mul(node.a, period);
+                    if (!copies_bytes.ok()) return copies_bytes.code();
+                    cur.aux_bound = std::move(copies_bytes.value());
+                    cur.aux_pos = cur.start;
+                    cur.aux_written = 0;
+                    cur.phase = 1;
+                }
+                if (cur.aux_written == cur.out.size()) {
+                    pop_top();
+                    continue;
+                }
+                const u64 want = static_cast<u64>(cur.out.size() - cur.aux_written);
+                if (cur.aux_pos.compare(cur.aux_bound) < 0) {
+                    auto rem_q = bi_sub(cur.aux_bound, cur.aux_pos);
+                    if (!rem_q.ok()) return rem_q.code();
+                    auto within = bi_mod(cur.aux_pos, period);
+                    if (!within.ok()) return within.code();
+                    auto avail = bi_sub(period, within.value());
+                    if (!avail.ok()) return avail.code();
+                    auto take_res = min_u64(avail.value(), rem_q.value(), want);
+                    if (!take_res.ok()) return take_res.code();
+                    const std::size_t take = static_cast<std::size_t>(take_res.value());
+                    if (take == 0) return Code::Invalid;
+                    const std::span<u8> slice = cur.out.subspan(cur.aux_written, take);
+                    cur.aux_written += take;
+                    auto next_pos = bi_add(cur.aux_pos, BigInt(static_cast<u64>(take)));
+                    if (!next_pos.ok()) return next_pos.code();
+                    cur.aux_pos = std::move(next_pos.value());
+                    const Status pst = push_frame(child, std::move(within.value()), slice, true);
+                    if (!pst.ok()) return pst;
+                    continue;
+                }
+                auto off = bi_sub(cur.aux_pos, cur.aux_bound);
+                if (!off.ok()) return off.code();
+                auto rem_r = bi_sub(node.b, off.value());
+                if (!rem_r.ok()) return rem_r.code();
+                auto take_res = min_u64(rem_r.value(), rem_r.value(), want);
+                if (!take_res.ok()) return take_res.code();
+                const std::size_t take = static_cast<std::size_t>(take_res.value());
+                if (take == 0) return Code::Invalid;
+                const std::span<u8> slice = cur.out.subspan(cur.aux_written, take);
+                cur.aux_written += take;
+                auto next_pos = bi_add(cur.aux_pos, BigInt(static_cast<u64>(take)));
+                if (!next_pos.ok()) return next_pos.code();
+                cur.aux_pos = std::move(next_pos.value());
+                const Status pst = push_frame(child, std::move(off.value()), slice, true);
+                if (!pst.ok()) return pst;
+                continue;
+            }
+
+            case Kind::Morph: {
+                const u32 child = node.args[0];
+                const u8 morph = node.morph;
+                const u8 k = node.morph_k;
+                const u32 block = morph_block_size(morph);
+
+                if (morph_is_byte_local(morph)) {
+                    if (cur.phase == 0) {
+                        cur.phase = 1;
+                        const BigInt cs = cur.start;
+                        const std::span<u8> dst = cur.out;
+                        const Status pst = push_frame(child, cs, dst, true);
+                        if (!pst.ok()) return pst;
+                        continue;
+                    }
+                    const Status mst = apply_morph_to_buffer(morph, k, cur.out);
+                    if (!mst.ok()) return mst;
+                    pop_top();
+                    continue;
+                }
+
+                if (block != 0) {
+                    const std::size_t b = static_cast<std::size_t>(block);
+                    if (cur.phase == 0) {
+                        auto rem_res = cur.start.divmod_scalar(block);
+                        if (!rem_res.ok()) return to_status(rem_res.error());
+                        const u32 rem = rem_res.value().second;
+                        if (rem != 0) {
+                            auto blk_start = bi_sub(cur.start, BigInt(rem));
+                            if (!blk_start.ok()) return blk_start.code();
+                            cur.aux_u8 = static_cast<u8>(rem);
+                            cur.aux_take = std::min<std::size_t>(cur.out.size(), b - rem);
+                            cur.phase = 1;
+                            const std::span<u8> buf(cur.block_buf.data(), b);
+                            const Status pst =
+                                push_frame(child, std::move(blk_start.value()), buf, true);
+                            if (!pst.ok()) return pst;
+                            continue;
+                        }
+                        cur.phase = 2;
+                    }
+                    if (cur.phase == 1) {
+                        std::reverse(cur.block_buf.begin(),
+                                     cur.block_buf.begin() + static_cast<std::ptrdiff_t>(b));
+                        std::memcpy(cur.out.data(), cur.block_buf.data() + cur.aux_u8,
+                                    cur.aux_take);
+                        cur.out = cur.out.subspan(cur.aux_take);
+                        auto next_start = bi_add(cur.start, BigInt(static_cast<u64>(cur.aux_take)));
+                        if (!next_start.ok()) return next_start.code();
+                        cur.start = std::move(next_start.value());
+                        cur.phase = 2;
+                    }
+                    if (cur.phase == 2) {
+                        if (cur.out.empty()) {
+                            pop_top();
+                            continue;
+                        }
+                        const std::size_t whole = (cur.out.size() / b) * b;
+                        if (whole > 0) {
+                            cur.aux_take = whole;
+                            cur.phase = 3;
+                            const BigInt cs = cur.start;
+                            const std::span<u8> mid = cur.out.first(whole);
+                            const Status pst = push_frame(child, cs, mid, true);
+                            if (!pst.ok()) return pst;
+                            continue;
+                        }
+                        cur.phase = 4;
+                    }
+                    if (cur.phase == 3) {
+                        swap_blocks_in_place(block, cur.out.first(cur.aux_take));
+                        cur.out = cur.out.subspan(cur.aux_take);
+                        auto next_start = bi_add(cur.start, BigInt(static_cast<u64>(cur.aux_take)));
+                        if (!next_start.ok()) return next_start.code();
+                        cur.start = std::move(next_start.value());
+                        if (cur.out.empty()) {
+                            pop_top();
+                            continue;
+                        }
+                        cur.phase = 4;
+                    }
+                    if (cur.phase == 4) {
+                        cur.phase = 5;
+                        const BigInt cs = cur.start;
+                        const std::span<u8> buf(cur.block_buf.data(), b);
+                        const Status pst = push_frame(child, cs, buf, true);
+                        if (!pst.ok()) return pst;
+                        continue;
+                    }
+                    // phase == 5: finish tail partial block
+                    std::reverse(cur.block_buf.begin(),
+                                 cur.block_buf.begin() + static_cast<std::ptrdiff_t>(b));
+                    std::memcpy(cur.out.data(), cur.block_buf.data(), cur.out.size());
+                    pop_top();
+                    continue;
+                }
+
+                // Mirrored morphs 8 (`REVERSE_BYTES`) and 9 (`REVERSE_BITS`).
+                if (cur.phase == 0) {
+                    const BigInt& child_len = len[child];
+                    auto mirrored = bi_sub(child_len, cur.start);
+                    if (!mirrored.ok()) return mirrored.code();
+                    auto from = bi_sub(mirrored.value(),
+                                       BigInt(static_cast<u64>(cur.out.size())));
+                    if (!from.ok()) return from.code();
+                    cur.phase = 1;
+                    const std::span<u8> dst = cur.out;
+                    const Status pst = push_frame(child, std::move(from.value()), dst, true);
+                    if (!pst.ok()) return pst;
+                    continue;
+                }
+                std::reverse(cur.out.begin(), cur.out.end());
+                if (morph == 9) {
+                    for (u8& b : cur.out) b = bit_reverse8(b);
+                }
+                pop_top();
+                continue;
+            }
+
+            case Kind::Xor: {
+                if (cur.phase == 0) {
+                    if (cur.aux_written == cur.out.size()) {
+                        pop_top();
+                        continue;
+                    }
+                    const std::size_t step_cap =
+                        (stack.size() < kDeepStackThreshold) ? kEvalBlock : kDeepXorChunkCap;
+                    const std::size_t take =
+                        std::min<std::size_t>(cur.out.size() - cur.aux_written, step_cap);
+                    cur.aux_take = take;
+                    cur.phase = 1;
+                    auto off = bi_add(cur.start, BigInt(static_cast<u64>(cur.aux_written)));
+                    if (!off.ok()) return off.code();
+                    const std::span<u8> dst = cur.out.subspan(cur.aux_written, take);
+                    const Status pst =
+                        push_frame(node.args[0], std::move(off.value()), dst, true);
+                    if (!pst.ok()) return pst;
+                    continue;
+                }
+                if (cur.phase == 1) {
+                    const Status sst = acquire_scratch(cur.scratch, cur.aux_take);
+                    if (!sst.ok()) return sst;
+                    cur.phase = 2;
+                    auto off = bi_add(cur.start, BigInt(static_cast<u64>(cur.aux_written)));
+                    if (!off.ok()) return off.code();
+                    const std::span<u8> rhs(cur.scratch.data(), cur.aux_take);
+                    const Status pst =
+                        push_frame(node.args[1], std::move(off.value()), rhs, true);
+                    if (!pst.ok()) return pst;
+                    continue;
+                }
+                // phase == 2: XOR right into left in-place.
+                const std::span<u8> dst = cur.out.subspan(cur.aux_written, cur.aux_take);
+                for (std::size_t j = 0; j < cur.aux_take; ++j) {
+                    dst[j] = static_cast<u8>(dst[j] ^ cur.scratch[j]);
+                }
+                cur.aux_written += cur.aux_take;
+                if (cur.aux_written == cur.out.size()) {
+                    pop_top();
+                } else {
+                    cur.phase = 0;
+                }
+                continue;
+            }
+
+            case Kind::Interleave: {
+                if (cur.phase == 0) {
+                    auto stride_res = interleave_stride(node);
+                    if (!stride_res.ok() || stride_res.value() == 0) return Code::Invalid;
+                    cur.stride = stride_res.value();
+                    auto block_big = bi_mul(BigInt(static_cast<u64>(node.args.size())),
+                                            BigInt(cur.stride));
+                    if (!block_big.ok()) return block_big.code();
+                    cur.aux_bound = std::move(block_big.value());
+                    cur.aux_pos = cur.start;
+                    cur.aux_written = 0;
+                    cur.phase = 1;
+                }
+                if (cur.aux_written == cur.out.size()) {
+                    pop_top();
+                    continue;
+                }
+                auto div = cur.aux_pos.divmod(cur.aux_bound);
+                if (!div.ok()) return to_status(div.error());
+                const BigInt& block_idx = div.value().first;
+                auto child_div = div.value().second.divmod_scalar(static_cast<u32>(cur.stride));
+                if (!child_div.ok()) return to_status(child_div.error());
+                auto child_idx_u64 = bi_to_u64(child_div.value().first);
+                if (!child_idx_u64.ok()) return child_idx_u64.code();
+                const std::size_t child_idx = static_cast<std::size_t>(child_idx_u64.value());
+                if (child_idx >= node.args.size()) return Code::Invalid;
+                const u64 within_child = child_div.value().second;
+                const u64 want = static_cast<u64>(cur.out.size() - cur.aux_written);
+                const std::size_t take =
+                    static_cast<std::size_t>(std::min<u64>(want, cur.stride - within_child));
+                if (take == 0) return Code::Invalid;
+
+                auto base = bi_mul(block_idx, BigInt(cur.stride));
+                if (!base.ok()) return base.code();
+                auto child_off = bi_add(base.value(), BigInt(within_child));
+                if (!child_off.ok()) return child_off.code();
+
+                const std::span<u8> slice = cur.out.subspan(cur.aux_written, take);
+                cur.aux_written += take;
+                auto next_pos = bi_add(cur.aux_pos, BigInt(static_cast<u64>(take)));
+                if (!next_pos.ok()) return next_pos.code();
+                cur.aux_pos = std::move(next_pos.value());
+                const Status pst =
+                    push_frame(node.args[child_idx], std::move(child_off.value()), slice, true);
+                if (!pst.ok()) return pst;
+                continue;
+            }
+
+            case Kind::Predictor: {
+                const u32 residual_id = node.args[0];
+                const u8 pid = node.predictor_id;
+                const u32 param = node.predictor_param;
+                if (cur.phase == 0) {
+                    if (!check_predictor_params(pid, param).ok()) return Code::Invalid;
+
+                    // Locate closest cached / checkpointed state <= cur.start.
+                    PredictorSlot* best = nullptr;
+                    for (PredictorSlot& s : session.pred_slots) {
+                        if (s.node != cur_id) continue;
+                        if (s.offset.compare(cur.start) <= 0) {
+                            if (best == nullptr || s.offset.compare(best->offset) > 0) {
+                                best = &s;
+                            }
+                        }
+                    }
+
+                    const BigInt base_off = (best != nullptr) ? best->offset : BigInt::zero();
+                    auto gap = bi_sub(cur.start, base_off);
+                    if (!gap.ok()) return gap.code();
+                    if (gap.value().compare(plan.limits.predictor_prefix_max) > 0) {
+                        return Code::Limit;
+                    }
+
+                    auto end_off = bi_add(cur.start, BigInt(static_cast<u64>(cur.out.size())));
+                    if (!end_off.ok()) return end_off.code();
+                    const BigInt& total = len[cur_id];
+
+                    std::size_t window = 0;
+                    bool cacheable = true;
+                    if (pid == 3 || pid == 4) {
+                        const BigInt param_big(param);
+                        if (param_big.compare(total) < 0) {
+                            if (static_cast<std::size_t>(param) <=
+                                plan.limits.max_predictor_window) {
+                                window = static_cast<std::size_t>(param);
+                            } else if (end_off.value().compare(param_big) <= 0) {
+                                // Every index in [0, end_off) satisfies i < param,
+                                // so out[i] == r[i] with zero ring memory; do not
+                                // cache past this range without a full ring.
+                                window = 0;
+                                cacheable = false;
+                            } else {
+                                return Code::Limit;
+                            }
+                        }
+                    }
+
+                    cur.pred.pid = pid;
+                    cur.pred.param = param;
+                    cur.pred.window = window;
+                    cur.pred.cacheable = cacheable;
+
+                    if (window > 0) {
+                        const Status rst = reserve_scratch(0, window);
+                        if (!rst.ok()) return rst;
+                    }
+
+                    if (best != nullptr) {
+                        best->last_use = ++session.use_clock;
+                        cur.aux_pos = best->offset;
+                        cur.pred.prev1 = best->prev1;
+                        cur.pred.prev2 = best->prev2;
+                        cur.pred.seeded = best->seeded;
+                        cur.pred.ring_slot = best->ring_slot;
+                        if (window > 0) {
+                            if (best->ring.size() == window) {
+                                cur.pred.ring = best->ring;
+                            } else {
+                                cur.pred.ring.assign(window, 0u);
+                            }
+                        }
+                    } else {
+                        cur.aux_pos = BigInt::zero();
+                        if (window > 0) cur.pred.ring.assign(window, 0u);
+                    }
+
+                    cur.phase = (cur.aux_pos.compare(cur.start) < 0) ? 1u : 3u;
+                }
+
+                if (cur.phase == 1) {
+                    auto rem = bi_sub(cur.start, cur.aux_pos);
+                    if (!rem.ok()) return rem.code();
+                    if (rem.value().is_zero()) {
+                        (void)reserve_scratch(cur.scratch.size(), 0);
+                        recycle_scratch_vec(cur.scratch);
+                        cur.phase = 3;
+                    } else {
+                        const std::size_t step_cap =
+                            (stack.size() < kDeepStackThreshold) ? kEvalBlock : kDeepPredChunkCap;
+                        auto take_res = min_u64(rem.value(), rem.value(),
+                                                static_cast<u64>(step_cap));
+                        if (!take_res.ok()) return take_res.code();
+                        const std::size_t take = static_cast<std::size_t>(take_res.value());
+                        const Status sst = acquire_scratch(cur.scratch, take);
+                        if (!sst.ok()) return sst;
+                        cur.aux_take = take;
+                        cur.phase = 2;
+                        const BigInt pos = cur.aux_pos;
+                        const std::span<u8> buf(cur.scratch.data(), take);
+                        const Status pst = push_frame(residual_id, pos, buf, true);
+                        if (!pst.ok()) return pst;
+                        continue;
+                    }
+                }
+
+                if (cur.phase == 2) {
+                    cur.pred.discard_span(
+                        std::span<const u8>(cur.scratch.data(), cur.aux_take));
+                    if (stats != nullptr) stats->predictor_prefix_bytes += cur.aux_take;
+                    auto next_pos = bi_add(cur.aux_pos, BigInt(static_cast<u64>(cur.aux_take)));
+                    if (!next_pos.ok()) return next_pos.code();
+                    cur.aux_pos = std::move(next_pos.value());
+                    if (cur.aux_pos.compare(cur.start) < 0) {
+                        cur.phase = 1;
+                        continue;
+                    }
+                    (void)reserve_scratch(cur.scratch.size(), 0);
+                    recycle_scratch_vec(cur.scratch);
+                    cur.phase = 3;
+                }
+
+                if (cur.phase == 3) {
+                    cur.phase = 4;
+                    const BigInt cs = cur.start;
+                    const std::span<u8> dst = cur.out;
+                    const Status pst = push_frame(residual_id, cs, dst, true);
+                    if (!pst.ok()) return pst;
+                    continue;
+                }
+
+                // phase == 4: reconstruct cur.out in-place and persist rolling state.
+                cur.pred.emit_in_place(cur.out);
+                if (stats != nullptr) stats->predictor_emitted_bytes += cur.out.size();
+                auto new_off = bi_add(cur.start, BigInt(static_cast<u64>(cur.out.size())));
+                if (!new_off.ok()) return new_off.code();
+
+                // Transfer active ring accounting before moving `cur.pred` into session.
+                const std::size_t ring_owned = cur.pred.ring.size();
+                if (active_scratch >= ring_owned) active_scratch -= ring_owned;
+                else active_scratch = 0;
+                PredRunState finished = std::move(cur.pred);
+                cur.pred.ring.clear();
+
+                store_rolling_pred_slot(plan, session, cur_id, new_off.value(),
+                                        std::move(finished));
+                pop_top();
+                continue;
+            }
+        }
+        return Code::Invalid;
+    }
+    return Status{};
+}
+
+}  // namespace
+
+std::unique_ptr<StreamSession> make_stream_session(
+    const EvalPlanData& plan, std::span<const PredictorCheckpoint> checkpoints,
+    Status& out_status) {
+    auto session = std::make_unique<StreamSession>();
+    for (const PredictorCheckpoint& cp : checkpoints) {
+        const Status st = seed_checkpoint_slot(plan, *session, cp);
+        if (!st.ok()) {
+            out_status = st;
+            return nullptr;
+        }
+    }
+    out_status = Status{};
+    return session;
+}
+
+Status eval_range_with_plan(const EvalPlanData& plan, u32 node_id, const BigInt& start,
+                            std::span<u8> out, StreamSession* session,
+                            std::span<const PredictorCheckpoint> checkpoints,
+                            EvalStats* stats) {
+    if (node_id >= plan.ir->nodes.size()) return Code::Invalid;
+    const BigInt& node_len = plan.lengths[node_id];
+    if (start.compare(node_len) > 0) return Code::Invalid;
+    auto end = bi_add(start, BigInt(static_cast<u64>(out.size())));
+    if (!end.ok()) return end.code();
+    if (end.value().compare(node_len) > 0) return Code::Invalid;
+
+    std::unique_ptr<StreamSession> owned_session;
+    if (session == nullptr) {
+        Status seed_st;
+        owned_session = make_stream_session(plan, checkpoints, seed_st);
+        if (!seed_st.ok()) return seed_st;
+        session = owned_session.get();
+    }
+    if (out.empty()) return Status{};
+
+    const std::size_t chunk_cap = std::min<std::size_t>(plan.limits.block_bytes, kEvalBlock);
+    std::size_t done = 0;
+    BigInt pos = start;
+    while (done < out.size()) {
+        const std::size_t take = std::min<std::size_t>(chunk_cap, out.size() - done);
+        const Status st = run_chunk_explicit_stack(
+            plan, node_id, pos, out.subspan(done, take), *session, stats);
+        if (!st.ok()) return st;
+        done += take;
+        if (done < out.size()) {
+            auto next = bi_add(pos, BigInt(static_cast<u64>(take)));
             if (!next.ok()) return next.code();
             pos = std::move(next.value());
         }
     }
+    return Status{};
+}
 
-    // Pass 2: the requested range.
-    {
-        u64 done = 0;
-        BigInt pos = start;
-        while (done < out.size()) {
-            const u64 take = std::min<u64>(static_cast<u64>(buffer.size()),
-                                           static_cast<u64>(out.size() - done));
-            const std::span<u8> chunk(buffer.data(), static_cast<std::size_t>(take));
-            const Status st = read_child(ir, len, residual_id, pos, chunk);
-            if (!st.ok()) return st;
-            const u64 base_index = prefix + done;
-            for (std::size_t j = 0; j < chunk.size(); ++j) {
-                out[done + j] = step(base_index + j, chunk[j]);
-            }
-            done += take;
+Status stream_range_to_sink(const EvalPlanData& plan, u32 node_id, const BigInt& start,
+                            const BigInt& length, Sink& sink,
+                            std::span<const PredictorCheckpoint> checkpoints,
+                            EvalStats* stats) {
+    if (node_id >= plan.ir->nodes.size()) return Code::Invalid;
+    const BigInt& node_len = plan.lengths[node_id];
+    if (start.compare(node_len) > 0) return Code::Invalid;
+    auto end = bi_add(start, length);
+    if (!end.ok()) return end.code();
+    if (end.value().compare(node_len) > 0) return Code::Invalid;
+
+    Status seed_st;
+    auto session = make_stream_session(plan, checkpoints, seed_st);
+    if (!seed_st.ok()) return seed_st;
+    if (length.is_zero()) return Status{};
+
+    std::vector<u8> buffer(plan.limits.block_bytes);
+    BigInt pos = start;
+    BigInt left = length;
+    while (!left.is_zero()) {
+        u64 take = static_cast<u64>(buffer.size());
+        if (auto fit = left.to_u64_checked(); fit.has_value()) {
+            take = std::min<u64>(take, fit.value());
+        }
+        const std::span<u8> slice(buffer.data(), static_cast<std::size_t>(take));
+        const Status st =
+            eval_range_with_plan(plan, node_id, pos, slice, session.get(), {}, stats);
+        if (!st.ok()) return st;
+        const Status sink_st = sink.write(std::span<const u8>(slice.data(), slice.size()));
+        if (!sink_st.ok()) return sink_st;
+        if (stats != nullptr) ++stats->sink_writes;
+
+        auto rest = bi_sub(left, BigInt(take));
+        if (!rest.ok()) return rest.code();
+        left = std::move(rest.value());
+        if (!left.is_zero()) {
             auto next = bi_add(pos, BigInt(take));
             if (!next.ok()) return next.code();
             pos = std::move(next.value());
@@ -1308,117 +2312,115 @@ Status read_predictor(const Ir& ir, const std::vector<BigInt>& len, const Node& 
     return Status{};
 }
 
-// Structural guard: evaluation trusts WF(ir) as its precondition (E2 §5.3) but
-// must never index an arg list that WF would have rejected.
-bool node_shape_ok(const Ir& ir, const Node& node) {
-    const std::size_t node_count = ir.nodes.size();
-    auto args_in_range = [&]() {
-        for (u32 arg : node.args) {
-            if (arg >= node_count) return false;
-        }
-        return true;
-    };
-    switch (node.kind) {
-        case Kind::Empty:
-        case Kind::Atom:
-        case Kind::Zero:
-        case Kind::Lfsr:
-        case Kind::Affine:
-            return node.args.empty();
-        case Kind::Repeat:
-        case Kind::Slice:
-        case Kind::Morph:
-        case Kind::Predictor:
-            return node.args.size() == 1 && args_in_range();
-        case Kind::Xor:
-            return node.args.size() == 2 && args_in_range();
-        case Kind::Concat:
-        case Kind::Interleave:
-            return !node.args.empty() && args_in_range();
+Result<PredictorCheckpoint> capture_checkpoint_with_plan(
+    const EvalPlanData& plan, u32 predictor_node, const BigInt& target_offset,
+    const PredictorCheckpoint* from, EvalStats* stats) {
+    const Ir& ir = *plan.ir;
+    if (predictor_node >= ir.nodes.size()) return Code::Invalid;
+    const Node& node = ir.nodes[predictor_node];
+    if (node.kind != Kind::Predictor) return Code::Invalid;
+    const u8 pid = node.predictor_id;
+    const u32 param = node.predictor_param;
+    if (!check_predictor_params(pid, param).ok()) return Code::Invalid;
+
+    const BigInt& total = plan.lengths[predictor_node];
+    if (target_offset.compare(total) > 0) return Code::Invalid;
+
+    BigInt base_off = BigInt::zero();
+    if (from != nullptr) {
+        if (from->node != predictor_node) return Code::Invalid;
+        const Status vst = validate_checkpoint_against_plan(plan, *from);
+        if (!vst.ok()) return vst.code();
+        if (from->offset.compare(target_offset) > 0) return Code::Invalid;
+        base_off = from->offset;
     }
-    return false;
+
+    auto gap = bi_sub(target_offset, base_off);
+    if (!gap.ok()) return gap.code();
+    if (gap.value().compare(plan.limits.predictor_prefix_max) > 0) return Code::Limit;
+
+    std::size_t window = 0;
+    if ((pid == 3 || pid == 4) && BigInt(param).compare(total) < 0) {
+        if (static_cast<std::size_t>(param) > plan.limits.max_predictor_window ||
+            static_cast<std::size_t>(param) > plan.limits.max_scratch_bytes) {
+            return Code::Limit;
+        }
+        window = static_cast<std::size_t>(param);
+    }
+
+    PredRunState state;
+    state.pid = pid;
+    state.param = param;
+    state.window = window;
+    if (from != nullptr && !from->offset.is_zero()) {
+        state.prev1 = from->prev1;
+        state.prev2 = from->prev2;
+        state.seeded = (from->offset.compare(BigInt(1)) == 0) ? 1u : 2u;
+        if (window > 0) {
+            auto rem = from->offset.divmod_scalar(param);
+            if (!rem.ok()) return to_status(rem.error()).code();
+            state.ring = from->window;
+            state.ring_slot = static_cast<std::size_t>(rem.value().second);
+        }
+    } else if (window > 0) {
+        state.ring.assign(window, 0u);
+    }
+
+    if (stats != nullptr && window > stats->peak_scratch_bytes) {
+        stats->peak_scratch_bytes = window;
+    }
+
+    Status seed_st;
+    auto session = make_stream_session(plan, {}, seed_st);
+    if (!seed_st.ok()) return seed_st.code();
+
+    const u32 residual_id = node.args[0];
+    const std::size_t step_cap = std::min<std::size_t>(plan.limits.block_bytes, kEvalBlock);
+    std::vector<u8> chunk_buf(step_cap);
+    BigInt pos = base_off;
+    while (pos.compare(target_offset) < 0) {
+        auto rem = bi_sub(target_offset, pos);
+        if (!rem.ok()) return rem.code();
+        auto take_res = min_u64(rem.value(), rem.value(), static_cast<u64>(step_cap));
+        if (!take_res.ok()) return take_res.code();
+        const std::size_t take = static_cast<std::size_t>(take_res.value());
+        const std::span<u8> slice(chunk_buf.data(), take);
+        const Status st =
+            eval_range_with_plan(plan, residual_id, pos, slice, session.get(), {}, stats);
+        if (!st.ok()) return st.code();
+        state.discard_span(std::span<const u8>(slice.data(), take));
+        if (stats != nullptr) stats->predictor_prefix_bytes += take;
+        auto next = bi_add(pos, BigInt(static_cast<u64>(take)));
+        if (!next.ok()) return next.code();
+        pos = std::move(next.value());
+    }
+
+    PredictorCheckpoint cp;
+    cp.node = predictor_node;
+    cp.offset = target_offset;
+    if (!target_offset.is_zero()) {
+        if (pid == 0 || pid == 1) {
+            cp.prev1 = state.prev1;
+        } else if (pid == 2) {
+            cp.prev1 = state.prev1;
+            cp.prev2 = (target_offset.compare(BigInt(1)) == 0) ? 0u : state.prev2;
+        } else if (window > 0) {
+            cp.window = std::move(state.ring);
+        }
+    }
+    return cp;
 }
 
-Status read_range_impl(const Ir& ir, const std::vector<BigInt>& len, u32 node_id,
-                       const BigInt& start, std::span<u8> out) {
-    if (node_id >= ir.nodes.size()) return Code::Invalid;
-    const Node& node = ir.nodes[node_id];
-    if (!node_shape_ok(ir, node)) return Code::Invalid;
-    const BigInt& node_len = len[node_id];
+}  // namespace detail
 
-    if (start.compare(node_len) > 0) return Code::Invalid;
-    auto end = bi_add(start, BigInt(static_cast<u64>(out.size())));
-    if (!end.ok()) return end.code();
-    if (end.value().compare(node_len) > 0) return Code::Invalid;
-    if (out.empty()) return Status{};
-
-    switch (node.kind) {
-        case Kind::Empty:
-            return Code::Invalid;  // length 0 cannot host a non-empty range
-        case Kind::Atom: {
-            auto atom_id = node.a.to_u64_checked();
-            if (!atom_id.has_value() || *atom_id >= ir.atoms.size()) return Code::Invalid;
-            const Atom& atom = ir.atoms[static_cast<std::size_t>(*atom_id)];
-            auto offset = bi_to_u64(start);
-            if (!offset.ok()) return offset.code();
-            const std::size_t from = static_cast<std::size_t>(offset.value());
-            if (from + out.size() > atom.payload.size()) return Code::Invalid;
-            std::memcpy(out.data(), atom.payload.data() + from, out.size());
-            return Status{};
-        }
-        case Kind::Zero:
-            std::memset(out.data(), 0, out.size());
-            return Status{};
-        case Kind::Concat:
-            return read_concat(ir, len, node, start, out);
-        case Kind::Repeat:
-            return read_repeat(ir, len, node, start, out);
-        case Kind::Slice: {
-            auto child_start = bi_add(node.a, start);
-            if (!child_start.ok()) return child_start.code();
-            return read_child(ir, len, node.args[0], child_start.value(), out);
-        }
-        case Kind::Morph:
-            return read_morph(ir, len, node, start, out);
-        case Kind::Xor:
-            return read_xor(ir, len, node, start, out);
-        case Kind::Interleave:
-            return read_interleave(ir, len, node, start, out);
-        case Kind::Lfsr: {
-            LfsrStream stream(node.lfsr_conn, node.lfsr_init);
-            const Status jumped = stream.jump_to_byte_offset(start);
-            if (!jumped.ok()) return jumped;
-            return stream.read(out);
-        }
-        case Kind::Affine: {
-            auto rem = start.divmod_scalar(256);
-            if (!rem.ok()) return to_status(rem.error());
-            const unsigned base =
-                (static_cast<unsigned>(node.affine_start) +
-                 static_cast<unsigned>(rem.value().second) *
-                     static_cast<unsigned>(node.affine_step)) &
-                0xFFu;
-            for (std::size_t j = 0; j < out.size(); ++j) {
-                out[j] = static_cast<u8>((base + static_cast<unsigned>(j) *
-                                                    static_cast<unsigned>(node.affine_step)) &
-                                         0xFFu);
-            }
-            return Status{};
-        }
-        case Kind::Predictor:
-            return read_predictor(ir, len, node, start, out);
-    }
-    return Code::Invalid;
-}
-
-}  // namespace
+// --- Normative E2 §8 evaluation entry points -------------------------------
 
 Result<std::size_t> read_range(const Ir& ir, u32 node, const BigInt& start,
                                std::span<u8> out) {
-    if (node >= ir.nodes.size()) return Code::Invalid;
-    auto lengths = recompute_lengths_checked(ir);
-    if (!lengths.ok()) return lengths.code();
-    const Status st = read_range_impl(ir, lengths.value(), node, start, out);
+    auto plan = detail::build_eval_plan(ir, EvalLimits{}, true, node);
+    if (!plan.ok()) return plan.code();
+    const Status st =
+        detail::eval_range_with_plan(plan.value(), node, start, out, nullptr, {}, nullptr);
     if (!st.ok()) return st.code();
     return out.size();
 }
@@ -1426,28 +2428,29 @@ Result<std::size_t> read_range(const Ir& ir, u32 node, const BigInt& start,
 // --- TermCursor ------------------------------------------------------------
 
 struct TermCursor::Impl {
-    const Ir* ir = nullptr;
     u32 node = 0;
-    std::vector<BigInt> lengths;
+    detail::EvalPlanData plan;
+    std::unique_ptr<detail::StreamSession> session;
     BigInt offset;
     BigInt remaining;
     Code error = Code::Ok;
 };
 
 TermCursor::TermCursor(const Ir& ir, u32 node) : impl_(std::make_unique<Impl>()) {
-    impl_->ir = &ir;
     impl_->node = node;
-    if (node >= ir.nodes.size()) {
-        impl_->error = Code::Invalid;
+    auto plan = detail::build_eval_plan(ir, EvalLimits{}, true, node);
+    if (!plan.ok()) {
+        impl_->error = plan.code();
         return;
     }
-    auto lengths = recompute_lengths_checked(ir);
-    if (!lengths.ok()) {
-        impl_->error = lengths.code();
+    impl_->plan = std::move(plan.value());
+    Status seed_st;
+    impl_->session = detail::make_stream_session(impl_->plan, {}, seed_st);
+    if (!seed_st.ok()) {
+        impl_->error = seed_st.code();
         return;
     }
-    impl_->lengths = std::move(lengths.value());
-    impl_->remaining = impl_->lengths[node];
+    impl_->remaining = impl_->plan.lengths[node];
 }
 
 TermCursor::~TermCursor() = default;
@@ -1463,8 +2466,8 @@ Result<std::size_t> TermCursor::read(std::span<u8> out) {
         available = std::min<u64>(available, fit.value());
     }
     const std::span<u8> slice = out.first(static_cast<std::size_t>(available));
-    const Status st = read_range_impl(*impl_->ir, impl_->lengths, impl_->node, impl_->offset,
-                                      slice);
+    const Status st = detail::eval_range_with_plan(
+        impl_->plan, impl_->node, impl_->offset, slice, impl_->session.get(), {}, nullptr);
     if (!st.ok()) return st.code();
     auto next = bi_add(impl_->offset, BigInt(available));
     if (!next.ok()) return next.code();
@@ -1482,62 +2485,33 @@ bool TermCursor::at_end() const noexcept { return impl_->remaining.is_zero(); }
 // --- streaming / range sinks ----------------------------------------------
 
 Status eval_stream(const Ir& ir, u32 node, Sink& sink) {
-    TermCursor cursor(ir, node);
-    std::vector<u8> buffer(kEvalBlock);
-    for (;;) {
-        auto count = cursor.read(buffer);
-        if (!count.ok()) return count.code();
-        if (count.value() == 0) break;
-        const Status st = sink.write(std::span<const u8>(buffer.data(), count.value()));
-        if (!st.ok()) return st;
-    }
-    return Status{};
+    auto plan = detail::build_eval_plan(ir, EvalLimits{}, true, node);
+    if (!plan.ok()) return plan.code();
+    const BigInt& total = plan.value().lengths[node];
+    return detail::stream_range_to_sink(plan.value(), node, BigInt::zero(), total, sink, {},
+                                        nullptr);
 }
 
 Status eval_stream(const Ir& ir, Sink& sink) { return eval_stream(ir, ir.root, sink); }
 
 Status eval_range(const Ir& ir, const BigInt& start, const BigInt& length, Sink& sink) {
-    auto lengths = recompute_lengths_checked(ir);
-    if (!lengths.ok()) return lengths.code();
-    const BigInt& root_len = lengths.value()[ir.root];
-    auto end = bi_add(start, length);
-    if (!end.ok()) return end.code();
-    if (end.value().compare(root_len) > 0) return Code::Invalid;
-
-    std::vector<u8> buffer(kEvalBlock);
-    BigInt pos = start;
-    BigInt left = length;
-    while (!left.is_zero()) {
-        u64 take = static_cast<u64>(buffer.size());
-        if (auto fit = left.to_u64_checked(); fit.has_value()) {
-            take = std::min<u64>(take, fit.value());
-        }
-        const std::span<u8> slice(buffer.data(), static_cast<std::size_t>(take));
-        const Status st = read_range_impl(ir, lengths.value(), ir.root, pos, slice);
-        if (!st.ok()) return st;
-        const Status sink_st = sink.write(std::span<const u8>(slice.data(), slice.size()));
-        if (!sink_st.ok()) return sink_st;
-        auto next = bi_add(pos, BigInt(take));
-        if (!next.ok()) return next.code();
-        pos = std::move(next.value());
-        auto rest = bi_sub(left, BigInt(take));
-        if (!rest.ok()) return rest.code();
-        left = std::move(rest.value());
-    }
-    return Status{};
+    auto plan = detail::build_eval_plan(ir, EvalLimits{}, true, ir.root);
+    if (!plan.ok()) return plan.code();
+    return detail::stream_range_to_sink(plan.value(), ir.root, start, length, sink, {},
+                                        nullptr);
 }
 
 Result<std::vector<u8>> denote_node(const Ir& ir, u32 node, u64 max_bytes) {
-    if (node >= ir.nodes.size()) return Code::Invalid;
-    auto lengths = recompute_lengths_checked(ir);
-    if (!lengths.ok()) return lengths.code();
-    const BigInt& total = lengths.value()[node];
+    auto plan = detail::build_eval_plan(ir, EvalLimits{}, false, node);
+    if (!plan.ok()) return plan.code();
+    const BigInt& total = plan.value().lengths[node];
     if (total.compare(BigInt(max_bytes)) > 0) return Code::Limit;
     auto count = bi_to_u64(total);
     if (!count.ok()) return count.code();
     std::vector<u8> out(static_cast<std::size_t>(count.value()));
     if (!out.empty()) {
-        const Status st = read_range_impl(ir, lengths.value(), node, BigInt::zero(), out);
+        const Status st = detail::eval_range_with_plan(
+            plan.value(), node, BigInt::zero(), out, nullptr, {}, nullptr);
         if (!st.ok()) return st.code();
     }
     return out;

@@ -1,0 +1,216 @@
+name: MARP E2 C05 EVAL CI
+
+# Isolated workflow for C05 EVAL (E2 ALGEBRA, third sub-component).
+# Builds only E1 + C03 + C04 + C05 sources through engine/Makefile.c05 and
+# proves that no E3-E7 (wire / container / discovery / rewrite / selection /
+# CLI) or harness object is linked.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  c05-independence:
+    name: C05 independence (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E3-E7 / harness includes in E2 sources
+        run: |
+          set -euo pipefail
+          echo "Scanning include/mapr/e2 and engine/src/e2 for forbidden includes..."
+          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|dag|pipeline|mau_translate))' include/mapr/e2 engine/src/e2; then
+            echo "FAIL: forbidden include found in E2 sources"
+            exit 1
+          fi
+          echo "PASS: no E3-E7 or harness include in E2 sources"
+
+      - name: Reject non-C++ artefacts in E2 paths
+        run: |
+          set -euo pipefail
+          if find include/mapr/e2 engine/src/e2 engine/tests/e2 -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+            echo "FAIL: script file found under an E2 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under E2 paths"
+
+      - name: Confirm earlier evidence manifests still verify
+        run: |
+          set -euo pipefail
+          sha256sum -c specs_and_reports/v2/evidence/E1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H3/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/E2/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C04/SHA256SUMS
+          echo "PASS: E1/H1/H3/E2(C03)/C04 evidence manifests still verify"
+
+  build-test-evidence:
+    name: C05 build, tests, evidence
+    runs-on: ubuntu-latest
+    needs: [c05-independence]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Build C05 (strict -Werror, -O2)
+        env:
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c05 c05-clean
+          make -f Makefile.c05 c05-all -j4
+
+      - name: Verify C05 independence (grep + nm on built objects)
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c05 c05-isolation
+          echo "Undefined symbols in the C05 library object:"
+          nm -uC obj/c05/e2/e2_eval.o | sort || true
+          echo "Checking the C05 test binary does not link E3-E7/harness code..."
+          if nm -C bin/e2_c05_tests | grep -E 'mapr::(container|Encoder|Decoder)::|marp::harness::'; then
+            echo "FAIL: E3-E7/harness symbol linked into the C05 test binary"
+            exit 1
+          fi
+          echo "PASS: binary independence verified"
+
+      - name: Snapshot committed evidence and verify manifest
+        run: |
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C05-EVAL.tsv /tmp/committed-C05-EVAL.tsv
+          sha256sum -c specs_and_reports/v2/evidence/C05/SHA256SUMS
+          echo "PASS: committed C05 evidence manifest verified before regeneration"
+
+      - name: Run C05 unit tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c05_tests --gtest_color=no
+
+      - name: Generate C05 evidence
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c05_gate --root .. --write-evidence
+
+      - name: Committed C05-EVAL.tsv must match the CI-generated TSV byte for byte
+        run: |
+          set -euo pipefail
+          diff -u /tmp/committed-C05-EVAL.tsv specs_and_reports/v2/gates/C05-EVAL.tsv
+          echo "PASS: committed C05-EVAL.tsv is byte-for-byte identical to CI output"
+
+      - name: Evidence schema, verdicts and required checks
+        run: |
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/C05-EVAL.tsv"
+          LOG="specs_and_reports/v2/logs/C05-EVAL.log"
+          SUMS="specs_and_reports/v2/evidence/C05/SHA256SUMS"
+          test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
+          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $7 != "PASS" { print; exit 1 }' "$TSV"; then
+            echo "PASS: every C05 row is PASS"
+          else
+            echo "FAIL: non-PASS verdict present in C05-EVAL.tsv"
+            exit 1
+          fi
+          for req in o5.1.stream_vs_ref o5.1.subranges o5.1.cursor o5.1.block_invariance \
+                     o5.2.lfsr_jump_exact o5.2.lfsr_log_bound o5.2.above_2pow64_slice \
+                     o5.2.concat_skip o5.2.virtual_morph_zero_scratch \
+                     o5.2.pred_prefix_limit o5.2.pred_oob_precedence o5.2.pred_window_limit \
+                     o5.2.pred_checkpoint_chain o5.2.pred_stream_rolling \
+                     o5.3.scratch_bound_64mib o5.3.rss_delta_64mib \
+                     o5.3.w7_depth_65536 o5.3.w7_depth_65537_limit \
+                     c05.wf_guard c05.canon_coherence c05.determinism_concurrency \
+                     independence coverage.kind coverage.morph coverage.predictor c05.summary; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+          awk -F'\t' '$1 == "coverage.kind" { if ($5 != "12/12" || $6 != "12/12") { print "kind coverage not complete: " $6; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "coverage.morph" { if ($5 != "9/9" || $6 != "9/9") { print "morph coverage not complete: " $6; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "coverage.predictor" { if ($5 != "5/5" || $6 != "5/5") { print "predictor coverage not complete: " $6; exit 1 } }' "$TSV"
+          grep -q '^RESULT: PASS (C05 EVAL)$' "$LOG"
+          sha256sum -c "$SUMS"
+          echo "PASS: C05 evidence schema and manifest verified"
+          tail -3 "$LOG"
+
+      - name: Determinism (independent re-run must reproduce the TSV)
+        run: |
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C05-EVAL.tsv /tmp/run1-C05-EVAL.tsv
+          cd engine
+          ./bin/e2_c05_gate --root .. --write-evidence
+          diff -u /tmp/run1-C05-EVAL.tsv ../specs_and_reports/v2/gates/C05-EVAL.tsv
+          echo "PASS: repeat run produced a byte-identical C05-EVAL.tsv"
+
+      - name: AddressSanitizer + UBSan C05 unit tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c05 c05-test-san -j4
+
+      - name: AddressSanitizer + UBSan C05 evidence run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c05 bin/e2_c05_gate_san -j4
+          ./bin/e2_c05_gate_san --root .. --write-evidence
+          diff -u /tmp/committed-C05-EVAL.tsv ../specs_and_reports/v2/gates/C05-EVAL.tsv
+          echo "PASS: sanitizer evidence run reproduces the committed TSV"
+
+      - name: Restore the primary evidence set
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c05_gate --root .. --write-evidence
+          diff -u /tmp/committed-C05-EVAL.tsv ../specs_and_reports/v2/gates/C05-EVAL.tsv
+          cd ..
+          sha256sum -c specs_and_reports/v2/evidence/C05/SHA256SUMS
+          echo "PASS: primary C05 evidence restored and self-consistent"
+
+      - name: Upload C05 evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2-c05-evidence
+          path: |
+            specs_and_reports/v2/gates/C05-EVAL.tsv
+            specs_and_reports/v2/logs/C05-EVAL.log
+            specs_and_reports/v2/evidence/C05/SHA256SUMS
+          retention-days: 30
