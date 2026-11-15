@@ -1,0 +1,242 @@
+name: MARP E3 C08 LEGACY CI
+
+# Isolated workflow for C08 LEGACY (E3 WIRE sub-component: read-only legacy
+# v1.0.1 / v1.1 container probe and decoder into canonical v2 Ir).
+# Builds only E1 + E2 + C08 sources through engine/Makefile.c08 and proves
+# read-only isolation (no v1 emission, unreachable from v2 encode paths,
+# zero E4-E7 or Stage 1/2 engine object linkage).
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  c08-independence:
+    name: C08 independence & read-only isolation (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E4-E7, harness, and Stage 1/2 engine includes in C08 library
+        run: |-
+          set -euo pipefail
+          echo "Scanning include/mapr/e3/e3_legacy.hpp and engine/src/e3/e3_legacy.cpp..."
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq|dag|math_core))' \
+              include/mapr/e3/e3_legacy.hpp engine/src/e3/e3_legacy.cpp; then
+            echo "FAIL: forbidden include found in C08 library"
+            exit 1
+          fi
+          echo "PASS: no forbidden includes in C08 library"
+
+      - name: Reject v1 emission / write API in C08 library
+        run: |-
+          set -euo pipefail
+          if grep -nE 'encode_v1|write_v1|ContainerWriter|write_chunk_ref|write_explicit_dag' \
+              include/mapr/e3/e3_legacy.hpp engine/src/e3/e3_legacy.cpp; then
+            echo "FAIL: v1 emission token found in C08 library"
+            exit 1
+          fi
+          echo "PASS: C08 library is read-only"
+
+      - name: Reject non-C++ script files under C08 paths
+        run: |-
+          set -euo pipefail
+          if find include/mapr/e3 engine/src/e3 engine/tests/e3 -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+            echo "FAIL: script file found under a C08 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under C08 paths"
+
+      - name: Confirm earlier evidence manifests still verify
+        run: |-
+          set -euo pipefail
+          sha256sum -c specs_and_reports/v2/evidence/E1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H3/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/E2/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C04/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C05/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C06/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/E2G/SHA256SUMS
+          echo "PASS: E1/H1/H3/E2/C04/C05/C06/E2G evidence manifests still verify"
+
+  build-test-evidence:
+    name: C08 build, tests, sanitizers, evidence
+    runs-on: ubuntu-latest
+    needs: [c08-independence]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |-
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Record toolchain
+        run: |-
+          set -euo pipefail
+          g++ --version | head -1
+          echo "::notice::compiler=$(g++ -dumpfullversion -dumpversion)"
+
+      - name: Build C08 (strict -Werror, -O2)
+        env:
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c08 c08-clean
+          make -f Makefile.c08 c08-all -j4
+
+      - name: Verify C08 binary isolation (grep + nm on built objects)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c08 c08-isolation
+          echo "Undefined symbols in the C08 library object:"
+          nm -uC obj/c08/e3/e3_legacy.o | sort || true
+          echo "Checking C08 test binary does not link E4-E7/harness/Stage1-2 code..."
+          if nm -C bin/e3_c08_tests | grep -E 'mapr::(ContainerReader|ContainerWriter|Encoder|Decoder)|marp::harness::|marp::v2::(e4|e5|e6|e7)'; then
+            echo "FAIL: forbidden symbol linked into C08 test binary"
+            exit 1
+          fi
+          echo "PASS: binary isolation verified"
+
+      - name: Snapshot committed evidence and verify manifest
+        run: |-
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C08-LEGACY.tsv /tmp/committed-C08-LEGACY.tsv
+          cp specs_and_reports/v2/logs/C08-LEGACY.log /tmp/committed-C08-LEGACY.log
+          cp specs_and_reports/v2/evidence/C08/SHA256SUMS /tmp/committed-C08-SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C08/SHA256SUMS
+          ./engine/bin/e3_c08_gate --root . --verify
+          echo "PASS: committed C08 evidence manifest verified before regeneration"
+
+      - name: Run C08 GoogleTest suite
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e3_c08_tests --gtest_color=no
+
+      - name: Generate C08 evidence and verify byte-for-byte match
+        run: |-
+          set -euo pipefail
+          ./engine/bin/e3_c08_gate --root .
+          diff -u /tmp/committed-C08-LEGACY.tsv specs_and_reports/v2/gates/C08-LEGACY.tsv
+          diff -u /tmp/committed-C08-LEGACY.log specs_and_reports/v2/logs/C08-LEGACY.log
+          diff -u /tmp/committed-C08-SHA256SUMS specs_and_reports/v2/evidence/C08/SHA256SUMS
+          echo "PASS: committed C08 evidence is byte-for-byte identical to CI output"
+
+      - name: Validate C08 evidence schema, verdicts, and honest W-V1 status
+        run: |-
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/C08-LEGACY.tsv"
+          LOG="specs_and_reports/v2/logs/C08-LEGACY.log"
+          SUMS="specs_and_reports/v2/evidence/C08/SHA256SUMS"
+          test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
+          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $7 == "FAIL" { print; exit 1 }' "$TSV"; then
+            echo "PASS: zero FAIL verdicts in C08-LEGACY.tsv"
+          else
+            echo "FAIL: FAIL verdict present in C08-LEGACY.tsv"
+            exit 1
+          fi
+          for req in c08.probe c08.decode_v1_0_1 c08.decode_v1_1 c08.unsupported \
+                     c08.malformed c08.limits_arena c08.isolation c08.w_v1_corpus; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+          awk -F'\t' 'NR > 1 && $1 != "c08.w_v1_corpus" && $7 != "PASS" { print "Non-PASS C08 check row: " $0; exit 1 }' "$TSV"
+          if compgen -G "specs_and_reports/v2/W-V1/*.mapr" > /dev/null; then
+            awk -F'\t' '$1 == "c08.w_v1_corpus" && $7 != "PASS" { print "Supplied W-V1 row did not PASS: " $0; exit 1 }' "$TSV"
+          else
+            awk -F'\t' '$1 == "c08.w_v1_corpus" && $7 != "BLOCKED" { print "Missing W-V1 must be BLOCKED, got: " $0; exit 1 }' "$TSV"
+          fi
+          sha256sum -c "$SUMS"
+          echo "PASS: C08 evidence schema, verdicts, and W-V1 status verified"
+
+      - name: Determinism (independent repeat run reproduces byte-identical evidence)
+        run: |-
+          set -euo pipefail
+          ./engine/bin/e3_c08_gate --root . --out-root /tmp/c08_repeat
+          diff -u /tmp/committed-C08-LEGACY.tsv /tmp/c08_repeat/specs_and_reports/v2/gates/C08-LEGACY.tsv
+          diff -u /tmp/committed-C08-LEGACY.log /tmp/c08_repeat/specs_and_reports/v2/logs/C08-LEGACY.log
+          diff -u /tmp/committed-C08-SHA256SUMS /tmp/c08_repeat/specs_and_reports/v2/evidence/C08/SHA256SUMS
+          rm -rf /tmp/c08_repeat
+          echo "PASS: repeat run produced byte-identical C08 evidence"
+
+      - name: AddressSanitizer + UBSan C08 unit tests and gate run
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c08 c08-test-san -j4
+          ./bin/e3_c08_gate_san --root .. --out-root /tmp/c08_san_repro
+          diff -u /tmp/committed-C08-LEGACY.tsv /tmp/c08_san_repro/specs_and_reports/v2/gates/C08-LEGACY.tsv
+          diff -u /tmp/committed-C08-LEGACY.log /tmp/c08_san_repro/specs_and_reports/v2/logs/C08-LEGACY.log
+          rm -rf /tmp/c08_san_repro
+          echo "PASS: ASan+UBSan unit tests and gate run reproduced committed C08 evidence"
+
+      - name: No-regression check (frozen E1/E2/H1/H2/H3 and earlier evidence untouched)
+        run: |-
+          set -euo pipefail
+          if ! git diff --quiet -- include/mapr/e1_bigint.hpp \
+                include/mapr/e1_crc32.hpp \
+                include/mapr/e1_gear.hpp \
+                include/mapr/e1_length.hpp \
+                include/mapr/e1_sha256.hpp \
+                include/mapr/e2 \
+                engine/src/e2 \
+                harness \
+                specs_and_reports/v2/gates/E0-G.tsv \
+                specs_and_reports/v2/gates/E1-G.tsv \
+                specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+                specs_and_reports/v2/gates/H3-ORACLE.tsv \
+                specs_and_reports/v2/gates/C03-TERM.tsv \
+                specs_and_reports/v2/gates/C04-CANON.tsv \
+                specs_and_reports/v2/gates/C05-EVAL.tsv \
+                specs_and_reports/v2/gates/C06-DAG.tsv \
+                specs_and_reports/v2/gates/E2-G.tsv; then
+            echo "FAIL: frozen component or earlier evidence modified"
+            exit 1
+          fi
+          echo "PASS: all frozen components and earlier evidence untouched"
+
+      - name: Upload C08 evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e3-c08-evidence
+          path: |
+            specs_and_reports/v2/gates/C08-LEGACY.tsv
+            specs_and_reports/v2/logs/C08-LEGACY.log
+            specs_and_reports/v2/evidence/C08/SHA256SUMS
+          retention-days: 30

@@ -295,12 +295,37 @@ Two consequences are recorded decisions rather than spec text:
 | 13 | Determinism: 1-vs-4 threads, eval-vs-range | ✅ | `determinism.*` 6 rows |
 | 14 | Evidence reproducible, manifest verified, ASan+UBSan clean | ✅ | byte-identical reruns; §4 |
 | 15 | No earlier component regressed | ✅ | `e2-g.yml` step *No-regression check* |
+| 16 | E2 merged and frozen for consumers | ✅ | PR #7 (`abe500be`); `E2-FROZEN.sha256` verified by two CI steps; guard tested against a real edit (§9) |
 
 ---
 
-## 9. Handoff
+## 9. Handoff — E2 is gated and frozen
 
-E2 `ALGEBRA` is complete: C03 TERM, C04 CANON, C05 EVAL, C06 DAG and E2-G each have their own
-isolated build, their own workflow and their own committed evidence. The next component (E3)
-may consume `include/mapr/e2/**` as frozen; the E2-G workflow will fail if a later change
-alters `harness/oracle` or any C03–C06 evidence file.
+E2 `ALGEBRA` is complete and merged (PR #7, merge commit `abe500be`, tree-identical to the
+reviewed head `076a360`). All five sub-components have their own isolated build, their own
+workflow, and their own committed evidence, and all six workflows pass on `h2-gates`.
+
+**What "frozen" means here, concretely.** `include/mapr/e2/**` is the contract E3–E7 consume.
+Its four headers are hashed into
+`specs_and_reports/v2/evidence/E2G/E2-FROZEN.sha256`, and two CI steps verify that file:
+
+| Where | Check |
+|---|---|
+| `MARP E2-G ALGEBRA CI` job `independence` | `sha256sum -c …/E2-FROZEN.sha256` |
+| `MARP E2-G ALGEBRA CI` job `isolation` | `make -f Makefile.e2g e2g-frozen` |
+
+The guard was tested by appending a comment to `e2_term.hpp`: both the make target and the
+CI step fail with a message naming the file and the remedy, and pass again once the change is
+reverted. It is not a decorative check.
+
+**Changing a frozen header on purpose** is allowed and is a one-line review artefact: update
+the matching SHA-256 in `E2-FROZEN.sha256` in the same pull request. The change then appears
+in review as an explicit edit to a frozen contract rather than slipping through silently.
+
+**What is not frozen.** `engine/src/e2/**` (implementation) and `engine/src/e2g/**` (this
+gate) are ordinary code: the E2-G workflow re-runs the full gate and requires the evidence to
+reproduce byte for byte, so a behavioural change fails the build even though the file is not
+hash-pinned. C03–C06 evidence and `harness/oracle` are protected by their own workflows plus the
+no-regression step in `e2-g.yml`.
+
+The next component (E3) may consume `include/mapr/e2/**` as frozen.

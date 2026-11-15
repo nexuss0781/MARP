@@ -52,6 +52,14 @@ jobs:
           fi
           echo "PASS: C++20 only under E2 paths"
 
+      - name: E2 is frozen (public contract unchanged)
+        run: |-
+          set -euo pipefail
+          sha256sum -c specs_and_reports/v2/evidence/E2G/E2-FROZEN.sha256
+          echo "PASS: include/mapr/e2 matches the frozen E2 contract recorded at the"
+          echo "      E2-G merge; an intentional change must update that file in the"
+          echo "      same pull request."
+
       - name: Confirm earlier evidence manifests still verify
         run: |-
           set -euo pipefail
@@ -102,6 +110,12 @@ jobs:
           set -euo pipefail
           cd engine
           make -f Makefile.e2g e2g-isolation
+
+      - name: E2 is frozen - include/mapr/e2 must match the recorded contract
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.e2g e2g-frozen
 
       - name: Snapshot committed evidence and verify its manifest
         run: |-
