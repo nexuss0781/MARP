@@ -1,0 +1,257 @@
+check	corpus	item_id	input_sha256	expected	actual	verdict	log
+o6.1.order_independence	C06-SHAPE	e-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-empty:sha=cac848d1ded2533146fa63cdf2ebd30cbde599bac6502136719e86dd86dc13b5
+o6.1.order_independence	C06-SHAPE	e-zero-0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-zero-0:sha=8b1866ab1176764c66b52c91aceb89d044dc8c67330b6b3b1097dcb2036c7e72
+o6.1.order_independence	C06-SHAPE	e-zero-29	88664259575def679670121812a98cce3973dfd20f3dc30fe3e7c63907a44225	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-zero-29:sha=151872150a45437a0c959caab81802877c59649539d8155ca3527776240d70d1
+o6.1.order_independence	C06-SHAPE	e-zero-2pow40	129794d851342e483b7fa3e36402e12172d5a98454068c7284a34492f612cf1a	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-zero-2pow40:sha=3492f5b36ffa878111e18a2cbd9c9ccd4d7b6cdd2e2ea74fa6a654156476063f
+o6.1.order_independence	C06-SHAPE	e-atom-1	6df6c1ce0ffd7615090ecede9da3fb7d8490e4ab9ad875cc482f18c5128b9594	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-atom-1:sha=f39c8f54f041f4ef9d495ec854293190da3ba9c4cc735cccfe0f3a5b90753e25
+o6.1.order_independence	C06-SHAPE	e-atom-37	44cfd5d1ab75b2f733ba736c298f91ce63f30cf95b8e5981accb6d611db2fd10	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-atom-37:sha=1790e44b2e86e13e11152f263b9f86de9b04bb2929a5fc6548874afd060c134f
+o6.1.order_independence	C06-DEDUP	e-atom-dup	55137a829ac854f33178cbe21a8b467896d61bdb5461504f4d8b5ef770d3a92a	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-atom-dup:sha=a2efe3baf8859080bf934c93336e5566ac53d9968b826374e680e0f7668594b7
+o6.1.order_independence	C06-DEDUP	e-atom-dup-klass	bf0e0b4c56ec3820bc674a76ccb98b03febd4508e6a2c6371a11475e5e9edd86	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-atom-dup-klass:sha=f9dbd5cce4335f825c10c26a92e387129c63df5c6b86a88a4dc92955184397b2
+o6.1.order_independence	C06-SHAPE	e-concat-3	34753f27ecda9d8a78479477874f34a5bfad5538f41899cb79a0f76a9ccb3f69	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-concat-3:sha=8540c5f974cf89911cbb85f631a5c75dee6406e300c7644826d057b7b9d0d19c
+o6.1.order_independence	C06-SHARE	e-diamond	b372ce45076b2addf4749e21cb28b182e450055b90229555c263af522f95f663	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-diamond:sha=32c7a82c44d6f1c2b6a4d4ef7993601f56053eef3da19ed3ff0f9c893697d2ca
+o6.1.order_independence	C06-SHARE	e-diamond-dupnode	9c1cef03b7781e33d852f38078aa9b42a5704c5bdc848710e6174c56a28d7811	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-diamond-dupnode:sha=11a207ccc1eb7752f2b43f28f266ca212a9eae845adb5fbd6a30e9fbc22b02de
+o6.1.order_independence	C06-SHARE	e-shared-xor	85e0491989c4b74e6dabf182c03a1392d0848c4f313725b3b4a2331a22dffb9b	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-shared-xor:sha=164ca95e6e8b5994b006945a560fe63b1b33f5b12afa91f83cd7e26371353448
+o6.1.order_independence	C06-SHAPE	e-repeat-3-6	e3fe8e1ae01d8b126474a0d2f760e3a9478105c259adbc0a662c0cbcceb15f2e	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-repeat-3-6:sha=1faaf3d840fee26e4806b45661ff30eaaf7bd63546d0ae9928b640b8e832f764
+o6.1.order_independence	C06-SHAPE	e-slice-nested	b49db37f42215c36379dca0d784ac481ac9df861f3d8c50623ce9a9643d435a2	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-slice-nested:sha=613d6d3e8515965488dd014e06a83016e10c709dc60d56cc76cb50a41a76aaf9
+o6.1.order_independence	C06-KIND	e-morph-1	5bdcfb8bda45d6df8c615565078f73e1ad6bfd60c82b2b718a8e3d0a2888a852	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-1:sha=689e409c9cfb3897fae009d06cb461f0ac1476298de2acf5aace2df085e8bf98
+o6.1.order_independence	C06-KIND	e-morph-2	e89c7fb396599a73d0d3a4e7ee60da75f31777c4ffe7dd372e1caed4519929d5	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-2:sha=636b274e4b48ff36badac8eff0ba2b6fd2b44deeca2f48627ecfdf9922e84279
+o6.1.order_independence	C06-KIND	e-morph-3	8cc1668405b1fc9cb54a924702b3088f918c91b933650556743578f077b8032b	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-3:sha=5cd174dd796b5bfdb234c1978af272c825d12329d37a7ad059f9b33be7877eb1
+o6.1.order_independence	C06-KIND	e-morph-4	59cc78ab409308adb3c1ebc0738aab1a61f6bd8d7eabe8c3f81138c5507674bd	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-4:sha=78a2ea1f15c99f3003508943d4284a000b573547e75dd79f96ae690310f4ca2f
+o6.1.order_independence	C06-KIND	e-morph-5	bac844688d6a6055ccdd0b566c3af00254fb8323e54b8d2a9053179a80d3df2a	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-5:sha=fc4e4978cba7fd40bbae2a3b65ce340918507da95fc9813ed5f1701975275db0
+o6.1.order_independence	C06-KIND	e-morph-6	13350a7e1027068e645b31937b2f2455325a53be23fd96f862f95c1487673956	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-6:sha=a26b414d9203434012ecac7ef05f92b7f780811e65b46c8cce8f8d9da8d2141c
+o6.1.order_independence	C06-KIND	e-morph-7	e7e322ade99f28bf6a0dee85607e7f198f0d9e7229ab5eeae4efffad57599a7f	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-7:sha=24dccf6885d406aa377cc4b0c9973a992150f7d4e26244ccda920bffae908a0e
+o6.1.order_independence	C06-KIND	e-morph-8	4415a235f99cd92743808a5d16dde22e9af2f5d083afaaae07e152ca1ad0bbd3	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-8:sha=bd709762a83b91a62872734c32885ae4c43d45a825ff40287d839a1325e0220a
+o6.1.order_independence	C06-KIND	e-morph-9	d2c0b10823f3a6a7121a4b7af74fd438d4479c27b09ffba1fd4fc43bdbc8a4a3	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-morph-9:sha=a6f05d218b319c30251e5fe65fc2b3676b52b60293dea84784aec74f6fe6ab14
+o6.1.order_independence	C06-KIND	e-xor	5978607143320538640f5ac934e8f8400a1ef083ebc07b47c2895ff56002e4e8	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-xor:sha=9b5538d4ffd7918503db229e5d1479d4b9e0c900aa0c18f41aa76e4b8ecd85d5
+o6.1.order_independence	C06-KIND	e-interleave-s1	cc9f50fbfb11c88ba02f98fec7465e24d918b946def296e7d3a637f75da5c0c1	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-interleave-s1:sha=8b2312f5979dd2e7a1232d957432ad6f7c50a82ab0785f8b61b6bcfe406f7c02
+o6.1.order_independence	C06-KIND	e-interleave-s2	abe4d67731e5c0685459f7e0857a4a560d4a1f571924cc21ec7d626e883f5d2d	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-interleave-s2:sha=600ff7a2c8465aa6acc00e0cdc38e4e2c5c5a3cc02e7a4a8f7060ad62ccf58b7
+o6.1.order_independence	C06-KIND	e-interleave-s3	00c74fcef950f6067949af670baa1238f52c5befd5d2bbd965e69040dded71e5	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-interleave-s3:sha=aa9e1a990654c127bb6baa085f02688ff6e68f8bff356c4fb164dd64d6f1ac20
+o6.1.order_independence	C06-KIND	e-interleave-s7	f8ee9070b2811d3b6f51b76b882309f060ea37d4b6e0d3f4abaa4992766e043e	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-interleave-s7:sha=b9c8b3d171373b7e4b00b6f9292b41604213d5e98b9c6ca2fcde7a9e65b82cd8
+o6.1.order_independence	C06-KIND	e-lfsr-37	54d448d88255a5f301ec8edc4b159097bf0d4d6357d2c68dabd635b58f2ba621	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-lfsr-37:sha=9cc131c25b68a3fe3700ccd0223218fb842d32d804b6615888933642a36de484
+o6.1.order_independence	C06-KIND	e-affine-41	31e511882d8417ed6835415cfd013e10c538a28de08995cebbfe216cf05b7a9e	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-affine-41:sha=23bb61d10c3fc4ff93e745e272f1b1f6af0c736653de9dad9a3a32a3cae49cf7
+o6.1.order_independence	C06-KIND	e-pred-0	2296aed4d8ebfacc5eb09cbd682ce87d0fbdc58d65a9860d642c3dff60555728	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-pred-0:sha=48d8a18bec7183bc82bb2457e97b706dae2a57a57e623269b891c200c1024b82
+o6.1.order_independence	C06-KIND	e-pred-1	6b7953fee8bf724362b923b5fca2dedb7e9ac4c1231504225d691cc2a8f6444b	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-pred-1:sha=09a133c09d23693fb880bda2c1063f2a1d9eeb36ef3e7ada0cea98a7ccf03136
+o6.1.order_independence	C06-KIND	e-pred-2	9013379436918af9c018a454595d8a78f05ad2f4a6ea7db49789fab15a85c7f1	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-pred-2:sha=6abc896fbc949151408b33e0253029992047ee15891649ed12010c6ffc3e30ae
+o6.1.order_independence	C06-KIND	e-pred-3	cc66f86ffb847ec13afc3b073369c4d4591f0fe528f32687a29958c1a08ea7a7	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-pred-3:sha=4de9f5dddfc5e35b7fbd9e41995148ec8ec51f899258a3f3af6b22b08447cf92
+o6.1.order_independence	C06-KIND	e-pred-4	7dfdf2ccf598360eb9f80816a3c99ae991df6d5ca7b19e0aab5bbd571721f6e6	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-pred-4:sha=2f5003a89bada5d03e3c74b91ea99a1267463b923fc221a8e320fcd2069babd4
+o6.1.order_independence	C06-DEEP	e-composite-all	07742d68820309dac343b4dc7c7fd70c714795695b7fb7425730997c42955fe8	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-composite-all:sha=2378da2d4bf5aaa30e9f276afea78889050da7f2a29a8945ac954f1b0800c3cb
+o6.1.order_independence	C06-DEEP	e-deep-xor-chain	a21bd41d8c521b5e7b0e2ae390df1d96c551c6758c8e676d047f69d664ff4454	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-deep-xor-chain:sha=6780640877ff46e1f6d47f405648fac48c55ddd67da3c5e97d7be54bcdb7fae4
+o6.1.order_independence	C06-DEEP	e-deep-morph-chain	bd1b6731db2ef8257b6b5acd9847fe0f47206a0da4430c20c529701bd1ecfddf	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-deep-morph-chain:sha=e79f6ba37eecafe6ae2390d4d1b6e78c4da05d2542e706ecc574896ae354f60a
+o6.1.order_independence	C06-SHARE	e-concat-wide-shared	15844159cc67b9c2689fb2f6269cefe25bd45d003720d56f9f966f0d5faf9ca6	identical Ir in 8/8 orders	9/9 orders byte-identical	PASS	e-concat-wide-shared:sha=50ad8dedc2ca0deb6bc4d19deed465bd8cda258a988a0a29e5ca5de5e9b06528
+o6.2.shape	C06-SHAPE	e-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-empty
+o6.2.interned	C06-SHAPE	e-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	distinct-subterms==nodes	nodes=1 distinct=1 atoms=0 payloads=0	PASS	e-empty
+o6.2.shape	C06-SHAPE	e-zero-0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-zero-0
+o6.2.interned	C06-SHAPE	e-zero-0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	distinct-subterms==nodes	nodes=1 distinct=1 atoms=0 payloads=0	PASS	e-zero-0
+o6.2.shape	C06-SHAPE	e-zero-29	88664259575def679670121812a98cce3973dfd20f3dc30fe3e7c63907a44225	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-zero-29
+o6.2.interned	C06-SHAPE	e-zero-29	88664259575def679670121812a98cce3973dfd20f3dc30fe3e7c63907a44225	distinct-subterms==nodes	nodes=1 distinct=1 atoms=0 payloads=0	PASS	e-zero-29
+o6.2.shape	C06-SHAPE	e-zero-2pow40	129794d851342e483b7fa3e36402e12172d5a98454068c7284a34492f612cf1a	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-zero-2pow40
+o6.2.interned	C06-SHAPE	e-zero-2pow40	129794d851342e483b7fa3e36402e12172d5a98454068c7284a34492f612cf1a	distinct-subterms==nodes	nodes=1 distinct=1 atoms=0 payloads=0	PASS	e-zero-2pow40
+o6.2.shape	C06-SHAPE	e-atom-1	6df6c1ce0ffd7615090ecede9da3fb7d8490e4ab9ad875cc482f18c5128b9594	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-atom-1
+o6.2.interned	C06-SHAPE	e-atom-1	6df6c1ce0ffd7615090ecede9da3fb7d8490e4ab9ad875cc482f18c5128b9594	distinct-subterms==nodes	nodes=1 distinct=1 atoms=1 payloads=1	PASS	e-atom-1
+o6.2.shape	C06-SHAPE	e-atom-37	44cfd5d1ab75b2f733ba736c298f91ce63f30cf95b8e5981accb6d611db2fd10	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-atom-37
+o6.2.interned	C06-SHAPE	e-atom-37	44cfd5d1ab75b2f733ba736c298f91ce63f30cf95b8e5981accb6d611db2fd10	distinct-subterms==nodes	nodes=1 distinct=1 atoms=1 payloads=1	PASS	e-atom-37
+o6.2.shape	C06-DEDUP	e-atom-dup	55137a829ac854f33178cbe21a8b467896d61bdb5461504f4d8b5ef770d3a92a	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-atom-dup
+o6.2.interned	C06-DEDUP	e-atom-dup	55137a829ac854f33178cbe21a8b467896d61bdb5461504f4d8b5ef770d3a92a	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-atom-dup
+o6.2.shape	C06-DEDUP	e-atom-dup-klass	bf0e0b4c56ec3820bc674a76ccb98b03febd4508e6a2c6371a11475e5e9edd86	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-atom-dup-klass
+o6.2.interned	C06-DEDUP	e-atom-dup-klass	bf0e0b4c56ec3820bc674a76ccb98b03febd4508e6a2c6371a11475e5e9edd86	distinct-subterms==nodes	nodes=3 distinct=3 atoms=1 payloads=1	PASS	e-atom-dup-klass
+o6.2.shape	C06-SHAPE	e-concat-3	34753f27ecda9d8a78479477874f34a5bfad5538f41899cb79a0f76a9ccb3f69	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-concat-3
+o6.2.interned	C06-SHAPE	e-concat-3	34753f27ecda9d8a78479477874f34a5bfad5538f41899cb79a0f76a9ccb3f69	distinct-subterms==nodes	nodes=4 distinct=4 atoms=1 payloads=1	PASS	e-concat-3
+o6.2.shape	C06-SHARE	e-diamond	b372ce45076b2addf4749e21cb28b182e450055b90229555c263af522f95f663	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-diamond
+o6.2.interned	C06-SHARE	e-diamond	b372ce45076b2addf4749e21cb28b182e450055b90229555c263af522f95f663	distinct-subterms==nodes	nodes=3 distinct=3 atoms=1 payloads=1	PASS	e-diamond
+o6.2.shape	C06-SHARE	e-diamond-dupnode	9c1cef03b7781e33d852f38078aa9b42a5704c5bdc848710e6174c56a28d7811	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-diamond-dupnode
+o6.2.interned	C06-SHARE	e-diamond-dupnode	9c1cef03b7781e33d852f38078aa9b42a5704c5bdc848710e6174c56a28d7811	distinct-subterms==nodes	nodes=4 distinct=4 atoms=1 payloads=1	PASS	e-diamond-dupnode
+o6.2.shape	C06-SHARE	e-shared-xor	85e0491989c4b74e6dabf182c03a1392d0848c4f313725b3b4a2331a22dffb9b	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-shared-xor
+o6.2.interned	C06-SHARE	e-shared-xor	85e0491989c4b74e6dabf182c03a1392d0848c4f313725b3b4a2331a22dffb9b	distinct-subterms==nodes	nodes=3 distinct=3 atoms=0 payloads=0	PASS	e-shared-xor
+o6.2.shape	C06-SHAPE	e-repeat-3-6	e3fe8e1ae01d8b126474a0d2f760e3a9478105c259adbc0a662c0cbcceb15f2e	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-repeat-3-6
+o6.2.interned	C06-SHAPE	e-repeat-3-6	e3fe8e1ae01d8b126474a0d2f760e3a9478105c259adbc0a662c0cbcceb15f2e	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-repeat-3-6
+o6.2.shape	C06-SHAPE	e-slice-nested	b49db37f42215c36379dca0d784ac481ac9df861f3d8c50623ce9a9643d435a2	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-slice-nested
+o6.2.interned	C06-SHAPE	e-slice-nested	b49db37f42215c36379dca0d784ac481ac9df861f3d8c50623ce9a9643d435a2	distinct-subterms==nodes	nodes=3 distinct=3 atoms=0 payloads=0	PASS	e-slice-nested
+o6.2.shape	C06-KIND	e-morph-1	5bdcfb8bda45d6df8c615565078f73e1ad6bfd60c82b2b718a8e3d0a2888a852	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-1
+o6.2.interned	C06-KIND	e-morph-1	5bdcfb8bda45d6df8c615565078f73e1ad6bfd60c82b2b718a8e3d0a2888a852	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-1
+o6.2.shape	C06-KIND	e-morph-2	e89c7fb396599a73d0d3a4e7ee60da75f31777c4ffe7dd372e1caed4519929d5	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-2
+o6.2.interned	C06-KIND	e-morph-2	e89c7fb396599a73d0d3a4e7ee60da75f31777c4ffe7dd372e1caed4519929d5	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-2
+o6.2.shape	C06-KIND	e-morph-3	8cc1668405b1fc9cb54a924702b3088f918c91b933650556743578f077b8032b	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-3
+o6.2.interned	C06-KIND	e-morph-3	8cc1668405b1fc9cb54a924702b3088f918c91b933650556743578f077b8032b	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-3
+o6.2.shape	C06-KIND	e-morph-4	59cc78ab409308adb3c1ebc0738aab1a61f6bd8d7eabe8c3f81138c5507674bd	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-4
+o6.2.interned	C06-KIND	e-morph-4	59cc78ab409308adb3c1ebc0738aab1a61f6bd8d7eabe8c3f81138c5507674bd	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-4
+o6.2.shape	C06-KIND	e-morph-5	bac844688d6a6055ccdd0b566c3af00254fb8323e54b8d2a9053179a80d3df2a	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-5
+o6.2.interned	C06-KIND	e-morph-5	bac844688d6a6055ccdd0b566c3af00254fb8323e54b8d2a9053179a80d3df2a	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-5
+o6.2.shape	C06-KIND	e-morph-6	13350a7e1027068e645b31937b2f2455325a53be23fd96f862f95c1487673956	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-6
+o6.2.interned	C06-KIND	e-morph-6	13350a7e1027068e645b31937b2f2455325a53be23fd96f862f95c1487673956	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-6
+o6.2.shape	C06-KIND	e-morph-7	e7e322ade99f28bf6a0dee85607e7f198f0d9e7229ab5eeae4efffad57599a7f	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-7
+o6.2.interned	C06-KIND	e-morph-7	e7e322ade99f28bf6a0dee85607e7f198f0d9e7229ab5eeae4efffad57599a7f	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-7
+o6.2.shape	C06-KIND	e-morph-8	4415a235f99cd92743808a5d16dde22e9af2f5d083afaaae07e152ca1ad0bbd3	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-8
+o6.2.interned	C06-KIND	e-morph-8	4415a235f99cd92743808a5d16dde22e9af2f5d083afaaae07e152ca1ad0bbd3	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-8
+o6.2.shape	C06-KIND	e-morph-9	d2c0b10823f3a6a7121a4b7af74fd438d4479c27b09ffba1fd4fc43bdbc8a4a3	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-morph-9
+o6.2.interned	C06-KIND	e-morph-9	d2c0b10823f3a6a7121a4b7af74fd438d4479c27b09ffba1fd4fc43bdbc8a4a3	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-morph-9
+o6.2.shape	C06-KIND	e-xor	5978607143320538640f5ac934e8f8400a1ef083ebc07b47c2895ff56002e4e8	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-xor
+o6.2.interned	C06-KIND	e-xor	5978607143320538640f5ac934e8f8400a1ef083ebc07b47c2895ff56002e4e8	distinct-subterms==nodes	nodes=3 distinct=3 atoms=0 payloads=0	PASS	e-xor
+o6.2.shape	C06-KIND	e-interleave-s1	cc9f50fbfb11c88ba02f98fec7465e24d918b946def296e7d3a637f75da5c0c1	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-interleave-s1
+o6.2.interned	C06-KIND	e-interleave-s1	cc9f50fbfb11c88ba02f98fec7465e24d918b946def296e7d3a637f75da5c0c1	distinct-subterms==nodes	nodes=4 distinct=4 atoms=1 payloads=1	PASS	e-interleave-s1
+o6.2.shape	C06-KIND	e-interleave-s2	abe4d67731e5c0685459f7e0857a4a560d4a1f571924cc21ec7d626e883f5d2d	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-interleave-s2
+o6.2.interned	C06-KIND	e-interleave-s2	abe4d67731e5c0685459f7e0857a4a560d4a1f571924cc21ec7d626e883f5d2d	distinct-subterms==nodes	nodes=4 distinct=4 atoms=1 payloads=1	PASS	e-interleave-s2
+o6.2.shape	C06-KIND	e-interleave-s3	00c74fcef950f6067949af670baa1238f52c5befd5d2bbd965e69040dded71e5	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-interleave-s3
+o6.2.interned	C06-KIND	e-interleave-s3	00c74fcef950f6067949af670baa1238f52c5befd5d2bbd965e69040dded71e5	distinct-subterms==nodes	nodes=4 distinct=4 atoms=1 payloads=1	PASS	e-interleave-s3
+o6.2.shape	C06-KIND	e-interleave-s7	f8ee9070b2811d3b6f51b76b882309f060ea37d4b6e0d3f4abaa4992766e043e	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-interleave-s7
+o6.2.interned	C06-KIND	e-interleave-s7	f8ee9070b2811d3b6f51b76b882309f060ea37d4b6e0d3f4abaa4992766e043e	distinct-subterms==nodes	nodes=4 distinct=4 atoms=1 payloads=1	PASS	e-interleave-s7
+o6.2.shape	C06-KIND	e-lfsr-37	54d448d88255a5f301ec8edc4b159097bf0d4d6357d2c68dabd635b58f2ba621	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-lfsr-37
+o6.2.interned	C06-KIND	e-lfsr-37	54d448d88255a5f301ec8edc4b159097bf0d4d6357d2c68dabd635b58f2ba621	distinct-subterms==nodes	nodes=1 distinct=1 atoms=0 payloads=0	PASS	e-lfsr-37
+o6.2.shape	C06-KIND	e-affine-41	31e511882d8417ed6835415cfd013e10c538a28de08995cebbfe216cf05b7a9e	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-affine-41
+o6.2.interned	C06-KIND	e-affine-41	31e511882d8417ed6835415cfd013e10c538a28de08995cebbfe216cf05b7a9e	distinct-subterms==nodes	nodes=1 distinct=1 atoms=0 payloads=0	PASS	e-affine-41
+o6.2.shape	C06-KIND	e-pred-0	2296aed4d8ebfacc5eb09cbd682ce87d0fbdc58d65a9860d642c3dff60555728	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-pred-0
+o6.2.interned	C06-KIND	e-pred-0	2296aed4d8ebfacc5eb09cbd682ce87d0fbdc58d65a9860d642c3dff60555728	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-pred-0
+o6.2.shape	C06-KIND	e-pred-1	6b7953fee8bf724362b923b5fca2dedb7e9ac4c1231504225d691cc2a8f6444b	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-pred-1
+o6.2.interned	C06-KIND	e-pred-1	6b7953fee8bf724362b923b5fca2dedb7e9ac4c1231504225d691cc2a8f6444b	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-pred-1
+o6.2.shape	C06-KIND	e-pred-2	9013379436918af9c018a454595d8a78f05ad2f4a6ea7db49789fab15a85c7f1	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-pred-2
+o6.2.interned	C06-KIND	e-pred-2	9013379436918af9c018a454595d8a78f05ad2f4a6ea7db49789fab15a85c7f1	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-pred-2
+o6.2.shape	C06-KIND	e-pred-3	cc66f86ffb847ec13afc3b073369c4d4591f0fe528f32687a29958c1a08ea7a7	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-pred-3
+o6.2.interned	C06-KIND	e-pred-3	cc66f86ffb847ec13afc3b073369c4d4591f0fe528f32687a29958c1a08ea7a7	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-pred-3
+o6.2.shape	C06-KIND	e-pred-4	7dfdf2ccf598360eb9f80816a3c99ae991df6d5ca7b19e0aab5bbd571721f6e6	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-pred-4
+o6.2.interned	C06-KIND	e-pred-4	7dfdf2ccf598360eb9f80816a3c99ae991df6d5ca7b19e0aab5bbd571721f6e6	distinct-subterms==nodes	nodes=2 distinct=2 atoms=1 payloads=1	PASS	e-pred-4
+o6.2.shape	C06-DEEP	e-composite-all	07742d68820309dac343b4dc7c7fd70c714795695b7fb7425730997c42955fe8	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-composite-all
+o6.2.interned	C06-DEEP	e-composite-all	07742d68820309dac343b4dc7c7fd70c714795695b7fb7425730997c42955fe8	distinct-subterms==nodes	nodes=8 distinct=8 atoms=0 payloads=0	PASS	e-composite-all
+o6.2.shape	C06-DEEP	e-deep-xor-chain	a21bd41d8c521b5e7b0e2ae390df1d96c551c6758c8e676d047f69d664ff4454	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-deep-xor-chain
+o6.2.interned	C06-DEEP	e-deep-xor-chain	a21bd41d8c521b5e7b0e2ae390df1d96c551c6758c8e676d047f69d664ff4454	distinct-subterms==nodes	nodes=21 distinct=21 atoms=1 payloads=1	PASS	e-deep-xor-chain
+o6.2.shape	C06-DEEP	e-deep-morph-chain	bd1b6731db2ef8257b6b5acd9847fe0f47206a0da4430c20c529701bd1ecfddf	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-deep-morph-chain
+o6.2.interned	C06-DEEP	e-deep-morph-chain	bd1b6731db2ef8257b6b5acd9847fe0f47206a0da4430c20c529701bd1ecfddf	distinct-subterms==nodes	nodes=301 distinct=301 atoms=0 payloads=0	PASS	e-deep-morph-chain
+o6.2.shape	C06-SHARE	e-concat-wide-shared	15844159cc67b9c2689fb2f6269cefe25bd45d003720d56f9f966f0d5faf9ca6	canonical shape	root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf	PASS	e-concat-wide-shared
+o6.2.interned	C06-SHARE	e-concat-wide-shared	15844159cc67b9c2689fb2f6269cefe25bd45d003720d56f9f966f0d5faf9ca6	distinct-subterms==nodes	nodes=3 distinct=3 atoms=1 payloads=1	PASS	e-concat-wide-shared
+o6.3.atom_dedup	C06-SHAPE	e-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	unique payloads	0/0 distinct payloads	PASS	e-empty
+o6.3.atom_dedup	C06-SHAPE	e-zero-0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	unique payloads	0/0 distinct payloads	PASS	e-zero-0
+o6.3.atom_dedup	C06-SHAPE	e-zero-29	88664259575def679670121812a98cce3973dfd20f3dc30fe3e7c63907a44225	unique payloads	0/0 distinct payloads	PASS	e-zero-29
+o6.3.atom_dedup	C06-SHAPE	e-zero-2pow40	129794d851342e483b7fa3e36402e12172d5a98454068c7284a34492f612cf1a	unique payloads	0/0 distinct payloads	PASS	e-zero-2pow40
+o6.3.atom_dedup	C06-SHAPE	e-atom-1	6df6c1ce0ffd7615090ecede9da3fb7d8490e4ab9ad875cc482f18c5128b9594	unique payloads	1/1 distinct payloads	PASS	e-atom-1
+o6.3.atom_dedup	C06-SHAPE	e-atom-37	44cfd5d1ab75b2f733ba736c298f91ce63f30cf95b8e5981accb6d611db2fd10	unique payloads	1/1 distinct payloads	PASS	e-atom-37
+o6.3.atom_dedup	C06-DEDUP	e-atom-dup	55137a829ac854f33178cbe21a8b467896d61bdb5461504f4d8b5ef770d3a92a	unique payloads	1/1 distinct payloads	PASS	e-atom-dup
+o6.3.atom_dedup	C06-DEDUP	e-atom-dup-klass	bf0e0b4c56ec3820bc674a76ccb98b03febd4508e6a2c6371a11475e5e9edd86	unique payloads	1/1 distinct payloads	PASS	e-atom-dup-klass
+o6.3.atom_dedup	C06-SHAPE	e-concat-3	34753f27ecda9d8a78479477874f34a5bfad5538f41899cb79a0f76a9ccb3f69	unique payloads	1/1 distinct payloads	PASS	e-concat-3
+o6.3.atom_dedup	C06-SHARE	e-diamond	b372ce45076b2addf4749e21cb28b182e450055b90229555c263af522f95f663	unique payloads	1/1 distinct payloads	PASS	e-diamond
+o6.3.atom_dedup	C06-SHARE	e-diamond-dupnode	9c1cef03b7781e33d852f38078aa9b42a5704c5bdc848710e6174c56a28d7811	unique payloads	1/1 distinct payloads	PASS	e-diamond-dupnode
+o6.3.atom_dedup	C06-SHARE	e-shared-xor	85e0491989c4b74e6dabf182c03a1392d0848c4f313725b3b4a2331a22dffb9b	unique payloads	0/0 distinct payloads	PASS	e-shared-xor
+o6.3.atom_dedup	C06-SHAPE	e-repeat-3-6	e3fe8e1ae01d8b126474a0d2f760e3a9478105c259adbc0a662c0cbcceb15f2e	unique payloads	1/1 distinct payloads	PASS	e-repeat-3-6
+o6.3.atom_dedup	C06-SHAPE	e-slice-nested	b49db37f42215c36379dca0d784ac481ac9df861f3d8c50623ce9a9643d435a2	unique payloads	0/0 distinct payloads	PASS	e-slice-nested
+o6.3.atom_dedup	C06-KIND	e-morph-1	5bdcfb8bda45d6df8c615565078f73e1ad6bfd60c82b2b718a8e3d0a2888a852	unique payloads	1/1 distinct payloads	PASS	e-morph-1
+o6.3.atom_dedup	C06-KIND	e-morph-2	e89c7fb396599a73d0d3a4e7ee60da75f31777c4ffe7dd372e1caed4519929d5	unique payloads	1/1 distinct payloads	PASS	e-morph-2
+o6.3.atom_dedup	C06-KIND	e-morph-3	8cc1668405b1fc9cb54a924702b3088f918c91b933650556743578f077b8032b	unique payloads	1/1 distinct payloads	PASS	e-morph-3
+o6.3.atom_dedup	C06-KIND	e-morph-4	59cc78ab409308adb3c1ebc0738aab1a61f6bd8d7eabe8c3f81138c5507674bd	unique payloads	1/1 distinct payloads	PASS	e-morph-4
+o6.3.atom_dedup	C06-KIND	e-morph-5	bac844688d6a6055ccdd0b566c3af00254fb8323e54b8d2a9053179a80d3df2a	unique payloads	1/1 distinct payloads	PASS	e-morph-5
+o6.3.atom_dedup	C06-KIND	e-morph-6	13350a7e1027068e645b31937b2f2455325a53be23fd96f862f95c1487673956	unique payloads	1/1 distinct payloads	PASS	e-morph-6
+o6.3.atom_dedup	C06-KIND	e-morph-7	e7e322ade99f28bf6a0dee85607e7f198f0d9e7229ab5eeae4efffad57599a7f	unique payloads	1/1 distinct payloads	PASS	e-morph-7
+o6.3.atom_dedup	C06-KIND	e-morph-8	4415a235f99cd92743808a5d16dde22e9af2f5d083afaaae07e152ca1ad0bbd3	unique payloads	1/1 distinct payloads	PASS	e-morph-8
+o6.3.atom_dedup	C06-KIND	e-morph-9	d2c0b10823f3a6a7121a4b7af74fd438d4479c27b09ffba1fd4fc43bdbc8a4a3	unique payloads	1/1 distinct payloads	PASS	e-morph-9
+o6.3.atom_dedup	C06-KIND	e-xor	5978607143320538640f5ac934e8f8400a1ef083ebc07b47c2895ff56002e4e8	unique payloads	0/0 distinct payloads	PASS	e-xor
+o6.3.atom_dedup	C06-KIND	e-interleave-s1	cc9f50fbfb11c88ba02f98fec7465e24d918b946def296e7d3a637f75da5c0c1	unique payloads	1/1 distinct payloads	PASS	e-interleave-s1
+o6.3.atom_dedup	C06-KIND	e-interleave-s2	abe4d67731e5c0685459f7e0857a4a560d4a1f571924cc21ec7d626e883f5d2d	unique payloads	1/1 distinct payloads	PASS	e-interleave-s2
+o6.3.atom_dedup	C06-KIND	e-interleave-s3	00c74fcef950f6067949af670baa1238f52c5befd5d2bbd965e69040dded71e5	unique payloads	1/1 distinct payloads	PASS	e-interleave-s3
+o6.3.atom_dedup	C06-KIND	e-interleave-s7	f8ee9070b2811d3b6f51b76b882309f060ea37d4b6e0d3f4abaa4992766e043e	unique payloads	1/1 distinct payloads	PASS	e-interleave-s7
+o6.3.atom_dedup	C06-KIND	e-lfsr-37	54d448d88255a5f301ec8edc4b159097bf0d4d6357d2c68dabd635b58f2ba621	unique payloads	0/0 distinct payloads	PASS	e-lfsr-37
+o6.3.atom_dedup	C06-KIND	e-affine-41	31e511882d8417ed6835415cfd013e10c538a28de08995cebbfe216cf05b7a9e	unique payloads	0/0 distinct payloads	PASS	e-affine-41
+o6.3.atom_dedup	C06-KIND	e-pred-0	2296aed4d8ebfacc5eb09cbd682ce87d0fbdc58d65a9860d642c3dff60555728	unique payloads	1/1 distinct payloads	PASS	e-pred-0
+o6.3.atom_dedup	C06-KIND	e-pred-1	6b7953fee8bf724362b923b5fca2dedb7e9ac4c1231504225d691cc2a8f6444b	unique payloads	1/1 distinct payloads	PASS	e-pred-1
+o6.3.atom_dedup	C06-KIND	e-pred-2	9013379436918af9c018a454595d8a78f05ad2f4a6ea7db49789fab15a85c7f1	unique payloads	1/1 distinct payloads	PASS	e-pred-2
+o6.3.atom_dedup	C06-KIND	e-pred-3	cc66f86ffb847ec13afc3b073369c4d4591f0fe528f32687a29958c1a08ea7a7	unique payloads	1/1 distinct payloads	PASS	e-pred-3
+o6.3.atom_dedup	C06-KIND	e-pred-4	7dfdf2ccf598360eb9f80816a3c99ae991df6d5ca7b19e0aab5bbd571721f6e6	unique payloads	1/1 distinct payloads	PASS	e-pred-4
+o6.3.atom_dedup	C06-DEEP	e-composite-all	07742d68820309dac343b4dc7c7fd70c714795695b7fb7425730997c42955fe8	unique payloads	0/0 distinct payloads	PASS	e-composite-all
+o6.3.atom_dedup	C06-DEEP	e-deep-xor-chain	a21bd41d8c521b5e7b0e2ae390df1d96c551c6758c8e676d047f69d664ff4454	unique payloads	1/1 distinct payloads	PASS	e-deep-xor-chain
+o6.3.atom_dedup	C06-DEEP	e-deep-morph-chain	bd1b6731db2ef8257b6b5acd9847fe0f47206a0da4430c20c529701bd1ecfddf	unique payloads	0/0 distinct payloads	PASS	e-deep-morph-chain
+o6.3.atom_dedup	C06-SHARE	e-concat-wide-shared	15844159cc67b9c2689fb2f6269cefe25bd45d003720d56f9f966f0d5faf9ca6	unique payloads	1/1 distinct payloads	PASS	e-concat-wide-shared
+o6.3.atom_insertion_order	C06-DEDUP	reverse-registration	bd8d7c47a2e0ab75c1493164c0a303df0db3fbdb0577f317c29a13d684bbf192	identical Ir	identical Ir	PASS	atoms=3
+o6.3.atom_reuse_single_record	C06-DEDUP	duplicate-registration	7eb02363aaf505139a3cf16417eb5bcbd3b33df3167cf59104dd233d09209737	1 atom record	1 atom record(s)	PASS	ids=0,1
+o6.1.threaded_fragments	C06-THREAD	e-composite-all	07742d68820309dac343b4dc7c7fd70c714795695b7fb7425730997c42955fe8	4/4 threads identical Ir	4/4 threads identical Ir	PASS	completion-order-independent
+o6.1.repeat_determinism	C06	all-corpus-items	ea17658a750e7283172dfcc86e6a70d572766da90c9efb94001fe8b6537fb4d8	117/117 identical	117/117 identical	PASS	repeat-determinism
+o6.denotation	C06-SHAPE	e-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	denotation preserved	identical bytes	PASS	bytes=0
+o6.canon_consistency	C06-SHAPE	e-empty	3b817e859ece3da1e726c4fe72993dcfbbb1aaf7a8bfabef4df86ba1fdf0f4f6	canon(dag)==dag	canon(dag)==dag	PASS	e-empty
+o6.denotation	C06-SHAPE	e-zero-0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	denotation preserved	identical bytes	PASS	bytes=0
+o6.canon_consistency	C06-SHAPE	e-zero-0	a02dbff69fe2d0e99a0c61da8d63ce2cc2747dd395a3ba1d125dc95dd168416d	canon(dag)==dag	canon(dag)==dag	PASS	e-zero-0
+o6.denotation	C06-SHAPE	e-zero-29	88664259575def679670121812a98cce3973dfd20f3dc30fe3e7c63907a44225	denotation preserved	identical bytes	PASS	bytes=29
+o6.canon_consistency	C06-SHAPE	e-zero-29	88664259575def679670121812a98cce3973dfd20f3dc30fe3e7c63907a44225	canon(dag)==dag	canon(dag)==dag	PASS	e-zero-29
+o6.denotation	C06-SHAPE	e-zero-2pow40	129794d851342e483b7fa3e36402e12172d5a98454068c7284a34492f612cf1a	Limit above 4194304 B	Limit	PASS	len=1099511627776
+o6.canon_consistency	C06-SHAPE	e-zero-2pow40	129794d851342e483b7fa3e36402e12172d5a98454068c7284a34492f612cf1a	canon(dag) Ok	Ok	PASS	e-zero-2pow40
+o6.denotation	C06-SHAPE	e-atom-1	6df6c1ce0ffd7615090ecede9da3fb7d8490e4ab9ad875cc482f18c5128b9594	denotation preserved	identical bytes	PASS	bytes=1
+o6.canon_consistency	C06-SHAPE	e-atom-1	6df6c1ce0ffd7615090ecede9da3fb7d8490e4ab9ad875cc482f18c5128b9594	canon(dag)==dag	canon(dag)==dag	PASS	e-atom-1
+o6.denotation	C06-SHAPE	e-atom-37	44cfd5d1ab75b2f733ba736c298f91ce63f30cf95b8e5981accb6d611db2fd10	denotation preserved	identical bytes	PASS	bytes=37
+o6.canon_consistency	C06-SHAPE	e-atom-37	44cfd5d1ab75b2f733ba736c298f91ce63f30cf95b8e5981accb6d611db2fd10	canon(dag)==dag	canon(dag)==dag	PASS	e-atom-37
+o6.denotation	C06-DEDUP	e-atom-dup	55137a829ac854f33178cbe21a8b467896d61bdb5461504f4d8b5ef770d3a92a	denotation preserved	identical bytes	PASS	bytes=18
+o6.canon_consistency	C06-DEDUP	e-atom-dup	55137a829ac854f33178cbe21a8b467896d61bdb5461504f4d8b5ef770d3a92a	canon(dag) preserves denotation	denotation preserved	PASS	e-atom-dup
+o6.denotation	C06-DEDUP	e-atom-dup-klass	bf0e0b4c56ec3820bc674a76ccb98b03febd4508e6a2c6371a11475e5e9edd86	denotation preserved	identical bytes	PASS	bytes=13
+o6.canon_consistency	C06-DEDUP	e-atom-dup-klass	bf0e0b4c56ec3820bc674a76ccb98b03febd4508e6a2c6371a11475e5e9edd86	canon(dag)==dag	canon(dag)==dag	PASS	e-atom-dup-klass
+o6.denotation	C06-SHAPE	e-concat-3	34753f27ecda9d8a78479477874f34a5bfad5538f41899cb79a0f76a9ccb3f69	denotation preserved	identical bytes	PASS	bytes=33
+o6.canon_consistency	C06-SHAPE	e-concat-3	34753f27ecda9d8a78479477874f34a5bfad5538f41899cb79a0f76a9ccb3f69	canon(dag)==dag	canon(dag)==dag	PASS	e-concat-3
+o6.denotation	C06-SHARE	e-diamond	b372ce45076b2addf4749e21cb28b182e450055b90229555c263af522f95f663	denotation preserved	identical bytes	PASS	bytes=24
+o6.canon_consistency	C06-SHARE	e-diamond	b372ce45076b2addf4749e21cb28b182e450055b90229555c263af522f95f663	canon(dag)==dag	canon(dag)==dag	PASS	e-diamond
+o6.denotation	C06-SHARE	e-diamond-dupnode	9c1cef03b7781e33d852f38078aa9b42a5704c5bdc848710e6174c56a28d7811	denotation preserved	identical bytes	PASS	bytes=28
+o6.canon_consistency	C06-SHARE	e-diamond-dupnode	9c1cef03b7781e33d852f38078aa9b42a5704c5bdc848710e6174c56a28d7811	canon(dag)==dag	canon(dag)==dag	PASS	e-diamond-dupnode
+o6.denotation	C06-SHARE	e-shared-xor	85e0491989c4b74e6dabf182c03a1392d0848c4f313725b3b4a2331a22dffb9b	denotation preserved	identical bytes	PASS	bytes=48
+o6.canon_consistency	C06-SHARE	e-shared-xor	85e0491989c4b74e6dabf182c03a1392d0848c4f313725b3b4a2331a22dffb9b	canon(dag) preserves denotation	denotation preserved	PASS	e-shared-xor
+o6.denotation	C06-SHAPE	e-repeat-3-6	e3fe8e1ae01d8b126474a0d2f760e3a9478105c259adbc0a662c0cbcceb15f2e	denotation preserved	identical bytes	PASS	bytes=33
+o6.canon_consistency	C06-SHAPE	e-repeat-3-6	e3fe8e1ae01d8b126474a0d2f760e3a9478105c259adbc0a662c0cbcceb15f2e	canon(dag)==dag	canon(dag)==dag	PASS	e-repeat-3-6
+o6.denotation	C06-SHAPE	e-slice-nested	b49db37f42215c36379dca0d784ac481ac9df861f3d8c50623ce9a9643d435a2	denotation preserved	identical bytes	PASS	bytes=29
+o6.canon_consistency	C06-SHAPE	e-slice-nested	b49db37f42215c36379dca0d784ac481ac9df861f3d8c50623ce9a9643d435a2	canon(dag) preserves denotation	denotation preserved	PASS	e-slice-nested
+o6.denotation	C06-KIND	e-morph-1	5bdcfb8bda45d6df8c615565078f73e1ad6bfd60c82b2b718a8e3d0a2888a852	denotation preserved	identical bytes	PASS	bytes=29
+o6.canon_consistency	C06-KIND	e-morph-1	5bdcfb8bda45d6df8c615565078f73e1ad6bfd60c82b2b718a8e3d0a2888a852	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-1
+o6.denotation	C06-KIND	e-morph-2	e89c7fb396599a73d0d3a4e7ee60da75f31777c4ffe7dd372e1caed4519929d5	denotation preserved	identical bytes	PASS	bytes=29
+o6.canon_consistency	C06-KIND	e-morph-2	e89c7fb396599a73d0d3a4e7ee60da75f31777c4ffe7dd372e1caed4519929d5	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-2
+o6.denotation	C06-KIND	e-morph-3	8cc1668405b1fc9cb54a924702b3088f918c91b933650556743578f077b8032b	denotation preserved	identical bytes	PASS	bytes=32
+o6.canon_consistency	C06-KIND	e-morph-3	8cc1668405b1fc9cb54a924702b3088f918c91b933650556743578f077b8032b	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-3
+o6.denotation	C06-KIND	e-morph-4	59cc78ab409308adb3c1ebc0738aab1a61f6bd8d7eabe8c3f81138c5507674bd	denotation preserved	identical bytes	PASS	bytes=32
+o6.canon_consistency	C06-KIND	e-morph-4	59cc78ab409308adb3c1ebc0738aab1a61f6bd8d7eabe8c3f81138c5507674bd	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-4
+o6.denotation	C06-KIND	e-morph-5	bac844688d6a6055ccdd0b566c3af00254fb8323e54b8d2a9053179a80d3df2a	denotation preserved	identical bytes	PASS	bytes=32
+o6.canon_consistency	C06-KIND	e-morph-5	bac844688d6a6055ccdd0b566c3af00254fb8323e54b8d2a9053179a80d3df2a	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-5
+o6.denotation	C06-KIND	e-morph-6	13350a7e1027068e645b31937b2f2455325a53be23fd96f862f95c1487673956	denotation preserved	identical bytes	PASS	bytes=29
+o6.canon_consistency	C06-KIND	e-morph-6	13350a7e1027068e645b31937b2f2455325a53be23fd96f862f95c1487673956	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-6
+o6.denotation	C06-KIND	e-morph-7	e7e322ade99f28bf6a0dee85607e7f198f0d9e7229ab5eeae4efffad57599a7f	denotation preserved	identical bytes	PASS	bytes=29
+o6.canon_consistency	C06-KIND	e-morph-7	e7e322ade99f28bf6a0dee85607e7f198f0d9e7229ab5eeae4efffad57599a7f	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-7
+o6.denotation	C06-KIND	e-morph-8	4415a235f99cd92743808a5d16dde22e9af2f5d083afaaae07e152ca1ad0bbd3	denotation preserved	identical bytes	PASS	bytes=29
+o6.canon_consistency	C06-KIND	e-morph-8	4415a235f99cd92743808a5d16dde22e9af2f5d083afaaae07e152ca1ad0bbd3	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-8
+o6.denotation	C06-KIND	e-morph-9	d2c0b10823f3a6a7121a4b7af74fd438d4479c27b09ffba1fd4fc43bdbc8a4a3	denotation preserved	identical bytes	PASS	bytes=29
+o6.canon_consistency	C06-KIND	e-morph-9	d2c0b10823f3a6a7121a4b7af74fd438d4479c27b09ffba1fd4fc43bdbc8a4a3	canon(dag)==dag	canon(dag)==dag	PASS	e-morph-9
+o6.denotation	C06-KIND	e-xor	5978607143320538640f5ac934e8f8400a1ef083ebc07b47c2895ff56002e4e8	denotation preserved	identical bytes	PASS	bytes=35
+o6.canon_consistency	C06-KIND	e-xor	5978607143320538640f5ac934e8f8400a1ef083ebc07b47c2895ff56002e4e8	canon(dag)==dag	canon(dag)==dag	PASS	e-xor
+o6.denotation	C06-KIND	e-interleave-s1	cc9f50fbfb11c88ba02f98fec7465e24d918b946def296e7d3a637f75da5c0c1	denotation preserved	identical bytes	PASS	bytes=12
+o6.canon_consistency	C06-KIND	e-interleave-s1	cc9f50fbfb11c88ba02f98fec7465e24d918b946def296e7d3a637f75da5c0c1	canon(dag)==dag	canon(dag)==dag	PASS	e-interleave-s1
+o6.denotation	C06-KIND	e-interleave-s2	abe4d67731e5c0685459f7e0857a4a560d4a1f571924cc21ec7d626e883f5d2d	denotation preserved	identical bytes	PASS	bytes=24
+o6.canon_consistency	C06-KIND	e-interleave-s2	abe4d67731e5c0685459f7e0857a4a560d4a1f571924cc21ec7d626e883f5d2d	canon(dag)==dag	canon(dag)==dag	PASS	e-interleave-s2
+o6.denotation	C06-KIND	e-interleave-s3	00c74fcef950f6067949af670baa1238f52c5befd5d2bbd965e69040dded71e5	denotation preserved	identical bytes	PASS	bytes=36
+o6.canon_consistency	C06-KIND	e-interleave-s3	00c74fcef950f6067949af670baa1238f52c5befd5d2bbd965e69040dded71e5	canon(dag)==dag	canon(dag)==dag	PASS	e-interleave-s3
+o6.denotation	C06-KIND	e-interleave-s7	f8ee9070b2811d3b6f51b76b882309f060ea37d4b6e0d3f4abaa4992766e043e	denotation preserved	identical bytes	PASS	bytes=84
+o6.canon_consistency	C06-KIND	e-interleave-s7	f8ee9070b2811d3b6f51b76b882309f060ea37d4b6e0d3f4abaa4992766e043e	canon(dag)==dag	canon(dag)==dag	PASS	e-interleave-s7
+o6.denotation	C06-KIND	e-lfsr-37	54d448d88255a5f301ec8edc4b159097bf0d4d6357d2c68dabd635b58f2ba621	denotation preserved	identical bytes	PASS	bytes=37
+o6.canon_consistency	C06-KIND	e-lfsr-37	54d448d88255a5f301ec8edc4b159097bf0d4d6357d2c68dabd635b58f2ba621	canon(dag)==dag	canon(dag)==dag	PASS	e-lfsr-37
+o6.denotation	C06-KIND	e-affine-41	31e511882d8417ed6835415cfd013e10c538a28de08995cebbfe216cf05b7a9e	denotation preserved	identical bytes	PASS	bytes=41
+o6.canon_consistency	C06-KIND	e-affine-41	31e511882d8417ed6835415cfd013e10c538a28de08995cebbfe216cf05b7a9e	canon(dag)==dag	canon(dag)==dag	PASS	e-affine-41
+o6.denotation	C06-KIND	e-pred-0	2296aed4d8ebfacc5eb09cbd682ce87d0fbdc58d65a9860d642c3dff60555728	denotation preserved	identical bytes	PASS	bytes=33
+o6.canon_consistency	C06-KIND	e-pred-0	2296aed4d8ebfacc5eb09cbd682ce87d0fbdc58d65a9860d642c3dff60555728	canon(dag)==dag	canon(dag)==dag	PASS	e-pred-0
+o6.denotation	C06-KIND	e-pred-1	6b7953fee8bf724362b923b5fca2dedb7e9ac4c1231504225d691cc2a8f6444b	denotation preserved	identical bytes	PASS	bytes=33
+o6.canon_consistency	C06-KIND	e-pred-1	6b7953fee8bf724362b923b5fca2dedb7e9ac4c1231504225d691cc2a8f6444b	canon(dag)==dag	canon(dag)==dag	PASS	e-pred-1
+o6.denotation	C06-KIND	e-pred-2	9013379436918af9c018a454595d8a78f05ad2f4a6ea7db49789fab15a85c7f1	denotation preserved	identical bytes	PASS	bytes=33
+o6.canon_consistency	C06-KIND	e-pred-2	9013379436918af9c018a454595d8a78f05ad2f4a6ea7db49789fab15a85c7f1	canon(dag)==dag	canon(dag)==dag	PASS	e-pred-2
+o6.denotation	C06-KIND	e-pred-3	cc66f86ffb847ec13afc3b073369c4d4591f0fe528f32687a29958c1a08ea7a7	denotation preserved	identical bytes	PASS	bytes=33
+o6.canon_consistency	C06-KIND	e-pred-3	cc66f86ffb847ec13afc3b073369c4d4591f0fe528f32687a29958c1a08ea7a7	canon(dag)==dag	canon(dag)==dag	PASS	e-pred-3
+o6.denotation	C06-KIND	e-pred-4	7dfdf2ccf598360eb9f80816a3c99ae991df6d5ca7b19e0aab5bbd571721f6e6	denotation preserved	identical bytes	PASS	bytes=33
+o6.canon_consistency	C06-KIND	e-pred-4	7dfdf2ccf598360eb9f80816a3c99ae991df6d5ca7b19e0aab5bbd571721f6e6	canon(dag)==dag	canon(dag)==dag	PASS	e-pred-4
+o6.denotation	C06-DEEP	e-composite-all	07742d68820309dac343b4dc7c7fd70c714795695b7fb7425730997c42955fe8	denotation preserved	identical bytes	PASS	bytes=48
+o6.canon_consistency	C06-DEEP	e-composite-all	07742d68820309dac343b4dc7c7fd70c714795695b7fb7425730997c42955fe8	canon(dag) preserves denotation	denotation preserved	PASS	e-composite-all
+o6.denotation	C06-DEEP	e-deep-xor-chain	a21bd41d8c521b5e7b0e2ae390df1d96c551c6758c8e676d047f69d664ff4454	denotation preserved	identical bytes	PASS	bytes=32
+o6.canon_consistency	C06-DEEP	e-deep-xor-chain	a21bd41d8c521b5e7b0e2ae390df1d96c551c6758c8e676d047f69d664ff4454	canon(dag) preserves denotation	denotation preserved	PASS	e-deep-xor-chain
+o6.denotation	C06-DEEP	e-deep-morph-chain	bd1b6731db2ef8257b6b5acd9847fe0f47206a0da4430c20c529701bd1ecfddf	denotation preserved	identical bytes	PASS	bytes=64
+o6.canon_consistency	C06-DEEP	e-deep-morph-chain	bd1b6731db2ef8257b6b5acd9847fe0f47206a0da4430c20c529701bd1ecfddf	canon(dag) preserves denotation	denotation preserved	PASS	e-deep-morph-chain
+o6.denotation	C06-SHARE	e-concat-wide-shared	15844159cc67b9c2689fb2f6269cefe25bd45d003720d56f9f966f0d5faf9ca6	denotation preserved	identical bytes	PASS	bytes=96
+o6.canon_consistency	C06-SHARE	e-concat-wide-shared	15844159cc67b9c2689fb2f6269cefe25bd45d003720d56f9f966f0d5faf9ca6	canon(dag)==dag	canon(dag)==dag	PASS	e-concat-wide-shared
+errors	C06-ERR	empty-payload	52b174e2418a6c280f425bfe1dcf43c74f8c4cdf570eb5266f45dd72416a9433	Invalid	Invalid	PASS	W8.atom-length: zero-length atom
+errors	C06-ERR	missing-child	3e42055b86060a5adcf64b6c25272237836d8f217a4ab6c6c08ee3877253d529	Invalid	Invalid	PASS	args must be existing ids
+errors	C06-ERR	unknown-atom	965df4c5b2ed59d3916b863c42e18e3cb937f9969ae204e3bfb175d9ab4fd665	Invalid	Invalid	PASS	atom id not registered
+errors	C06-ERR	kind-domain	abb306c4b93f16d54b20e89686590283d661121fb96741e9bb365d1413ab51f7	Invalid	Invalid	PASS	kind outside 0..11
+errors	C06-ERR	flags-nonzero	4ea1af9ad6b861a35d517ba0dc1255b7626c66e3e415c587593bb571c0885af2	Invalid	Invalid	PASS	W4 flags must be 0
+errors	C06-ERR	unknown-root	18081a00aff8f68d3b70ce83b922d0deb65750538014de08ab264b5db51b6f81	Invalid	Invalid	PASS	root out of range
+errors	C06-ERR	ill-formed-finish	0502997a91b9a1aed22f32bd49923757010e397f2bea2f3d1a349615f4ed76e7	Invalid	Invalid	PASS	W8.argc: Concat argc < 2
+errors	C06-ERR	xor-length-mismatch	ba839d9e7b671b33530250191decf712e6eababd5774f2a1a847f7f5a18bae5c	Invalid	Invalid	PASS	W8.xor: operand lengths differ
+errors	C06-ERR	node-count-limit	2fb3015a5d592df6b4b8a0c1318e984db83a3a1d8294663c877794818fb0045a	Limit	Limit	PASS	W1 counts
+errors	C06-ERR	atom-count-limit	9fdca2bea980e54b7f3bfd5b546cb48a613ce180f538c2cb5c7ff1894e817c3f	Limit	Limit	PASS	W1 counts
+errors	C06-ERR	depth-limit-ok	3a7625187251e526945dc6a9c72db244ba005e8ce57020f43044ba87c5f6a80c	Ok	Ok	PASS	W7: depth 3 == max_depth is allowed
+errors	C06-ERR	depth-limit-exceeded	0bee6ec5927acbb4b0bbfeaf21ac69167feff2563ebb8c71a4bb897b684c6471	Limit	Limit	PASS	W7: depth 4 > max_depth
+errors	C06-ERR	output-cap	3ae28858ec32cac758c7b1732674847a5a388e6e1a51459f5a6832bd55aab4e2	Limit	Limit	PASS	§8.3 2^63 cap
+independence	C06	source-scan	3c73429dad9c1539406298d36630e7da878945a4e28757b3d62e7fc799ead62c	0 forbidden includes	0 forbidden includes across 14 files	PASS	source-scan
+coverage.kind	C06	all-12-kinds	f6b1a520a9e0d54c9dc8eadc9a9840ef10717313cfbc5e13d1491fefb5074d3c	12/12	12/12	PASS	all-12-kinds
+coverage.morph	C06	all-9-morphs	fa51619db5c750c6f29b7459cd289c552cfa8f99eb4c030a798da9f59bd6ade0	9/9	9/9	PASS	all-9-morphs
+coverage.predictor	C06	all-5-predictors	653a6d265ad8824bb83ad7acee0075ac38392a89fb0f1076848c51cd2b7ab8aa	5/5	5/5	PASS	all-5-predictors
+c06.summary	C06	all-checks	761b7ad8ad439b2855fcbb611331c646ef0870b0631247bba3f3025cb6df5a53	256 checks all PASS	pass=255 fail=0	PASS	summary
