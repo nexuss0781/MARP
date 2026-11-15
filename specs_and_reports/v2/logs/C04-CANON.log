@@ -1,0 +1,34 @@
+tool: C04-CANON evidence harness
+root: ..
+command_line: ./bin/e2_c04_gate --root .. --write-evidence
+compiler: 12.2.0
+std: c++20 (build flags in engine/Makefile.c04)
+canon rewrote t-concat3: nodes 4 -> 3, rewrites=5
+canon rewrote t-repeat-0-0: nodes 2 -> 1, rewrites=3
+canon rewrote t-slice-full: nodes 2 -> 1, rewrites=1
+canon rewrote t-slice-empty: nodes 2 -> 1, rewrites=3
+canon rewrote t-xor: nodes 3 -> 3, rewrites=1
+canon rewrote t-nest-xor-slice-repeat: nodes 5 -> 5, rewrites=1
+canon rewrote t-nest-morph-slice-xor: nodes 5 -> 5, rewrites=0
+canon rewrote t-deep-morph-chain: nodes 65 -> 1, rewrites=64
+denotation skipped (non-materialisable virtual term) t-big-repeat
+denotation skipped (non-materialisable virtual term) t-big-zero
+canon rewrote t-big-slice: nodes 2 -> 1, rewrites=2
+denotation skipped (non-materialisable virtual term) t-big-slice
+canon rewrote t-big-affine: nodes 2 -> 3, rewrites=1
+denotation skipped (non-materialisable virtual term) t-big-affine
+denotation skipped (non-materialisable virtual term) t-big-lfsr
+canon-corpus: passed=255/255
+redex-corpus: passed=114/114
+rule-coverage: passed=13/13
+atom-cases: passed=5/5
+canonical-key: passed=4/4
+budget-and-presupposition: passed=5/5
+determinism: passed=1/1
+independence: files=8 violations=0 tree_sha256=416da5cab0f3d0878ff62a7c1988831680f16b43cb2f6a4a26b6ec092839b5e1
+independence.library: violations=0
+independence: passed=2/2
+coverage: passed=3/3
+totals: checks=402 pass=402 fail=0
+rule_firings_total: 121
+RESULT: PASS (C04 CANON)
