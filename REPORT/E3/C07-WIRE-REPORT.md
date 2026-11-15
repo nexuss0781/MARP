@@ -2,8 +2,8 @@
 
 **Component**: C07 WIRE (E3 WIRE, first sub-component of E3).
 **Branch**: `arena/0c5e3d50-marp` (base `abe500b4a98725a214c7074ab0aa4ef90b0fbd18`).
-**Green CI run**: **[43740087464](https://github.com/nexuss0781/MARP/actions/runs/43740087464)** —
-conclusion `success`, commit **`93f7d6751b0d46839a8d3b760d7752ce71f38b0b`**.
+**Green CI run**: **[43743973411](https://github.com/nexuss0781/MARP/actions/runs/43743973411)** —
+conclusion `success`, commit **`4cd3b6f90e13aa737705dc15bb2fed71cbf1187b`**.
 Both jobs passed: `C07 independence (source level)` and `C07 build, tests, evidence`.
 
 **Status: C07 WIRE is complete and green.** 1170 of 1170 evidence rows `PASS`, 0 `FAIL`,
@@ -318,8 +318,8 @@ hand-edited value would fail the build.
 
 ## 8. CI, and how it maps to the §10 checklist
 
-Green run: **[43740087464](https://github.com/nexuss0781/MARP/actions/runs/43740087464)**
-at commit `93f7d6751b0d46839a8d3b760d7752ce71f38b0b` — `success`.
+Green run: **[43743973411](https://github.com/nexuss0781/MARP/actions/runs/43743973411)**
+at commit `4cd3b6f90e13aa737705dc15bb2fed71cbf1187b` — `success`.
 
 | §10 requirement | How CI proves it | Result |
 |---|---|---|
@@ -420,8 +420,8 @@ refused with `Limit` and documented in §6.
 
 1170/1170 evidence rows `PASS`; 48/48 unit tests pass in the strict build and
 under ASan+UBSan; CI run
-[43740087464](https://github.com/nexuss0781/MARP/actions/runs/43740087464) is green
-at commit `93f7d6751b0d46839a8d3b760d7752ce71f38b0b`, and the committed evidence
+[43743973411](https://github.com/nexuss0781/MARP/actions/runs/43743973411) is green
+at commit `4cd3b6f90e13aa737705dc15bb2fed71cbf1187b`, and the committed evidence
 is byte-identical to what that run generated.
 
 **E3-G is not claimed.** C08 LEGACY, the 100 000-case fuzz campaign, the `W-V1`
