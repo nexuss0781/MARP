@@ -121,10 +121,17 @@ c07-evidence: bin/c07_wire_gate
 # level (nothing from those layers may appear in the C07 objects).
 c07-isolation: $(C07_LIB_OBJS) bin/c07_wire_gate
 	@echo "Checking C07 sources for forbidden includes..."
-	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e4|e5|e6|e7|e3/e3_legacy)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' \
+	@# The C07 file list is explicit, never a glob over src/e3: that directory is
+	@# shared with C08 LEGACY (e3_legacy.cpp), which legitimately names decode_v1.
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' \
 	    src/e3/e3_wire.cpp src/e3/e3_wire_read.cpp src/e3/e3_wire_index.cpp \
 	    src/e3/e3_wire_internal.hpp ../include/mapr/e3/e3_wire.hpp; then \
 	  echo "FAIL: forbidden include in C07 sources"; exit 1; \
+	fi
+	@if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<]mapr/e3/e3_legacy\.hpp' \
+	    src/e3/e3_wire.cpp src/e3/e3_wire_read.cpp src/e3/e3_wire_index.cpp \
+	    src/e3/e3_wire_internal.hpp ../include/mapr/e3/e3_wire.hpp; then \
+	  echo "FAIL: C07 source includes the C08 legacy header"; exit 1; \
 	fi
 	@echo "Checking C07 sources for v1/legacy and environment access..."
 	@# Comments are stripped first: the header documents that `decode_v1` is absent,
