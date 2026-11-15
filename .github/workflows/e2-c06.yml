@@ -198,9 +198,12 @@ jobs:
           cd engine
           make -f Makefile.c06 bin/e2_c06_gate_san -j4
           ./bin/e2_c06_gate_san --root .. --write-evidence
+          # Only the TSV is compared here: the log's `command_line:` record
+          # necessarily names the sanitizer binary.  The log is restored and
+          # verified byte-for-byte by the "Restore the primary evidence set"
+          # step below, which re-runs ./bin/e2_c06_gate.
           diff -u /tmp/committed-C06-DAG.tsv ../specs_and_reports/v2/gates/C06-DAG.tsv
-          diff -u /tmp/committed-C06-DAG.log ../specs_and_reports/v2/logs/C06-DAG.log
-          echo "PASS: sanitizer evidence run reproduces the committed evidence"
+          echo "PASS: sanitizer evidence run reproduces the committed C06-DAG.tsv"
 
       - name: Restore the primary evidence set
         run: |-
