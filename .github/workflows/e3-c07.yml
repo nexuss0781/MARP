@@ -60,16 +60,23 @@ jobs:
       - name: Confirm every earlier evidence manifest still verifies
         run: |-
           set -euo pipefail
-          for component in E1 H1 H2 H3 E2 C04 C05 C06; do
-            if [ -f "specs_and_reports/v2/evidence/$component/SHA256SUMS" ]; then
-              sha256sum -c "specs_and_reports/v2/evidence/$component/SHA256SUMS"
-              echo "OK: $component"
-            else
-              echo "MISSING: $component/SHA256SUMS"
-              exit 1
-            fi
+          # Every manifest that exists before C07 is enumerated from the tree, so a
+          # component directory added later is covered automatically.  C07 is
+          # excluded here because its own manifest is verified in the build job.
+          count=0
+          for sums in specs_and_reports/v2/evidence/*/SHA256SUMS; do
+            case "$sums" in
+              */C07/SHA256SUMS) continue ;;
+            esac
+            sha256sum -c "$sums"
+            echo "OK: $sums"
+            count=$((count + 1))
           done
-          echo "PASS: E1/H1/H2/H3/E2/C04/C05/C06 evidence manifests still verify (no regression)"
+          if [ "$count" -lt 8 ]; then
+            echo "FAIL: expected at least 8 prior evidence manifests, found $count"
+            exit 1
+          fi
+          echo "PASS: $count prior evidence manifests still verify (no regression)"
 
   build-test-evidence:
     name: C07 build, tests, evidence
