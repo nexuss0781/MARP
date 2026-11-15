@@ -78,6 +78,8 @@ std::uint64_t gf2_apply(const Gf2Mat64& m, std::uint64_t v) noexcept {
     return out;
 }
 
+}  // namespace
+
 // Compute LFSR state after advancing `byte_offset * 8` bit steps in O(log byte_offset)
 std::uint64_t lfsr_jump_bytes(std::uint64_t conn,
                               std::uint64_t init,
@@ -658,8 +660,6 @@ std::size_t choose_chunk_size(std::uint32_t root_depth) noexcept {
     return 65536U;
 }
 
-} // namespace
-
 int eval_full_stream(const ParsedContainer& c,
                      const ByteSource& src,
                      const ChunkSink& sink,
@@ -863,6 +863,80 @@ int eval_range_stream(const ParsedContainer& c,
         done += take;
     }
     return 0;
+}
+
+} // namespace marp::oracle::detail
+
+// ---------------------------------------------------------------------------
+// Structural length recomputation (E2-G gate support)
+// ---------------------------------------------------------------------------
+
+namespace marp::oracle::detail {
+
+BigInt oracle_node_length(const ParsedContainer& c, std::uint32_t node, bool& ok) {
+    ok = true;
+    if (node >= c.nodes.size()) {
+        ok = false;
+        return BigInt();
+    }
+    std::vector<BigInt> lengths(c.nodes.size());
+    std::vector<char> known(c.nodes.size(), 0);
+    for (std::size_t i = 0; i < c.nodes.size(); ++i) {
+        const NodeRecord& n = c.nodes[i];
+        BigInt out;
+        bool node_ok = true;
+        switch (n.kind) {
+            case NodeKind::Empty:
+                out = BigInt();
+                break;
+            case NodeKind::Atom:
+                if (n.atom_id >= c.atoms.size()) node_ok = false;
+                else out = BigInt(c.atoms[n.atom_id].length);
+                break;
+            case NodeKind::Zero:
+            case NodeKind::Lfsr:
+            case NodeKind::Affine:
+                out = n.param_a;
+                break;
+            case NodeKind::Slice:
+                out = n.param_b;
+                break;
+            case NodeKind::Concat:
+                for (const std::uint32_t arg : n.args) {
+                    if (arg >= i || known[arg] == 0) { node_ok = false; break; }
+                    out = BigInt::add(out, lengths[arg]);
+                }
+                break;
+            case NodeKind::Repeat:
+                if (n.args.size() != 1 || n.args[0] >= i || known[n.args[0]] == 0) {
+                    node_ok = false;
+                } else {
+                    out = BigInt::add(BigInt::mul(n.param_a, lengths[n.args[0]]), n.param_b);
+                }
+                break;
+            case NodeKind::Morph:
+            case NodeKind::Xor:
+            case NodeKind::Predictor:
+                if (n.args.empty() || n.args[0] >= i || known[n.args[0]] == 0) node_ok = false;
+                else out = lengths[n.args[0]];
+                break;
+            case NodeKind::Interleave:
+                if (n.args.empty() || n.args[0] >= i || known[n.args[0]] == 0) node_ok = false;
+                else out = BigInt::mul_u64(lengths[n.args[0]],
+                                           static_cast<std::uint64_t>(n.args.size()));
+                break;
+            default:
+                node_ok = false;
+                break;
+        }
+        lengths[i] = out;
+        known[i] = node_ok ? 1 : 0;
+    }
+    if (known[node] == 0) {
+        ok = false;
+        return BigInt();
+    }
+    return lengths[node];
 }
 
 } // namespace marp::oracle::detail
