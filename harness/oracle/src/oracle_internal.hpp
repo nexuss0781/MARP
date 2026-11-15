@@ -229,4 +229,34 @@ int eval_range_stream(const ParsedContainer& c,
                       const Limits& limits,
                       Diagnostic* diag);
 
+// Direct range evaluation of one subterm `[start_offset, start_offset+out.size())`.
+// Exposed for the E2-G gate, which feeds the oracle a constructed container
+// (see engine/src/e2/e2g_oracle.cpp) and compares exact bytes.  No behaviour
+// change: this is the same function `eval_full_stream` / `eval_range_stream`
+// call internally.
+int eval_node_range_iterative(const ParsedContainer& c,
+                              const ByteSource& src,
+                              std::uint32_t start_node,
+                              const BigInt& start_offset,
+                              std::span<std::uint8_t> out,
+                              const Limits& limits,
+                              Diagnostic* diag);
+
+// Structural length recomputation of one node, exactly as the oracle's stage-8
+// validator computes it.  Exposed so the E2-G gate can compare the engine's
+// stored and recomputed lengths against the oracle's own arithmetic on a
+// constructed container.  `ok` is false when the node is structurally invalid.
+BigInt oracle_node_length(const ParsedContainer& c, std::uint32_t node, bool& ok);
+
+// LFSR primitives of the clean-room oracle: O(log offset) GF(2) jump-ahead and
+// MSB-first bit emission.  Exposed so the E2-G gate can compare the engine's
+// jump-ahead state and bytes against this independent implementation
+// (E2 §12.4 step 8).
+std::uint64_t lfsr_jump_bytes(std::uint64_t conn,
+                              std::uint64_t init,
+                              const BigInt& byte_offset) noexcept;
+void lfsr_emit(std::uint64_t conn,
+               std::uint64_t& state,
+               std::span<std::uint8_t> out) noexcept;
+
 } // namespace marp::oracle::detail

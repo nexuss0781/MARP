@@ -1,0 +1,278 @@
+name: MARP E2-G ALGEBRA CI
+
+# Isolated workflow for E2-G, the integrated E2 ALGEBRA gate (§12).
+#
+# It builds E1 + C03 TERM + C04 CANON + C05 EVAL + C06 DAG + the E2-G harness
+# through engine/Makefile.e2g, plus the H3 clean-room oracle compiled from
+# harness/oracle with its own headers.  It proves that no E3-E7 (wire /
+# container / discovery / selection / CLI) object is linked into the gate, and
+# that the committed E2 evidence is byte-reproducible from a clean checkout.
+# Nothing in this workflow touches another component's build.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  independence:
+    name: E2-G independence (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E3-E7 / harness includes in E2 sources
+        run: |-
+          set -euo pipefail
+          echo "Scanning include/mapr/e2 and engine/src/e2 for forbidden includes..."
+          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' include/mapr/e2 engine/src/e2; then
+            echo "FAIL: forbidden include found in E2 sources"
+            exit 1
+          fi
+          echo "PASS: no E3-E7 or harness include in E2 sources"
+
+      - name: The H3 oracle must not include any mapr/ header
+        run: |-
+          set -euo pipefail
+          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<]mapr/' harness/oracle/src harness/oracle/include; then
+            echo "FAIL: the H3 oracle includes an E1/E2 header (independence broken)"
+            exit 1
+          fi
+          echo "PASS: the H3 oracle is independent of E1 and E2"
+
+      - name: Reject non-C++ artefacts in E2 paths
+        run: |-
+          set -euo pipefail
+          if find include/mapr/e2 engine/src/e2 engine/tests/e2 -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+            echo "FAIL: script file found under an E2 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under E2 paths"
+
+      - name: Confirm earlier evidence manifests still verify
+        run: |-
+          set -euo pipefail
+          sha256sum -c specs_and_reports/v2/evidence/E1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H3/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C04/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C05/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C06/SHA256SUMS
+          echo "PASS: E1/H1/H3/C04/C05/C06 evidence manifests still verify"
+
+  isolation:
+    name: E2-G build, isolation, gate, evidence
+    runs-on: ubuntu-latest
+    needs: [independence]
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |-
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain)
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++
+
+      - name: Record toolchain (deliberately not part of the evidence)
+        run: |-
+          set -euo pipefail
+          g++ --version | head -1
+          echo "::notice::compiler=$(g++ -dumpfullversion -dumpversion)"
+
+      - name: Build E2-G (strict -Werror, -O2)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.e2g e2g-clean
+          make -f Makefile.e2g e2g-all -j4
+
+      - name: Verify E2-G independence on the built binary
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.e2g e2g-isolation
+
+      - name: Snapshot committed evidence and verify its manifest
+        run: |-
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/E2-G.tsv /tmp/committed-E2-G.tsv
+          cp specs_and_reports/v2/logs/E2-G.log /tmp/committed-E2-G.log
+          cp specs_and_reports/v2/evidence/E2G/SHA256SUMS /tmp/committed-E2-SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/E2G/SHA256SUMS
+          echo "PASS: committed E2 evidence manifest verified before regeneration"
+
+      - name: Generate E2-G evidence
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e2_g_gate --root .. --write-evidence
+
+      - name: Committed E2 evidence must match the CI-generated files byte for byte
+        run: |-
+          set -euo pipefail
+          diff -u /tmp/committed-E2-G.tsv specs_and_reports/v2/gates/E2-G.tsv
+          diff -u /tmp/committed-E2-G.log specs_and_reports/v2/logs/E2-G.log
+          diff -u /tmp/committed-E2-SHA256SUMS specs_and_reports/v2/evidence/E2G/SHA256SUMS
+          echo "PASS: committed E2-G.tsv, E2-G.log and SHA256SUMS are byte-for-byte identical to CI output"
+
+      - name: Evidence schema, verdicts and required checks
+        run: |-
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/E2-G.tsv"
+          LOG="specs_and_reports/v2/logs/E2-G.log"
+          SUMS="specs_and_reports/v2/evidence/E2G/SHA256SUMS"
+          test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
+          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $7 != "PASS" { print; exit 1 }' "$TSV"; then
+            echo "PASS: every E2-G row is PASS"
+          else
+            echo "FAIL: non-PASS verdict present in E2-G.tsv"
+            exit 1
+          fi
+          # --- required check families (spec §12.4 steps 2-13) ---
+          for req in precondition.e0g precondition.e1g precondition.h3_oracle \
+                     precondition.no_e3_e7 precondition.blocking \
+                     corpus.count corpus.bind corpus.shape corpus.kat \
+                     t_bad.reject t_bad.constraint t_bad.summary \
+                     step4.t_kat step4.t_gen step4.t_canon step4b.t_big \
+                     step5.t_noncanon step6.t_crit step7.m_kat step8.l_kat step9.t_range \
+                     step10.dag_order determinism.four_thread determinism.wf \
+                     determinism.length determinism.read_range_single \
+                     isolation.e3_e7 isolation.oracle_independent \
+                     coverage.rule coverage.kind coverage.morph coverage.predictor \
+                     length_exact.aggregate stored_length.aggregate denotation.aggregate \
+                     canon_wf.aggregate canon_idempotent.aggregate canon_is_canonical.aggregate \
+                     canon_budget.aggregate canon_preserves_denotation.aggregate \
+                     not_materialised.aggregate wf.aggregate \
+                     e2g.summary e2g.verdict; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+          # --- corpus sizes fixed by spec §12.2 ---
+          check_count() { # $1 = corpus name, $2 = expected count
+            awk -F'\t' -v c="$1" -v n="$2" '$1 == "corpus.count" && $2 == c { if ($6 != n) { print "FAIL: corpus " c " has " $6 " terms, expected " n; exit 1 } }' "$TSV"
+          }
+          check_count T-BAD 64
+          check_count T-BIG 64
+          check_count T-CRIT 1000
+          check_count T-GEN 5000
+          check_count T-KAT 128
+          check_count T-NONCANON 200
+          # --- coverage fixed by spec §12.4 step 11: every rule, kind, morph and
+          # predictor is measured at least once, and the row sets are complete.
+          # Rows are one per covered item, so completeness is a distinct-item count.
+          distinct() { # $1 = check name, $2 = expected number of distinct item_ids
+            n=$(awk -F'\t' -v c="$1" '$1 == c { seen[$3] = 1 } END { print length(seen) }' "$TSV")
+            if [ "$n" != "$2" ]; then
+              echo "FAIL: $1 covers $n items, expected $2"; exit 1
+            fi
+          }
+          distinct coverage.rule 13
+          distinct coverage.kind 12
+          distinct coverage.morph 9
+          distinct coverage.predictor 5
+          if awk -F'\t' '$1 == "coverage.rule" && $7 != "PASS"' "$TSV" | grep -q .; then
+            echo "FAIL: a rule-coverage row is not PASS"; exit 1
+          fi
+          awk -F'\t' '$1 == "coverage.rule" { printf "  %s: %s\n", $3, $6 }' "$TSV"
+          # --- T-BIG really is above 2^40 (spec §12.2) ---
+          awk -F'\t' '$1 == "t_big.length_above_2pow40" { n++ } END { if (n != 64) { print "FAIL: expected 64 T-BIG length rows, got " n; exit 1 } }' "$TSV"
+          # --- T-CRIT: 1000 join + 1000 wf + 1000 rules ---
+          for c in t_crit.join t_crit.wf t_crit.rules_exercised; do
+            awk -F'\t' -v c="$c" '$1 == c { n++ } END { if (n != 1000) { print "FAIL: " c " has " n " rows, expected 1000"; exit 1 } }' "$TSV"
+          done
+          # --- the verdict row says PASS ---
+          awk -F'\t' '$1 == "e2g.verdict" { if ($7 != "PASS") { print "verdict row not PASS"; exit 1 } }' "$TSV"
+          grep -q '^RESULT: PASS$' "$LOG"
+          grep -q '^# rows: .* fail=0$' "$LOG"
+          sha256sum -c "$SUMS"
+          echo "PASS: E2-G evidence schema, corpus sizes, coverage and verdict verified"
+          tail -3 "$LOG"
+
+      - name: Determinism (independent re-run must reproduce the evidence)
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e2_g_gate --root .. --write-evidence
+          diff -u /tmp/committed-E2-G.tsv ../specs_and_reports/v2/gates/E2-G.tsv
+          diff -u /tmp/committed-E2-G.log ../specs_and_reports/v2/logs/E2-G.log
+          diff -u /tmp/committed-E2-SHA256SUMS ../specs_and_reports/v2/evidence/E2G/SHA256SUMS
+          echo "PASS: repeat run produced byte-identical E2 evidence"
+
+      - name: AddressSanitizer + UBSan E2-G evidence run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.e2g bin/e2_g_gate_san -j4
+          ./bin/e2_g_gate_san --root .. --write-evidence
+          # Only the TSV is compared here: the log's `command_line:` record
+          # necessarily names the sanitizer binary.  Both files are restored and
+          # verified byte-for-byte by the next step, which re-runs the primary
+          # binary.
+          diff -u /tmp/committed-E2-G.tsv ../specs_and_reports/v2/gates/E2-G.tsv
+          echo "PASS: ASan+UBSan evidence run reproduces the committed E2-G.tsv with no diagnostics"
+
+      - name: Restore the primary evidence set
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e2_g_gate --root .. --write-evidence
+          diff -u /tmp/committed-E2-G.tsv ../specs_and_reports/v2/gates/E2-G.tsv
+          diff -u /tmp/committed-E2-G.log ../specs_and_reports/v2/logs/E2-G.log
+          cd ..
+          sha256sum -c specs_and_reports/v2/evidence/E2G/SHA256SUMS
+          echo "PASS: primary E2 evidence restored and self-consistent"
+
+      - name: No-regression check (C03-C06 and H3 evidence untouched)
+        run: |-
+          set -euo pipefail
+          git status --porcelain --untracked-files=no -- specs_and_reports REPORT | sed 's/^/changed: /' || true
+          if ! git diff --quiet -- specs_and_reports/v2/gates/C03-TERM.tsv \
+                specs_and_reports/v2/gates/C04-CANON.tsv \
+                specs_and_reports/v2/gates/C05-EVAL.tsv \
+                specs_and_reports/v2/gates/C06-DAG.tsv \
+                specs_and_reports/v2/logs/C03-TERM.log \
+                specs_and_reports/v2/logs/C04-CANON.log \
+                specs_and_reports/v2/logs/C05-EVAL.log \
+                specs_and_reports/v2/logs/C06-DAG.log \
+                specs_and_reports/v2/evidence/H3/SHA256SUMS \
+                specs_and_reports/v2/evidence/E2/SHA256SUMS \
+                harness/oracle; then
+            echo "FAIL: an earlier component's evidence or the H3 oracle changed"
+            exit 1
+          fi
+          # evidence/E2 belongs to the C03 gate; E2-G must write only evidence/E2G.
+          if git status --porcelain --untracked-files=all -- specs_and_reports/v2/evidence/E2 \
+                  | grep -q .; then
+            echo "FAIL: E2-G wrote into evidence/E2 (C03's directory)"
+            exit 1
+          fi
+          echo "PASS: C03/C04/C05/C06 evidence, evidence/E2 and the H3 oracle are unchanged by the E2-G run"
+
+      - name: Upload E2-G evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2-g-evidence
+          path: |
+            specs_and_reports/v2/gates/E2-G.tsv
+            specs_and_reports/v2/logs/E2-G.log
+            specs_and_reports/v2/corpus/E2/corpus.tsv
+            specs_and_reports/v2/corpus/E2/rewrites.tsv
+            specs_and_reports/v2/evidence/E2G/critical_pairs.md
+            specs_and_reports/v2/evidence/E2G/SHA256SUMS
+          retention-days: 30

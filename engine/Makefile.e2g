@@ -1,0 +1,118 @@
+# Isolated build for E2 ALGEBRA — E2-G, the integrated ALGEBRA gate (§12).
+#
+# Authority boundary (§10, §12.1): E2 depends only on E1 and on earlier E2
+# sub-components (C03 TERM, C04 CANON, C05 EVAL, C06 DAG).  This file compiles
+# E1 + E2 (all four sub-components) + the E2-G harness and refuses to pull in
+# E3–E7, wire, container, discovery, selection, CLI, certificate or E1/H1–H3
+# engine code.
+#
+# The denotation oracle is H3 (`../harness/oracle`), an independent clean-room
+# implementation.  It is compiled here from its own sources with its own
+# include paths; it includes no `mapr/` header and links no E2 object.
+#
+# Nothing here is reachable from engine/Makefile or from any other E2 makefile,
+# and adding E2-G does not change a single existing rule.
+
+CXX ?= g++
+E2G_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+E2G_INC  := -I. -I../include -Isrc/e2 -I../harness/oracle/include -I../harness/oracle/src
+
+# -O2 is E2 §12.4 step 1's build level.
+E2G_CXXFLAGS ?= $(E2G_WARN) -O2 $(E2G_INC)
+E2G_SANFLAGS := $(E2G_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(E2G_INC)
+
+E2G_E1_SRCS := src/e1_bigint.cpp src/e1_length.cpp src/e1_sha256.cpp
+E2G_E1_OBJS := $(patsubst src/%.cpp,obj/e2g/%.o,$(E2G_E1_SRCS))
+
+E2G_LIB_SRCS := src/e2/e2_term.cpp src/e2/e2_canon.cpp src/e2/e2_eval.cpp src/e2/e2_dag.cpp
+E2G_LIB_OBJS := $(patsubst src/%.cpp,obj/e2g/%.o,$(E2G_LIB_SRCS))
+
+# H3 oracle, compiled from `harness/oracle` with its own headers only.
+E2G_ORACLE_SRCS := ../harness/oracle/src/bigint.cpp \
+                   ../harness/oracle/src/crc32.cpp \
+                   ../harness/oracle/src/sha256.cpp \
+                   ../harness/oracle/src/decode.cpp \
+                   ../harness/oracle/src/eval.cpp
+E2G_ORACLE_OBJS := $(patsubst ../harness/oracle/src/%.cpp,obj/e2g_oracle/%.o,$(E2G_ORACLE_SRCS))
+
+# The gate's own sources live in `src/e2g/`, *not* in `src/e2/`.  The C03-C06
+# gates hash the file listing of `include/mapr/e2` + `engine/src/e2` into their
+# `independence` evidence row, so putting harness code there would change four
+# earlier components' evidence for no reason.  E2's own library directory stays
+# exactly as C06 left it.
+E2G_HARNESS_SRCS := src/e2g/e2g_terms.cpp src/e2g/e2g_oracle.cpp \
+                    src/e2g/e2g_corpus.cpp src/e2g/e2g_report.cpp
+E2G_HARNESS_OBJS := $(patsubst src/%.cpp,obj/e2g_harness/%.o,$(E2G_HARNESS_SRCS))
+
+E2G_GATE_SRC := src/e2g/e2g_gate.cpp
+E2G_GATE_OBJ := obj/e2g_gate/e2g_gate.o
+
+.PHONY: e2g-all e2g-evidence e2g-isolation e2g-check e2g-clean e2g-summary
+
+e2g-all: bin/e2_g_gate
+
+obj/e2g/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E2G_CXXFLAGS) -c $< -o $@
+
+obj/e2g_oracle/%.o: ../harness/oracle/src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E2G_CXXFLAGS) -c $< -o $@
+
+obj/e2g_harness/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E2G_CXXFLAGS) -c $< -o $@
+
+$(E2G_GATE_OBJ): $(E2G_GATE_SRC) src/e2g/e2g_corpus.hpp src/e2g/e2g_terms.hpp \
+                 src/e2g/e2g_oracle.hpp src/e2g/e2g_report.hpp \
+                 ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp \
+                 ../include/mapr/e2/e2_eval.hpp ../include/mapr/e2/e2_dag.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E2G_CXXFLAGS) -c $< -o $@
+
+bin/e2_g_gate: $(E2G_E1_OBJS) $(E2G_LIB_OBJS) $(E2G_ORACLE_OBJS) $(E2G_HARNESS_OBJS) $(E2G_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(E2G_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e2_g_gate_san: $(E2G_E1_SRCS) $(E2G_LIB_SRCS) $(E2G_HARNESS_SRCS) $(E2G_GATE_SRC) \
+                   $(E2G_ORACLE_SRCS)
+	@mkdir -p bin
+	$(CXX) $(E2G_SANFLAGS) -o $@ $(E2G_E1_SRCS) $(E2G_LIB_SRCS) $(E2G_HARNESS_SRCS) \
+	    $(E2G_GATE_SRC) $(E2G_ORACLE_SRCS) -pthread
+
+e2g-evidence: bin/e2_g_gate
+	./bin/e2_g_gate --root .. --write-evidence
+
+# E2-G may not link E3-E7.  Checked at source level (includes) and at symbol
+# level (nothing from the wire/discovery/CLI layers may appear in the binary).
+e2g-isolation: bin/e2_g_gate
+	@echo "Checking E2-G sources for forbidden E3-E7 includes..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' \
+	    src/e2g/e2g_gate.cpp src/e2g/e2g_terms.cpp src/e2g/e2g_oracle.cpp \
+	    src/e2g/e2g_corpus.cpp src/e2g/e2g_report.cpp \
+	    src/e2g/e2g_corpus.hpp src/e2g/e2g_terms.hpp src/e2g/e2g_oracle.hpp \
+	    src/e2g/e2g_report.hpp; then \
+	  echo "FAIL: forbidden include in E2-G sources"; exit 1; \
+	fi
+	@echo "Checking the oracle for mapr/ includes (must be zero)..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<]mapr/' \
+	    ../harness/oracle/src ../harness/oracle/include; then \
+	  echo "FAIL: the H3 oracle includes an E1/E2 header"; exit 1; \
+	fi
+	@nm -C bin/e2_g_gate > /tmp/e2g_nm.txt
+	@if grep -E 'mapr::(container|Encoder|Decoder)::|marp::harness::|marp::v2::(encode|decode|Discovery|Select|Cli|Mau|Cert)' /tmp/e2g_nm.txt; then \
+	  rm -f /tmp/e2g_nm.txt; echo "FAIL: forbidden symbol linked into E2-G"; exit 1; \
+	fi
+	@printf 'Symbol scan: %s symbols, 0 forbidden\n' "$$(wc -l < /tmp/e2g_nm.txt)"
+	@rm -f /tmp/e2g_nm.txt
+	@echo "PASS: E2-G is source- and link-independent of E3-E7, and the oracle is independent of E1/E2"
+
+e2g-check: e2g-isolation
+	@echo "PASS: E2-G structural checks complete"
+
+e2g-clean:
+	rm -rf obj/e2g obj/e2g_oracle obj/e2g_harness obj/e2g_gate
+	rm -f bin/e2_g_gate bin/e2_g_gate_san
