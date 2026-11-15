@@ -1,0 +1,146 @@
+# Isolated build for E3 WIRE — C08 LEGACY (read-only v1.0.1 / v1.1 decoder).
+#
+# Authority boundary (SPECS/COMPONENTS/e3-wire/SPECS.md §6.3, §11, §12):
+#   - C08 depends ONLY on frozen E1 and frozen E2 (TERM, CANON, EVAL, DAG).
+#   - C08 MUST NOT link E4–E7, Stage 1/2 v1 writer/container/encoder/decoder,
+#     discovery, rewrite, selection, CLI, or certificate code.
+#   - v1 emission/writing is absent from the library object and unreachable
+#     from any v2 encode path.
+
+CXX ?= g++
+C08_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+C08_INC  := -I. -I../include
+
+C08_CXXFLAGS ?= $(C08_WARN) -O2 $(C08_INC)
+C08_SANFLAGS := $(C08_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(C08_INC)
+
+GTEST_PREBUILT_INC := $(wildcard /tmp/googletest/googletest/include)
+GTEST_PREBUILT_LIB := $(wildcard /tmp/googletest/build/lib/libgtest.a)
+GTEST_LOCAL_INC    := $(wildcard /usr/local/include/gtest)
+GTEST_LOCAL_LIB    := $(wildcard /usr/local/lib/libgtest.a)
+ifneq ($(GTEST_PREBUILT_INC),)
+  C08_GTEST_CFLAGS := -isystem $(GTEST_PREBUILT_INC) -isystem /usr/local/include
+else
+  C08_GTEST_CFLAGS := -isystem /usr/local/include
+endif
+ifneq ($(GTEST_PREBUILT_LIB),)
+  C08_GTEST_LIBS := -L/tmp/googletest/build/lib -lgtest -lgtest_main
+else ifneq ($(GTEST_LOCAL_INC),)
+  C08_GTEST_LIBS := -L/usr/local/lib -lgtest -lgtest_main
+else
+  C08_GTEST_LIBS := -lgtest -lgtest_main
+endif
+
+C08_E1_SRCS  := src/e1_bigint.cpp src/e1_crc32.cpp src/e1_length.cpp src/e1_sha256.cpp
+C08_E1_OBJS  := $(patsubst src/%.cpp,obj/c08/%.o,$(C08_E1_SRCS))
+
+C08_E2_SRCS  := src/e2/e2_term.cpp src/e2/e2_canon.cpp src/e2/e2_eval.cpp src/e2/e2_dag.cpp
+C08_E2_OBJS  := $(patsubst src/%.cpp,obj/c08/%.o,$(C08_E2_SRCS))
+
+C08_LIB_SRC  := src/e3/e3_legacy.cpp
+C08_LIB_OBJ  := obj/c08/e3/e3_legacy.o
+
+C08_GATE_SRC     := src/e3/e3_c08_gate.cpp
+C08_GATE_OBJ     := obj/c08_gate/e3_c08_gate.o
+C08_HARNESS_SRC  := ../harness/src/gates.cpp
+C08_HARNESS_OBJ  := obj/c08_gate/harness_gates.o
+
+C08_TEST_SRC := tests/e3/e3_legacy_test.cpp
+C08_TEST_OBJ := obj/c08_tests/e3_legacy_test.o
+
+.PHONY: c08-all c08-test c08-test-san c08-evidence c08-verify-evidence c08-isolation c08-check c08-clean
+
+c08-all: bin/e3_c08_gate bin/e3_c08_tests
+
+obj/c08/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C08_CXXFLAGS) -c $< -o $@
+
+$(C08_LIB_OBJ): $(C08_LIB_SRC) ../include/mapr/e3/e3_legacy.hpp \
+                ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp \
+                ../include/mapr/e2/e2_eval.hpp ../include/mapr/e2/e2_dag.hpp \
+                ../include/mapr/e1_bigint.hpp ../include/mapr/e1_crc32.hpp \
+                ../include/mapr/e1_length.hpp ../include/mapr/e1_sha256.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C08_CXXFLAGS) -c $< -o $@
+
+$(C08_HARNESS_OBJ): $(C08_HARNESS_SRC) ../harness/include/marp/harness/gates.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C08_CXXFLAGS) -I../harness/include -c $< -o $@
+
+$(C08_GATE_OBJ): $(C08_GATE_SRC) ../include/mapr/e3/e3_legacy.hpp \
+                 ../harness/include/marp/harness/gates.hpp tests/e3/v1_test_vectors.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C08_CXXFLAGS) -I../harness/include -c $< -o $@
+
+$(C08_TEST_OBJ): $(C08_TEST_SRC) ../include/mapr/e3/e3_legacy.hpp tests/e3/v1_test_vectors.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C08_CXXFLAGS) $(C08_GTEST_CFLAGS) -c $< -o $@
+
+bin/e3_c08_gate: $(C08_E1_OBJS) $(C08_E2_OBJS) $(C08_LIB_OBJ) $(C08_HARNESS_OBJ) $(C08_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C08_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e3_c08_tests: $(C08_E1_OBJS) $(C08_E2_OBJS) $(C08_LIB_OBJ) $(C08_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C08_CXXFLAGS) -o $@ $^ $(C08_GTEST_LIBS) -pthread
+
+bin/e3_c08_tests_san: $(C08_E1_SRCS) $(C08_E2_SRCS) $(C08_LIB_SRC) $(C08_TEST_SRC) \
+                      tests/e3/v1_test_vectors.hpp
+	@mkdir -p bin
+	$(CXX) $(C08_SANFLAGS) $(C08_GTEST_CFLAGS) -o $@ \
+	  $(C08_E1_SRCS) $(C08_E2_SRCS) $(C08_LIB_SRC) $(C08_TEST_SRC) $(C08_GTEST_LIBS) -pthread
+
+bin/e3_c08_gate_san: $(C08_E1_SRCS) $(C08_E2_SRCS) $(C08_LIB_SRC) $(C08_HARNESS_SRC) $(C08_GATE_SRC) \
+                     tests/e3/v1_test_vectors.hpp
+	@mkdir -p bin
+	$(CXX) $(C08_SANFLAGS) -I../harness/include -o $@ \
+	  $(C08_E1_SRCS) $(C08_E2_SRCS) $(C08_LIB_SRC) $(C08_HARNESS_SRC) $(C08_GATE_SRC) -pthread
+
+c08-test: bin/e3_c08_tests
+	./bin/e3_c08_tests
+
+c08-test-san: bin/e3_c08_tests_san bin/e3_c08_gate_san
+	./bin/e3_c08_tests_san
+	@mkdir -p /tmp/c08_san_evid
+	./bin/e3_c08_gate_san --root .. --out-root /tmp/c08_san_evid
+	@rm -rf /tmp/c08_san_evid
+
+c08-evidence: bin/e3_c08_gate
+	./bin/e3_c08_gate --root ..
+
+c08-verify-evidence: bin/e3_c08_gate
+	./bin/e3_c08_gate --root .. --verify
+
+c08-isolation: $(C08_E1_OBJS) $(C08_E2_OBJS) $(C08_LIB_OBJ)
+	@echo "Checking C08 library header/source for forbidden includes & v1 emission..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e4|e5|e6|e7)|marp/harness|mapr/(container|bitio|encoder|decoder|pipeline|mau_translate))' \
+	    src/e3/e3_legacy.cpp ../include/mapr/e3/e3_legacy.hpp; then \
+	  echo "FAIL: forbidden include in C08 library"; exit 1; \
+	fi
+	@if grep -rnE '(ContainerWriter|BitWriter|serialize_chunk_dag|encode_v1|write_v1)' \
+	    src/e3/e3_legacy.cpp ../include/mapr/e3/e3_legacy.hpp; then \
+	  echo "FAIL: v1 writer token present in C08 library"; exit 1; \
+	fi
+	@echo "Checking C08 object symbols via nm..."
+	@nm -C $(C08_LIB_OBJ) > /tmp/e3_c08_nm.txt
+	@if grep -E 'ContainerWriter|BitWriter|serialize_chunk_dag|encode_v1|write_v1|marp::harness::|mapr::(Encoder|Decoder)::' /tmp/e3_c08_nm.txt; then \
+	  rm -f /tmp/e3_c08_nm.txt; echo "FAIL: forbidden symbol in e3_legacy.o"; exit 1; \
+	fi
+	@rm -f /tmp/e3_c08_nm.txt
+	@echo "Checking decode_v1 is unreachable from any v2 encode source..."
+	@if find src ../include -type f \( -name '*.cpp' -o -name '*.hpp' \) \
+	    ! -path 'src/e3/e3_legacy.cpp' ! -path 'src/e3/e3_c08_gate.cpp' ! -path '../include/mapr/e3/e3_legacy.hpp' \
+	    -exec grep -HnE '\b(decode_v1|looks_like_v1)\b' {} + | grep -v '^$$'; then \
+	  echo "FAIL: legacy v1 symbols referenced outside C08"; exit 1; \
+	fi
+	@echo "C08 isolation checks PASS."
+
+c08-check: c08-all c08-isolation c08-test c08-test-san c08-verify-evidence
+
+c08-clean:
+	rm -rf obj/c08 obj/c08_gate obj/c08_tests \
+	       bin/e3_c08_gate bin/e3_c08_tests bin/e3_c08_tests_san bin/e3_c08_gate_san
