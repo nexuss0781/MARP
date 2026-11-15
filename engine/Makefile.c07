@@ -1,0 +1,155 @@
+# Isolated build for E3 WIRE — C07 WIRE.
+#
+# Authority boundary (E3 §2.2, §11, §13.1): E3 depends only on E1 (frozen) and E2
+# (frozen).  This file compiles E1 + E2 + C07 WIRE + the C07 harness and refuses
+# to pull in E4–E7, discovery, selection, CLI, certificate, v1/legacy code, the
+# container/encoder/decoder pipeline, or any harness object.
+#
+# Nothing here is reachable from engine/Makefile or from any other component's
+# makefile; adding C07 does not change a single existing rule.
+#
+# `bin/c07_tests` links GoogleTest (tests only).  `bin/c07_wire_gate` and the
+# library objects link no test framework, so the isolation check can prove the
+# shipped component has no third-party dependency beyond E1/E2/stdlib.
+
+CXX ?= g++
+C07_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+C07_INC  := -I. -I../include -Isrc/e3
+
+# -O2 is E3 §13.4 step 1's build level.
+C07_CXXFLAGS ?= $(C07_WARN) -O2 $(C07_INC)
+C07_SANFLAGS := $(C07_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(C07_INC)
+
+# GoogleTest is needed by the unit tests only.
+GTEST_PREBUILT_INC := $(wildcard /tmp/googletest/googletest/include)
+GTEST_PREBUILT_LIB := $(wildcard /tmp/gtest-lib/libgtest.a)
+GTEST_LOCAL_INC     := $(wildcard /usr/local/include/gtest)
+GTEST_LOCAL_LIB     := $(wildcard /usr/local/lib/libgtest.a)
+ifneq ($(GTEST_PREBUILT_INC),)
+  C07_GTEST_CFLAGS := -isystem $(GTEST_PREBUILT_INC)
+else
+  C07_GTEST_CFLAGS := -isystem /usr/local/include
+endif
+ifneq ($(GTEST_PREBUILT_LIB),)
+  C07_GTEST_LIBS := -L/tmp/gtest-lib -lgtest -lgtest_main
+else ifneq ($(GTEST_LOCAL_INC),)
+  C07_GTEST_LIBS := -L/usr/local/lib -lgtest -lgtest_main
+else
+  C07_GTEST_LIBS := -lgtest -lgtest_main
+endif
+
+# --- E1 (frozen) -----------------------------------------------------------
+C07_E1_SRCS := src/e1_bigint.cpp src/e1_sha256.cpp src/e1_crc32.cpp
+C07_E1_OBJS := $(patsubst src/%.cpp,obj/c07/%.o,$(C07_E1_SRCS))
+
+# --- E2 (frozen) -----------------------------------------------------------
+C07_E2_SRCS := src/e2/e2_term.cpp src/e2/e2_canon.cpp src/e2/e2_eval.cpp src/e2/e2_dag.cpp
+C07_E2_OBJS := $(patsubst src/%.cpp,obj/c07/%.o,$(C07_E2_SRCS))
+
+# --- C07 WIRE --------------------------------------------------------------
+C07_LIB_SRCS := src/e3/e3_wire.cpp src/e3/e3_wire_read.cpp src/e3/e3_wire_index.cpp
+C07_LIB_OBJS := $(patsubst src/%.cpp,obj/c07/%.o,$(C07_LIB_SRCS))
+
+C07_HEADERS := ../include/mapr/e3/e3_wire.hpp src/e3/e3_wire_internal.hpp
+C07_E1_HEADERS := ../include/mapr/e1_types.hpp ../include/mapr/e1_bigint.hpp \
+                  ../include/mapr/e1_sha256.hpp ../include/mapr/e1_crc32.hpp
+C07_E2_HEADERS := ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp \
+                  ../include/mapr/e2/e2_eval.hpp ../include/mapr/e2/e2_dag.hpp
+
+# --- harness ---------------------------------------------------------------
+C07_HARNESS_SRCS := src/e3g/c07_corpus.cpp src/e3g/c07_report.cpp \
+                    src/e3g/c07_oracle.cpp src/e3g/c07_gate.cpp src/e3g/c07_main.cpp
+C07_HARNESS_OBJS := $(patsubst src/%.cpp,obj/c07h/%.o,$(C07_HARNESS_SRCS))
+
+# --- tests -----------------------------------------------------------------
+C07_TEST_SRC := tests/e3/c07_wire_test.cpp
+C07_TEST_OBJ := obj/c07t/c07_wire_test.o
+
+.PHONY: c07-all c07-test c07-test-san c07-evidence c07-isolation c07-check c07-clean c07-gate
+
+c07-all: bin/c07_wire_gate bin/c07_tests
+
+obj/c07/%.o: src/%.cpp $(C07_HEADERS) $(C07_E1_HEADERS) $(C07_E2_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(C07_CXXFLAGS) -c $< -o $@
+
+obj/c07h/%.o: src/%.cpp $(C07_HEADERS) $(C07_E1_HEADERS) $(C07_E2_HEADERS) \
+               src/e3g/c07_corpus.hpp src/e3g/c07_report.hpp src/e3g/c07_oracle.hpp \
+               src/e3g/c07_checks.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C07_CXXFLAGS) -c $< -o $@
+
+$(C07_TEST_OBJ): $(C07_TEST_SRC) $(C07_HEADERS) $(C07_E2_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(C07_CXXFLAGS) $(C07_GTEST_CFLAGS) -c $< -o $@
+
+bin/c07_wire_gate: $(C07_E1_OBJS) $(C07_E2_OBJS) $(C07_LIB_OBJS) $(C07_HARNESS_OBJS)
+	@mkdir -p bin
+	$(CXX) $(C07_CXXFLAGS) -o $@ $^ -pthread
+
+bin/c07_tests: $(C07_E1_OBJS) $(C07_E2_OBJS) $(C07_LIB_OBJS) $(C07_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C07_CXXFLAGS) -o $@ $^ $(C07_GTEST_LIBS) -pthread
+
+bin/c07_tests_san: $(C07_E1_SRCS) $(C07_E2_SRCS) $(C07_LIB_SRCS) $(C07_TEST_SRC) $(C07_HEADERS)
+	@mkdir -p bin
+	$(CXX) $(C07_SANFLAGS) $(C07_GTEST_CFLAGS) -o $@ $(C07_E1_SRCS) $(C07_E2_SRCS) \
+	    $(C07_LIB_SRCS) $(C07_TEST_SRC) $(C07_GTEST_LIBS) -pthread
+
+bin/c07_wire_gate_san: $(C07_E1_SRCS) $(C07_E2_SRCS) $(C07_LIB_SRCS) $(C07_HARNESS_SRCS) \
+                       $(C07_HEADERS)
+	@mkdir -p bin
+	$(CXX) $(C07_SANFLAGS) -o $@ $(C07_E1_SRCS) $(C07_E2_SRCS) $(C07_LIB_SRCS) \
+	    $(C07_HARNESS_SRCS) -pthread
+
+c07-gate: bin/c07_wire_gate
+
+c07-test: bin/c07_tests
+	./bin/c07_tests --gtest_color=no
+
+c07-test-san: bin/c07_tests_san
+	./bin/c07_tests_san --gtest_color=no
+
+c07-evidence: bin/c07_wire_gate
+	./bin/c07_wire_gate --root .. --write-evidence
+
+# C07 may not link or include E4–E7, discovery, selection, CLI, certificate,
+# v1/legacy, or harness code.  Checked at source level (includes) and at symbol
+# level (nothing from those layers may appear in the C07 objects).
+c07-isolation: $(C07_LIB_OBJS) bin/c07_wire_gate
+	@echo "Checking C07 sources for forbidden includes..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e4|e5|e6|e7|e3/e3_legacy)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' \
+	    src/e3/e3_wire.cpp src/e3/e3_wire_read.cpp src/e3/e3_wire_index.cpp \
+	    src/e3/e3_wire_internal.hpp ../include/mapr/e3/e3_wire.hpp; then \
+	  echo "FAIL: forbidden include in C07 sources"; exit 1; \
+	fi
+	@echo "Checking C07 sources for v1/legacy and environment access..."
+	@# Comments are stripped first: the header documents that `decode_v1` is absent,
+	@# which is not a dependency.  Only real code is scanned.
+	@if sed -E 's://.*::' src/e3/e3_wire.cpp src/e3/e3_wire_read.cpp src/e3/e3_wire_index.cpp \
+	      ../include/mapr/e3/e3_wire.hpp | grep -nE '(decode_v1|looks_like_v1|getenv|std::getenv|std::chrono|time\(|locale)'; then \
+	  echo "FAIL: legacy or environment dependency in C07 sources"; exit 1; \
+	fi
+	@nm -C $(C07_LIB_OBJS) > /tmp/c07_nm.txt
+	@if grep -E 'mapr::(container|Encoder|Decoder|Pipeline)::|marp::harness::|marp::v2::(Dag|canon)\(|marp::v2::(decode_v1|looks_like_v1)' /tmp/c07_nm.txt; then \
+	  rm -f /tmp/c07_nm.txt; echo "FAIL: forbidden symbol linked into C07 objects"; exit 1; \
+	fi
+	@echo "C07 objects: $$(wc -l < /tmp/c07_nm.txt) symbols, 0 forbidden"
+	@rm -f /tmp/c07_nm.txt
+	@if nm -C bin/c07_wire_gate | grep -E 'marp::harness::|mapr::(container|Encoder|Decoder)::'; then \
+	  echo "FAIL: forbidden symbol linked into bin/c07_wire_gate"; exit 1; \
+	fi
+	@if ldd bin/c07_wire_gate | grep -E 'libz\.|libgtest'; then \
+	  echo "FAIL: third-party library linked into bin/c07_wire_gate"; exit 1; \
+	fi
+	@echo "PASS: C07 is source- and link-independent of E4-E7, legacy, and the harness"
+
+c07-check: c07-isolation
+	@echo "PASS: C07 structural checks complete"
+
+c07-clean:
+	rm -rf obj/c07 obj/c07h obj/c07t
+	rm -f bin/c07_wire_gate bin/c07_wire_gate_san bin/c07_tests bin/c07_tests_san
