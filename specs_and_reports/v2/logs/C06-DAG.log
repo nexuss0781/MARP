@@ -1,0 +1,15 @@
+tool: C06-DAG evidence harness
+root: ..
+command_line: ./bin/e2_c06_gate --root .. --write-evidence
+std: c++20 (build flags in engine/Makefile.c06)
+build: -O2 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2
+[o6.1_order_independence] cumulative pass=39 fail=0
+[o6.2_shape] cumulative pass=117 fail=0
+[o6.3_atom_dedup] cumulative pass=158 fail=0
+[o6.1_threaded_and_repeat] cumulative pass=160 fail=0
+[o6_denotation] cumulative pass=238 fail=0
+[errors] cumulative pass=251 fail=0
+[independence] cumulative pass=252 fail=0
+[coverage] cumulative pass=255 fail=0
+totals: checks=255 pass=255 fail=0
+RESULT: PASS (C06 DAG)

@@ -1,0 +1,129 @@
+# Isolated build for E2 ALGEBRA — C06 DAG.
+#
+# Authority boundary: E2 may depend only on E1 and earlier E2 sub-components
+# (C03 TERM, C04 CANON, C05 EVAL).  This file compiles E1 + E2 (C03 + C04 + C05
+# + C06) and refuses to pull in E3–E7, wire, container, discovery, rewrite,
+# selection, CLI, certificate, or harness code.
+#
+# Nothing here is reachable from engine/Makefile or from any other E2 makefile;
+# adding C06 does not change a single existing rule.
+
+CXX ?= g++
+C06_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+C06_INC  := -I. -I../include -Isrc/e2
+
+# -O2 is E2 §12.4's build level.
+C06_CXXFLAGS ?= $(C06_WARN) -O2 $(C06_INC)
+C06_SANFLAGS := $(C06_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(C06_INC)
+
+GTEST_PREBUILT_INC := $(wildcard /tmp/googletest/googletest/include)
+GTEST_PREBUILT_LIB := $(wildcard /tmp/googletest/build/lib/libgtest.a)
+GTEST_LOCAL_INC     := $(wildcard /usr/local/include/gtest)
+GTEST_LOCAL_LIB     := $(wildcard /usr/local/lib/libgtest.a)
+ifneq ($(GTEST_PREBUILT_INC),)
+  C06_GTEST_CFLAGS := -isystem $(GTEST_PREBUILT_INC) -isystem /usr/local/include
+else
+  C06_GTEST_CFLAGS := -isystem /usr/local/include
+endif
+ifneq ($(GTEST_PREBUILT_LIB),)
+  C06_GTEST_LIBS := -L/tmp/googletest/build/lib -lgtest -lgtest_main
+else ifneq ($(GTEST_LOCAL_INC),)
+  C06_GTEST_LIBS := -L/usr/local/lib -lgtest -lgtest_main
+else
+  C06_GTEST_LIBS := -lgtest -lgtest_main
+endif
+
+C06_E1_SRCS := src/e1_bigint.cpp src/e1_length.cpp src/e1_sha256.cpp
+C06_E1_OBJS := $(patsubst src/%.cpp,obj/c06/%.o,$(C06_E1_SRCS))
+
+C06_LIB_SRCS := src/e2/e2_term.cpp src/e2/e2_canon.cpp src/e2/e2_eval.cpp src/e2/e2_dag.cpp
+C06_LIB_OBJS := $(patsubst src/%.cpp,obj/c06/%.o,$(C06_LIB_SRCS))
+
+C06_GATE_SRC := src/e2/e2_c06_gate.cpp
+C06_GATE_OBJ := obj/c06_gate/e2_c06_gate.o
+
+C06_TEST_SRC := tests/e2/e2_dag_test.cpp
+C06_TEST_OBJ := obj/c06_tests/e2_dag_test.o
+
+.PHONY: c06-all c06-test c06-test-san c06-evidence c06-isolation c06-check c06-clean
+
+c06-all: bin/e2_c06_gate bin/e2_c06_tests
+
+obj/c06/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C06_CXXFLAGS) -c $< -o $@
+
+obj/c06/e2/e2_term.o: src/e2/e2_term.cpp ../include/mapr/e2/e2_term.hpp \
+                      ../include/mapr/e1_bigint.hpp ../include/mapr/e1_types.hpp
+obj/c06/e2/e2_canon.o: src/e2/e2_canon.cpp ../include/mapr/e2/e2_canon.hpp \
+                       ../include/mapr/e2/e2_term.hpp
+obj/c06/e2/e2_eval.o: src/e2/e2_eval.cpp ../include/mapr/e2/e2_eval.hpp \
+                      ../include/mapr/e2/e2_term.hpp
+obj/c06/e2/e2_dag.o: src/e2/e2_dag.cpp ../include/mapr/e2/e2_dag.hpp \
+                     ../include/mapr/e2/e2_term.hpp ../include/mapr/e1_sha256.hpp
+
+$(C06_GATE_OBJ): $(C06_GATE_SRC) ../include/mapr/e2/e2_dag.hpp \
+                 ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp \
+                 ../include/mapr/e2/e2_eval.hpp src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C06_CXXFLAGS) -c $< -o $@
+
+$(C06_TEST_OBJ): $(C06_TEST_SRC) ../include/mapr/e2/e2_dag.hpp \
+                 ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp \
+                 ../include/mapr/e2/e2_eval.hpp src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C06_CXXFLAGS) $(C06_GTEST_CFLAGS) -c $< -o $@
+
+bin/e2_c06_gate: $(C06_E1_OBJS) $(C06_LIB_OBJS) $(C06_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C06_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e2_c06_tests: $(C06_E1_OBJS) $(C06_LIB_OBJS) $(C06_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C06_CXXFLAGS) -o $@ $^ $(C06_GTEST_LIBS) -pthread
+
+bin/e2_c06_tests_san: $(C06_E1_SRCS) $(C06_LIB_SRCS) $(C06_TEST_SRC) \
+                      src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p bin
+	$(CXX) $(C06_SANFLAGS) $(C06_GTEST_CFLAGS) -o $@ $(C06_E1_SRCS) $(C06_LIB_SRCS) $(C06_TEST_SRC) $(C06_GTEST_LIBS) -pthread
+
+bin/e2_c06_gate_san: $(C06_E1_SRCS) $(C06_LIB_SRCS) $(C06_GATE_SRC) \
+                     src/e2/c03_build.hpp src/e2/c03_reference.hpp
+	@mkdir -p bin
+	$(CXX) $(C06_SANFLAGS) -o $@ $(C06_E1_SRCS) $(C06_LIB_SRCS) $(C06_GATE_SRC) -pthread
+
+c06-test: bin/e2_c06_tests
+	./bin/e2_c06_tests
+
+c06-test-san: bin/e2_c06_tests_san
+	./bin/e2_c06_tests_san
+
+c06-evidence: bin/e2_c06_gate
+	./bin/e2_c06_gate --root .. --write-evidence
+
+# E2 may not link E3-E7, wire, container, discovery, rewrite, selection, CLI,
+# certificate, or harness code.  Checked at source level (includes) and at
+# symbol level (nothing from the wire/discovery/CLI layers may appear in the
+# C06 library objects).
+c06-isolation: $(C06_E1_OBJS) $(C06_LIB_OBJS)
+	@echo "Checking C06 sources for forbidden E3-E7 / harness includes..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' \
+	    src/e2/e2_dag.cpp src/e2/e2_c06_gate.cpp ../include/mapr/e2/e2_dag.hpp; then \
+	  echo "FAIL: forbidden include in C06 sources"; exit 1; \
+	fi
+	@nm -C $(C06_LIB_OBJS) > /tmp/e2_c06_nm.txt
+	@if grep -E 'mapr::(container|Encoder|Decoder)::|marp::harness::' /tmp/e2_c06_nm.txt; then \
+	  rm -f /tmp/e2_c06_nm.txt; echo "FAIL: forbidden symbol linked into C06 objects"; exit 1; \
+	fi
+	@rm -f /tmp/e2_c06_nm.txt
+	@echo "PASS: C06 is source- and link-independent of E3-E7"
+
+c06-check: c06-isolation
+	@echo "PASS: C06 structural checks complete"
+
+c06-clean:
+	rm -rf obj/c06 obj/c06_gate obj/c06_tests
+	rm -f bin/e2_c06_gate bin/e2_c06_gate_san bin/e2_c06_tests bin/e2_c06_tests_san

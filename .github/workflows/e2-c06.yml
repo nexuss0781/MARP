@@ -1,0 +1,242 @@
+name: MARP E2 C06 DAG CI
+
+# Isolated workflow for C06 DAG (E2 ALGEBRA, fourth and final sub-component).
+# It builds only E1 + C03 + C04 + C05 + C06 sources through engine/Makefile.c06
+# and proves that no E3-E7 (wire / container / discovery / selection / CLI)
+# object is linked.  Nothing in this workflow touches another component's build.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  c06-independence:
+    name: C06 independence (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E3-E7 / harness includes in E2 sources
+        run: |-
+          set -euo pipefail
+          echo "Scanning include/mapr/e2 and engine/src/e2 for forbidden includes..."
+          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e3|e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate))' include/mapr/e2 engine/src/e2; then
+            echo "FAIL: forbidden include found in E2 sources"
+            exit 1
+          fi
+          echo "PASS: no E3-E7 or harness include in E2 sources"
+
+      - name: Reject non-C++ artefacts in E2 paths
+        run: |-
+          set -euo pipefail
+          if find include/mapr/e2 engine/src/e2 engine/tests/e2 -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+            echo "FAIL: script file found under an E2 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under E2 paths"
+
+      - name: Confirm earlier evidence manifests still verify
+        run: |-
+          set -euo pipefail
+          sha256sum -c specs_and_reports/v2/evidence/E1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H1/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H3/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/E2/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C04/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C05/SHA256SUMS
+          echo "PASS: E1/H1/H3/E2(C03)/C04/C05 evidence manifests still verify"
+
+  build-test-evidence:
+    name: C06 build, tests, evidence
+    runs-on: ubuntu-latest
+    needs: [c06-independence]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |-
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Record toolchain (not covered by the evidence manifest)
+        run: |-
+          set -euo pipefail
+          g++ --version | head -1
+          echo "::notice::compiler=$(g++ -dumpfullversion -dumpversion)"
+
+      - name: Build C06 (strict -Werror, -O2)
+        env:
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c06 c06-clean
+          make -f Makefile.c06 c06-all -j4
+
+      - name: Verify C06 independence (grep + nm on built objects)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c06 c06-isolation
+          echo "Undefined symbols in the C06 library object:"
+          nm -uC obj/c06/e2/e2_dag.o | sort || true
+          echo "Checking the C06 binaries do not link E3-E7/harness code..."
+          if nm -C bin/e2_c06_tests bin/e2_c06_gate | grep -E 'mapr::(container|Encoder|Decoder)::|marp::harness::'; then
+            echo "FAIL: E3-E7/harness symbol linked into a C06 binary"
+            exit 1
+          fi
+          echo "PASS: binary independence verified"
+
+      - name: Snapshot committed evidence and verify manifest
+        run: |-
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C06-DAG.tsv /tmp/committed-C06-DAG.tsv
+          cp specs_and_reports/v2/logs/C06-DAG.log /tmp/committed-C06-DAG.log
+          sha256sum -c specs_and_reports/v2/evidence/C06/SHA256SUMS
+          echo "PASS: committed C06 evidence manifest verified before regeneration"
+
+      - name: Run C06 unit tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c06_tests --gtest_color=no
+
+      - name: Generate C06 evidence
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c06_gate --root .. --write-evidence
+
+      - name: Committed C06 evidence must match the CI-generated files byte for byte
+        run: |-
+          set -euo pipefail
+          diff -u /tmp/committed-C06-DAG.tsv specs_and_reports/v2/gates/C06-DAG.tsv
+          diff -u /tmp/committed-C06-DAG.log specs_and_reports/v2/logs/C06-DAG.log
+          echo "PASS: committed C06-DAG.tsv and C06-DAG.log are byte-for-byte identical to CI output"
+
+      - name: Evidence schema, verdicts and required checks
+        run: |-
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/C06-DAG.tsv"
+          LOG="specs_and_reports/v2/logs/C06-DAG.log"
+          SUMS="specs_and_reports/v2/evidence/C06/SHA256SUMS"
+          test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
+          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $7 != "PASS" { print; exit 1 }' "$TSV"; then
+            echo "PASS: every C06 row is PASS"
+          else
+            echo "FAIL: non-PASS verdict present in C06-DAG.tsv"
+            exit 1
+          fi
+          for req in o6.1.order_independence o6.1.threaded_fragments o6.1.repeat_determinism \
+                     o6.2.shape o6.2.interned o6.3.atom_dedup o6.3.atom_insertion_order \
+                     o6.3.atom_reuse_single_record o6.denotation o6.canon_consistency errors \
+                     independence coverage.kind coverage.morph coverage.predictor c06.summary; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+          awk -F'\t' '$1 == "coverage.kind" { if ($5 != "12/12" || $6 != "12/12") { print "kind coverage not complete: " $6; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "coverage.morph" { if ($5 != "9/9" || $6 != "9/9") { print "morph coverage not complete: " $6; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "coverage.predictor" { if ($5 != "5/5" || $6 != "5/5") { print "predictor coverage not complete: " $6; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "o6.2.shape" { if ($6 != "root-last+topological+no-unused-nodes+no-unused-atoms+total-length+wf") { print "non-canonical shape row: " $3 " -> " $6; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "o6.1.threaded_fragments" { if ($6 != "4/4 threads identical Ir") { print "threaded identity failed: " $6; exit 1 } }' "$TSV"
+          awk -F'\t' '$1 == "errors" { if ($7 != "PASS") { print "error row failed: " $3; exit 1 } n++ } END { if (n < 12) { print "too few error rows: " n; exit 1 } }' "$TSV"
+          grep -q '^RESULT: PASS (C06 DAG)$' "$LOG"
+          sha256sum -c "$SUMS"
+          echo "PASS: C06 evidence schema and manifest verified"
+          tail -3 "$LOG"
+
+      - name: Determinism (independent re-run must reproduce the evidence)
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c06_gate --root .. --write-evidence
+          diff -u /tmp/committed-C06-DAG.tsv ../specs_and_reports/v2/gates/C06-DAG.tsv
+          diff -u /tmp/committed-C06-DAG.log ../specs_and_reports/v2/logs/C06-DAG.log
+          echo "PASS: repeat run produced byte-identical C06 evidence"
+
+      - name: AddressSanitizer + UBSan C06 unit tests
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+          PKG_CONFIG_PATH: /usr/local/lib/pkgconfig
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c06 c06-test-san -j4
+
+      - name: AddressSanitizer + UBSan C06 evidence run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c06 bin/e2_c06_gate_san -j4
+          ./bin/e2_c06_gate_san --root .. --write-evidence
+          # Only the TSV is compared here: the log's `command_line:` record
+          # necessarily names the sanitizer binary.  The log is restored and
+          # verified byte-for-byte by the "Restore the primary evidence set"
+          # step below, which re-runs ./bin/e2_c06_gate.
+          diff -u /tmp/committed-C06-DAG.tsv ../specs_and_reports/v2/gates/C06-DAG.tsv
+          echo "PASS: sanitizer evidence run reproduces the committed C06-DAG.tsv"
+
+      - name: Restore the primary evidence set
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e2_c06_gate --root .. --write-evidence
+          diff -u /tmp/committed-C06-DAG.tsv ../specs_and_reports/v2/gates/C06-DAG.tsv
+          cd ..
+          sha256sum -c specs_and_reports/v2/evidence/C06/SHA256SUMS
+          echo "PASS: primary C06 evidence restored and self-consistent"
+
+      - name: No-regression check (C03/C04/C05 evidence untouched)
+        run: |-
+          set -euo pipefail
+          git status --porcelain --untracked-files=no -- specs_and_reports REPORT | sed 's/^/changed: /' || true
+          if ! git diff --quiet -- specs_and_reports/v2/gates/C03-TERM.tsv \
+                specs_and_reports/v2/gates/C04-CANON.tsv \
+                specs_and_reports/v2/gates/C05-EVAL.tsv \
+                specs_and_reports/v2/logs/C03-TERM.log \
+                specs_and_reports/v2/logs/C04-CANON.log \
+                specs_and_reports/v2/logs/C05-EVAL.log; then
+            echo "FAIL: an earlier component's committed evidence changed"
+            exit 1
+          fi
+          echo "PASS: C03/C04/C05 evidence unchanged by the C06 run"
+
+      - name: Upload C06 evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2-c06-evidence
+          path: |
+            specs_and_reports/v2/gates/C06-DAG.tsv
+            specs_and_reports/v2/logs/C06-DAG.log
+            specs_and_reports/v2/evidence/C06/SHA256SUMS
+          retention-days: 30
