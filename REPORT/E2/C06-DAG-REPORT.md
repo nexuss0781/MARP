@@ -33,10 +33,17 @@ handoff and the honest list of what was not measured.
 | **Authoritative CI run (C06 DAG, on `25c5de3`)** | **`43698376891` — `MARP E2 C06 DAG CI` — conclusion `success`** (both jobs, 27/27 steps) |
 | **CI run URL** | https://github.com/nexuss0781/MARP/actions/runs/43698376891 |
 | Earlier green C06 runs on this branch | `43697399789` (on `6c72655`) and `43697900521` (on `94915a1`) — both `success`, same 27/27 steps, identical evidence |
+| Run on the branch head at time of writing (`6893d2d`) | `43698784261` — `success` (27/27 steps) |
 | No-regression, C03 TERM CI on `25c5de3` | `43698376888` — `success` (18/18 steps) |
 | No-regression, C04 CANON CI on `25c5de3` | `43698376903` — `success` (18/18 steps) |
 | No-regression, C05 EVAL CI on `25c5de3` | `43698376932` — `success` (18/18 steps) |
 | No-regression, H3 Oracle CI on `25c5de3` | `43698376935` — `success` (16/16 steps) |
+| No-regression on `6893d2d` | C03 `43698784256`, C04 `43698784347`, C05 `43698784313`, H3 `43698784335` — all `success` |
+
+Every later commit on this branch after `25c5de3` is documentation-only (this report), and
+each is validated by the identical workflow set; the evidence files are byte-identical
+across all of those runs, which is precisely what the CI "committed evidence is byte
+identical to CI output" and "determinism re-run" steps establish.
 | Local toolchain | Debian `g++ 12.2.0`, GNU make 4.3, x86-64 |
 | CI toolchain | `ubuntu-latest` (Ubuntu 24.04), `g++ 13.3.0` (recorded as a CI notice, not in the manifest — §6.2) |
 | Flags | `-std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O2` (E2 §12.4 build level); sanitizer variants add `-fsanitize=address,undefined -fno-sanitize-recover=all -O1 -g` |
