@@ -1,0 +1,307 @@
+name: MARP H4 FUZZ CI
+
+# Isolated workflow for H4 FUZZ — E0's mutation campaign over valid v2
+# containers (SPECS/SPECS-V2.md §12.8, SPECS/COMPONENTS-V2.md H4).
+#
+# The gate is hard-fail: the campaign must execute on CI, every committed
+# evidence file must be reproduced byte-for-byte by that run, and
+# accepted_invalid, crashes and timeouts must all be exactly zero.  A missing
+# or red E3-G prerequisite fails the job before any campaign is claimed.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  h4-source-independence:
+    name: H4 source independence and E3-G prerequisite
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: H4 tree is C++20 only
+        run: |
+          set -euo pipefail
+          if find harness/fuzz -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+            echo "::error::a non-C++ script appears under harness/fuzz"
+            exit 1
+          fi
+          echo "PASS: no script is committed under harness/fuzz"
+
+      - name: H4 reaches no C08, E4-E7 or earlier harness
+        run: |
+          set -euo pipefail
+          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"](mapr/(e4|e5|e6|e7)|mapr/e3/e3_legacy\.hpp|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq)|marp/harness/(fixtures|gates|e0_selftest|e1_[a-z_]*)|marp/oracle)' harness/fuzz; then
+            echo "::error::a forbidden include is reachable from harness/fuzz"
+            exit 1
+          fi
+          echo "PASS: H4 includes only E1/E2, C07 and the E3-G seed builder"
+
+      - name: E3-G prerequisite is green in committed evidence
+        run: |
+          set -euo pipefail
+          GATE=specs_and_reports/v2/gates/E3-G.tsv
+          CORPUS=specs_and_reports/v2/corpus/E3/corpus.tsv
+          COUNTS=specs_and_reports/v2/corpus/E3/fuzz_counts.tsv
+          test -s "$GATE"
+          test -s "$CORPUS"
+          test -s "$COUNTS"
+          head -n 1 "$GATE" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\twire_sha256\twire_bytes\texpected\tactual\tverdict\tlog'
+          if awk -F'\t' 'NR > 1 && ($9 == "FAIL" || $9 == "BLOCKED") { print; exit 1 }' "$GATE"; then
+            echo "PASS: E3-G gate evidence has zero FAIL and zero BLOCKED rows"
+          else
+            echo "::error::E3-G is not green (FAIL/BLOCKED row present)"
+            exit 1
+          fi
+          awk -F'\t' '$1 == "e3g.fuzz.accepted_invalid" && $9 == "PASS" && $8 == "0" { found = 1 } END { exit(found ? 0 : 1) }' "$GATE" || {
+            echo "::error::E3-G has no clean 100k fuzz record"
+            exit 1
+          }
+          test "$(awk -F'\t' '$1 == "mutants" { print $2 }' "$COUNTS")" = "100000"
+          test "$(awk -F'\t' '$1 == "accepted_invalid" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "crashes" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "timeouts" { print $2 }' "$COUNTS")" = "0"
+          sha256sum -c specs_and_reports/v2/evidence/E3/SHA256SUMS
+          echo "PASS: E3-G prerequisite is committed, green and digest-verified"
+
+  h4-selftest:
+    name: H4 build, self-test, isolation and sanitizers
+    runs-on: ubuntu-latest
+    needs: [h4-source-independence]
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install C++20 toolchain (no third-party libraries)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Build H4 (strict -Werror)
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h4 h4-clean
+          make -f Makefile.h4 h4-all -j4
+
+      - name: H4 isolation (grep, nm, ldd)
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h4 h4-isolation
+
+      - name: Deterministic self-test (mutators, seeds, runner, verdict logic)
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/h4_fuzz --root .. --self-test
+
+      - name: Reject any change to frozen components or earlier evidence
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- include/mapr/e1_bigint.hpp include/mapr/e1_crc32.hpp \
+                include/mapr/e1_gear.hpp include/mapr/e1_length.hpp include/mapr/e1_sha256.hpp \
+                include/mapr/e1_types.hpp include/mapr/e2 engine/src/e2 engine/src/e3 \
+                engine/Makefile engine/CMakeLists.txt harness/src harness/oracle harness/include \
+                harness/tests specs_and_reports/v2/gates/E0-G.tsv \
+                specs_and_reports/v2/gates/E1-G.tsv specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+                specs_and_reports/v2/gates/H3-ORACLE.tsv \
+                specs_and_reports/v2/gates/C03-TERM.tsv specs_and_reports/v2/gates/C04-CANON.tsv \
+                specs_and_reports/v2/gates/C05-EVAL.tsv specs_and_reports/v2/gates/C06-DAG.tsv \
+                specs_and_reports/v2/gates/E2-G.tsv specs_and_reports/v2/gates/C07-WIRE.tsv \
+                specs_and_reports/v2/gates/C08-LEGACY.tsv specs_and_reports/v2/gates/E3-G.tsv \
+                specs_and_reports/v2/corpus/E3 specs_and_reports/v2/evidence/E3 \
+                specs_and_reports/v2/logs/E3-G.log specs_and_reports/v2/logs/E3-G-fuzz.log; then
+            echo "::error::a frozen component or an earlier gate's evidence was modified"
+            exit 1
+          fi
+          if grep -rqE 'h4|H4' engine/Makefile engine/CMakeLists.txt; then
+            echo "::error::H4 leaked into an existing build entry point"
+            exit 1
+          fi
+          echo "PASS: frozen components and earlier evidence untouched"
+
+      - name: Sanitizer campaign (ASan + UBSan, in-process)
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h4 h4-san -j4
+          set +e
+          ./bin/h4_fuzz_san --root .. --no-fork --workers 1 --mutants 2000 \
+            --dry-run-mutants 500 2>&1 | tee /tmp/h4-san.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::the sanitizer campaign exited $rc"
+            exit 1
+          fi
+          if grep -E 'AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error' /tmp/h4-san.txt; then
+            echo "::error::a sanitizer report was produced"
+            exit 1
+          fi
+          grep -q 'RESULT: PASS' /tmp/h4-san.txt
+          echo "PASS: ASan+UBSan clean over the sanitizer dry-run campaign"
+
+  h4-campaign:
+    name: H4 100,000-mutant campaign and evidence reproduction
+    runs-on: ubuntu-latest
+    needs: [h4-selftest]
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install C++20 toolchain
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Build H4
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h4 h4-all -j4
+
+      - name: Verify the committed H4 manifest before the run
+        run: |
+          set -euo pipefail
+          sha256sum -c specs_and_reports/v2/evidence/H4/SHA256SUMS
+          rm -rf /tmp/h4-committed
+          mkdir -p /tmp/h4-committed
+          cp specs_and_reports/v2/gates/H4-FUZZ.tsv \
+             specs_and_reports/v2/logs/H4-FUZZ.log \
+             specs_and_reports/v2/corpus/H4/fuzz_counts.tsv \
+             specs_and_reports/v2/corpus/H4/seeds.tsv \
+             specs_and_reports/v2/evidence/H4/MANIFEST.tsv \
+             specs_and_reports/v2/evidence/H4/SHA256SUMS /tmp/h4-committed/
+          echo "PASS: committed H4 evidence verified before the CI run"
+
+      - name: Run the authoritative 100,000-mutant campaign
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/h4_fuzz --root .. --workers 4 --write-evidence 2>&1 | tee /tmp/h4-campaign.txt
+          grep -q 'RESULT: PASS' /tmp/h4-campaign.txt
+
+      - name: Campaign counters and gate rows must meet the §12.8 target
+        run: |
+          set -euo pipefail
+          TSV=specs_and_reports/v2/gates/H4-FUZZ.tsv
+          LOG=specs_and_reports/v2/logs/H4-FUZZ.log
+          COUNTS=specs_and_reports/v2/corpus/H4/fuzz_counts.tsv
+          SEEDS=specs_and_reports/v2/corpus/H4/seeds.tsv
+          SUMS=specs_and_reports/v2/evidence/H4/SHA256SUMS
+          test -s "$TSV"; test -s "$LOG"; test -s "$COUNTS"; test -s "$SEEDS"; test -s "$SUMS"
+          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $7 == "FAIL" { print; exit 1 }' "$TSV"; then
+            echo "PASS: zero FAIL rows in H4-FUZZ.tsv"
+          else
+            echo "::error::a FAIL verdict is present in H4-FUZZ.tsv"
+            exit 1
+          fi
+          for req in h4.prereq.e3g_gate h4.prereq.e3_corpus h4.prereq.e3_fuzz \
+                     h4.campaign.total h4.campaign.accepted_invalid h4.campaign.crashes \
+                     h4.campaign.timeouts h4.campaign.valid h4.campaign.rejected \
+                     h4.campaign.accounted h4.campaign.alloc_violations h4.campaign.fixpoint \
+                     h4.campaign.class.bitflip h4.campaign.class.truncation \
+                     h4.campaign.class.fieldswap h4.campaign.class.lengthcorruption \
+                     h4.campaign.region.header h4.campaign.region.index \
+                     h4.campaign.region.trailer h4.campaign.region.body \
+                     h4.campaign.stage.distinct h4.determinism.workers \
+                     h4.determinism.dry_run h4.verdict; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+          awk -F'\t' '$1 == "h4.verdict" && $7 == "PASS" { found = 1 } END { exit(found ? 0 : 1) }' "$TSV" || {
+            echo "::error::h4.verdict is not PASS"
+            exit 1
+          }
+          awk -F'\t' '$1 == "h4.campaign.total" && $6 != "100000" { print; exit 1 }' "$TSV"
+          awk -F'\t' '$1 == "h4.campaign.accepted_invalid" && $6 != "0" { print; exit 1 }' "$TSV"
+          awk -F'\t' '$1 == "h4.campaign.crashes" && $6 != "0" { print; exit 1 }' "$TSV"
+          awk -F'\t' '$1 == "h4.campaign.timeouts" && $6 != "0" { print; exit 1 }' "$TSV"
+          awk -F'\t' '$1 == "h4.campaign.accounted" && $6 != "100000" { print; exit 1 }' "$TSV"
+          test "$(awk -F'\t' '$1 == "mutants" { print $2 }' "$COUNTS")" = "100000"
+          test "$(awk -F'\t' '$1 == "accepted_invalid" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "crashes" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "timeouts" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "processed" { print $2 }' "$COUNTS")" = "100000"
+          test "$(awk -F'\t' '$1 == "alloc_violations" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "fixpoint_mismatch" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "determinism.dry_run.equal" { print $2 }' "$COUNTS")" = "yes"
+          test "$(awk -F'\t' '$1 == "workers" { print $2 }' "$COUNTS")" = "4"
+          awk -F'\t' 'BEGIN { bad = 1 } $1 == "valid" && $2 + 0 > 0 { bad = 0 } END { exit bad }' "$COUNTS"
+          for region in class.bitflip class.truncation class.fieldswap class.lengthcorruption \
+                        region.header region.index region.trailer region.body; do
+            awk -F'\t' -v k="$region" '$1 == k && $2 + 0 > 0 { found = 1 } END { exit(found ? 0 : 1) }' "$COUNTS" || {
+              echo "::error::coverage counter $region is zero"
+              exit 1
+            }
+          done
+          awk -F'\t' '$1 == "verdict" { if ($2 != "PASS") exit 1 }' "$COUNTS"
+          sha256sum -c "$SUMS"
+          echo "PASS: 100,000 mutants, all accounted, zero accepted-invalid/crash/timeout/alloc"
+
+      - name: Evidence is byte-for-byte identical to the committed files
+        run: |
+          set -euo pipefail
+          for pair in \
+            "gates/H4-FUZZ.tsv:/tmp/h4-committed/H4-FUZZ.tsv" \
+            "logs/H4-FUZZ.log:/tmp/h4-committed/H4-FUZZ.log" \
+            "corpus/H4/fuzz_counts.tsv:/tmp/h4-committed/fuzz_counts.tsv" \
+            "corpus/H4/seeds.tsv:/tmp/h4-committed/seeds.tsv" \
+            "evidence/H4/MANIFEST.tsv:/tmp/h4-committed/MANIFEST.tsv" \
+            "evidence/H4/SHA256SUMS:/tmp/h4-committed/SHA256SUMS"; do
+            rel="${pair%%:*}"
+            old="${pair##*:}"
+            diff -u "$old" "specs_and_reports/v2/$rel"
+          done
+          echo "PASS: CI generation reproduced every committed H4 artifact byte-for-byte"
+
+      - name: Independent repeat run is byte-for-byte identical
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/h4-run1
+          mkdir -p /tmp/h4-run1
+          cp specs_and_reports/v2/gates/H4-FUZZ.tsv \
+             specs_and_reports/v2/logs/H4-FUZZ.log \
+             specs_and_reports/v2/corpus/H4/fuzz_counts.tsv \
+             specs_and_reports/v2/corpus/H4/seeds.tsv \
+             specs_and_reports/v2/evidence/H4/MANIFEST.tsv \
+             specs_and_reports/v2/evidence/H4/SHA256SUMS /tmp/h4-run1/
+          cd engine
+          ./bin/h4_fuzz --root .. --workers 4 --write-evidence
+          cd ..
+          diff -u /tmp/h4-run1/H4-FUZZ.tsv specs_and_reports/v2/gates/H4-FUZZ.tsv
+          diff -u /tmp/h4-run1/H4-FUZZ.log specs_and_reports/v2/logs/H4-FUZZ.log
+          diff -u /tmp/h4-run1/fuzz_counts.tsv specs_and_reports/v2/corpus/H4/fuzz_counts.tsv
+          diff -u /tmp/h4-run1/seeds.tsv specs_and_reports/v2/corpus/H4/seeds.tsv
+          diff -u /tmp/h4-run1/MANIFEST.tsv specs_and_reports/v2/evidence/H4/MANIFEST.tsv
+          diff -u /tmp/h4-run1/SHA256SUMS specs_and_reports/v2/evidence/H4/SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/H4/SHA256SUMS
+          echo "PASS: a second full campaign reproduced identical evidence"
+
+      - name: Upload H4 evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: h4-evidence
+          path: |
+            specs_and_reports/v2/gates/H4-FUZZ.tsv
+            specs_and_reports/v2/logs/H4-FUZZ.log
+            specs_and_reports/v2/corpus/H4/fuzz_counts.tsv
+            specs_and_reports/v2/corpus/H4/seeds.tsv
+            specs_and_reports/v2/evidence/H4/MANIFEST.tsv
+            specs_and_reports/v2/evidence/H4/SHA256SUMS
+            /tmp/h4-campaign.txt
+          retention-days: 30

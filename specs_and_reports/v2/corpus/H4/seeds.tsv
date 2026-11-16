@@ -1,0 +1,16 @@
+seed	e3_item	source	bytes	sha256	index	role
+edge-atom-max-plus-one	edge-atom-max-plus-one	E3-G:W-CANON-EDGE	1048804	71f32f86ac601cffa2b57b6aca1c0deb03bec044fb44c9f8569849cdcd986dc7	present	large-header-index
+edge-index-repeat-5x1mib	edge-index-repeat-5x1mib	E3-G:W-CANON-EDGE	1048791	fd14dcb9e6426d5df4e11830d77694baad082c1763d609c9e211b47b3f9de4a4	present	large-header-index
+tkat-atom-max	tkat-atom-max	E3-G:W-CANON	1048723	f726270f038dc5e9951229647ad5cc1ec8ad7250c75eb1dcaa814c334f61dc75	absent	large-header-index
+tkat-atom1	tkat-atom1	E3-G:W-CANON	144	f5bdaac754d6a715cb20a4bd9f5b9a4a0bbaaa977879c3f632da5ad5901c20fa	absent	small
+tkat-atom1023	tkat-atom1023	E3-G:W-CANON	1168	728f560bfe390123d650bace3008486df4067e97eecc91e5c95ad4a112a8e0f2	absent	small
+tkat-atom16	tkat-atom16	E3-G:W-CANON	159	afc7eea1ab5f202b9cda49e5d50630fdc7512cf493496eca6deb3e0dc2721309	absent	small
+tkat-concat2	tkat-concat2	E3-G:W-CANON	175	ccc3a32b6c4f94d18ffab66fb5cafebce87f65e2c0d1904e791634c44085161a	absent	small
+tkat-empty	tkat-empty	E3-G:W-CANON	103	75d1ba312e42aa98297e8ff30ef9c0afb8f2c2455a1d7848c3a93e1eb48e439f	absent	small
+tkat-ilv-s1	tkat-ilv-s1	E3-G:W-CANON	206	a99925026da92b77badd6e1053b3eb2fc2f2ed1f3994290c4fad80c14dc62c19	absent	small
+tkat-lfsr0	tkat-lfsr0	E3-G:W-CANON	122	c73327f0405a37cc47f5079ed00ff4d5e4a1790a5aebf7ea83e34ee64789ceaa	absent	small
+tkat-repeat35	tkat-repeat35	E3-G:W-CANON	170	41c9e7973ea5a01f58163fadaa640a6386d2629f2c3490fca1c751f1e1f8879b	absent	small
+tkat-slicemid	tkat-slicemid	E3-G:W-CANON	185	f1a623f8a4f2a52ac599e8f475fbd4ea8573dad9c7f388896d1c1192cdcb603f	absent	small
+tkat-xor	tkat-xor	E3-G:W-CANON	228	ff4c0ab818f49bcf9d706fad946935a4b698ba15dfaf5e5c49afe47793b7cd78	absent	small
+tkat-zero0	tkat-zero0	E3-G:W-CANON	104	1d3aa6ef3658709f95bc471767e1cb50415b4ecea4d9331843ed7a8787f70143	absent	small
+tkat-zero5	tkat-zero5	E3-G:W-CANON	106	adb4512e5dec3a0e8a076a3f793f04a8a81f1ea52c99f426df4e07b81e30a83a	absent	small

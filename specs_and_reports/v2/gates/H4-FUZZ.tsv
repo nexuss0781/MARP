@@ -1,0 +1,53 @@
+check	corpus	item_id	input_sha256	expected	actual	verdict	log
+h4.campaign.accepted_invalid	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	0	0	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.accounted	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	100000	100000	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.alloc_violations	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	0	0	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.class.bitflip	W-FUZZ	class	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	25005	PASS	logs/H4-FUZZ.log#classes
+h4.campaign.class.fieldswap	W-FUZZ	class	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	25000	PASS	logs/H4-FUZZ.log#classes
+h4.campaign.class.lengthcorruption	W-FUZZ	class	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	24990	PASS	logs/H4-FUZZ.log#classes
+h4.campaign.class.truncation	W-FUZZ	class	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	25005	PASS	logs/H4-FUZZ.log#classes
+h4.campaign.crashes	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	0	0	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.fixpoint	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	mismatch=0	checked=6977 mismatch=0	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.region.body	W-FUZZ	region	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	26579	PASS	logs/H4-FUZZ.log#regions
+h4.campaign.region.header	W-FUZZ	region	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	68875	PASS	logs/H4-FUZZ.log#regions
+h4.campaign.region.index	W-FUZZ	region	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	3147	PASS	logs/H4-FUZZ.log#regions
+h4.campaign.region.trailer	W-FUZZ	region	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	55489	PASS	logs/H4-FUZZ.log#regions
+h4.campaign.rejected	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	93023	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.stage.distinct	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>=8	9	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage10_index	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	601	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage11_eval	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	0	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage1_size	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	13898	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage2_header	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	19101	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage3_bounds	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	22690	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage4_header_crc	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	12975	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage5_trailer	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	12494	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage6_regions	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	5685	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage7_atoms	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	3589	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage8_nodes	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	1990	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.stage9_root	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	0	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.stage.unknown	W-FUZZ	stage	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	0	PASS	logs/H4-FUZZ.log#stages
+h4.campaign.timeouts	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	0	0	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.total	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	100000	100000	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.valid	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	>0	6977	PASS	logs/H4-FUZZ.log#campaign
+h4.campaign.verified	W-FUZZ	campaign	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	recorded	6977	PASS	logs/H4-FUZZ.log#campaign
+h4.determinism.dry_run	H4	dry_run	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	3000 mutants, identical	identical	PASS	logs/H4-FUZZ.log#determinism
+h4.determinism.workers	H4	dry_run	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	identical counts at 1 and 4 workers	workers=1 valid=196 accepted_invalid=0 crashes=0 timeouts=0; workers>1 valid=196 accepted_invalid=0 crashes=0 timeouts=0	PASS	logs/H4-FUZZ.log#determinism
+h4.prereq.e3_corpus	E3-G	corpus	be73443e6826fa4e88b8b37952c1eaac858212fa45a45d4f4be3d036a845eea5	seed identities committed	5144 items	PASS	logs/H4-FUZZ.log#prereq
+h4.prereq.e3_fuzz	E3-G	fuzz_counts	93cb4bd69377a80f23ecbfed76209d6edc35cf08d9e2fa4998939ef404724cc4	100000 mutants / 0 accepted_invalid / 0 crashes / 0 timeouts	100000 mutants	PASS	logs/H4-FUZZ.log#prereq
+h4.prereq.e3g_gate	E3-G	gate	1234b8d297f6d286e4fc9db19adb7c8f60e145f9a3f21526ff219104f9c4c4c3	0 FAIL / 0 BLOCKED / E3-G fuzz clean	0 FAIL / 0 BLOCKED	PASS	logs/H4-FUZZ.log#prereq
+h4.seed.reproduced	W-FUZZ	edge-atom-max-plus-one	71f32f86ac601cffa2b57b6aca1c0deb03bec044fb44c9f8569849cdcd986dc7	E3-G committed identity reproduced	bytes=1048804 index=present sha256=71f32f86ac601cffa2b57b6aca1c0deb03bec044fb44c9f8569849cdcd986dc7	PASS	logs/H4-FUZZ.log#seed.edge-atom-max-plus-one
+h4.seed.reproduced	W-FUZZ	edge-index-repeat-5x1mib	fd14dcb9e6426d5df4e11830d77694baad082c1763d609c9e211b47b3f9de4a4	E3-G committed identity reproduced	bytes=1048791 index=present sha256=fd14dcb9e6426d5df4e11830d77694baad082c1763d609c9e211b47b3f9de4a4	PASS	logs/H4-FUZZ.log#seed.edge-index-repeat-5x1mib
+h4.seed.reproduced	W-FUZZ	tkat-atom-max	f726270f038dc5e9951229647ad5cc1ec8ad7250c75eb1dcaa814c334f61dc75	E3-G committed identity reproduced	bytes=1048723 index=absent sha256=f726270f038dc5e9951229647ad5cc1ec8ad7250c75eb1dcaa814c334f61dc75	PASS	logs/H4-FUZZ.log#seed.tkat-atom-max
+h4.seed.reproduced	W-FUZZ	tkat-atom1	f5bdaac754d6a715cb20a4bd9f5b9a4a0bbaaa977879c3f632da5ad5901c20fa	E3-G committed identity reproduced	bytes=144 index=absent sha256=f5bdaac754d6a715cb20a4bd9f5b9a4a0bbaaa977879c3f632da5ad5901c20fa	PASS	logs/H4-FUZZ.log#seed.tkat-atom1
+h4.seed.reproduced	W-FUZZ	tkat-atom1023	728f560bfe390123d650bace3008486df4067e97eecc91e5c95ad4a112a8e0f2	E3-G committed identity reproduced	bytes=1168 index=absent sha256=728f560bfe390123d650bace3008486df4067e97eecc91e5c95ad4a112a8e0f2	PASS	logs/H4-FUZZ.log#seed.tkat-atom1023
+h4.seed.reproduced	W-FUZZ	tkat-atom16	afc7eea1ab5f202b9cda49e5d50630fdc7512cf493496eca6deb3e0dc2721309	E3-G committed identity reproduced	bytes=159 index=absent sha256=afc7eea1ab5f202b9cda49e5d50630fdc7512cf493496eca6deb3e0dc2721309	PASS	logs/H4-FUZZ.log#seed.tkat-atom16
+h4.seed.reproduced	W-FUZZ	tkat-concat2	ccc3a32b6c4f94d18ffab66fb5cafebce87f65e2c0d1904e791634c44085161a	E3-G committed identity reproduced	bytes=175 index=absent sha256=ccc3a32b6c4f94d18ffab66fb5cafebce87f65e2c0d1904e791634c44085161a	PASS	logs/H4-FUZZ.log#seed.tkat-concat2
+h4.seed.reproduced	W-FUZZ	tkat-empty	75d1ba312e42aa98297e8ff30ef9c0afb8f2c2455a1d7848c3a93e1eb48e439f	E3-G committed identity reproduced	bytes=103 index=absent sha256=75d1ba312e42aa98297e8ff30ef9c0afb8f2c2455a1d7848c3a93e1eb48e439f	PASS	logs/H4-FUZZ.log#seed.tkat-empty
+h4.seed.reproduced	W-FUZZ	tkat-ilv-s1	a99925026da92b77badd6e1053b3eb2fc2f2ed1f3994290c4fad80c14dc62c19	E3-G committed identity reproduced	bytes=206 index=absent sha256=a99925026da92b77badd6e1053b3eb2fc2f2ed1f3994290c4fad80c14dc62c19	PASS	logs/H4-FUZZ.log#seed.tkat-ilv-s1
+h4.seed.reproduced	W-FUZZ	tkat-lfsr0	c73327f0405a37cc47f5079ed00ff4d5e4a1790a5aebf7ea83e34ee64789ceaa	E3-G committed identity reproduced	bytes=122 index=absent sha256=c73327f0405a37cc47f5079ed00ff4d5e4a1790a5aebf7ea83e34ee64789ceaa	PASS	logs/H4-FUZZ.log#seed.tkat-lfsr0
+h4.seed.reproduced	W-FUZZ	tkat-repeat35	41c9e7973ea5a01f58163fadaa640a6386d2629f2c3490fca1c751f1e1f8879b	E3-G committed identity reproduced	bytes=170 index=absent sha256=41c9e7973ea5a01f58163fadaa640a6386d2629f2c3490fca1c751f1e1f8879b	PASS	logs/H4-FUZZ.log#seed.tkat-repeat35
+h4.seed.reproduced	W-FUZZ	tkat-slicemid	f1a623f8a4f2a52ac599e8f475fbd4ea8573dad9c7f388896d1c1192cdcb603f	E3-G committed identity reproduced	bytes=185 index=absent sha256=f1a623f8a4f2a52ac599e8f475fbd4ea8573dad9c7f388896d1c1192cdcb603f	PASS	logs/H4-FUZZ.log#seed.tkat-slicemid
+h4.seed.reproduced	W-FUZZ	tkat-xor	ff4c0ab818f49bcf9d706fad946935a4b698ba15dfaf5e5c49afe47793b7cd78	E3-G committed identity reproduced	bytes=228 index=absent sha256=ff4c0ab818f49bcf9d706fad946935a4b698ba15dfaf5e5c49afe47793b7cd78	PASS	logs/H4-FUZZ.log#seed.tkat-xor
+h4.seed.reproduced	W-FUZZ	tkat-zero0	1d3aa6ef3658709f95bc471767e1cb50415b4ecea4d9331843ed7a8787f70143	E3-G committed identity reproduced	bytes=104 index=absent sha256=1d3aa6ef3658709f95bc471767e1cb50415b4ecea4d9331843ed7a8787f70143	PASS	logs/H4-FUZZ.log#seed.tkat-zero0
+h4.seed.reproduced	W-FUZZ	tkat-zero5	adb4512e5dec3a0e8a076a3f793f04a8a81f1ea52c99f426df4e07b81e30a83a	E3-G committed identity reproduced	bytes=106 index=absent sha256=adb4512e5dec3a0e8a076a3f793f04a8a81f1ea52c99f426df4e07b81e30a83a	PASS	logs/H4-FUZZ.log#seed.tkat-zero5
+h4.verdict	H4	verdict	2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80	PASS	PASS	PASS	logs/H4-FUZZ.log#verdict
