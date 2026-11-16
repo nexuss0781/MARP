@@ -2,6 +2,15 @@
 
 **Component**: E3-G (the gate over C07 WIRE and C08 LEGACY; the last sub-component of E3).
 **Branch**: `arena/d7f4f950-marp` (base `967f19fae265bff622375caeae12a98e86583eda`).
+**CI run**: **[43786583468](https://github.com/nexuss0781/MARP/actions/runs/43786583468)** —
+job `E3-G isolation (source level, no build)` **success**; job
+`E3-G build, isolation, gate run, evidence reproduction` **failure at one step**,
+the last one, `E3-G final verdict`, with the annotation
+`W-V1 fixture corpus absent (0 fixtures): the legacy half is BLOCKED, so E3-G cannot
+PASS (§13.3)`. Every preceding step is green, including evidence reproduction and
+the sanitizer run. That is the intended shape of a blocked gate: all the work is
+done and verified, and the one missing input is the only thing standing between
+this and `PASS`.
 **Status: E3-G is `BLOCKED`, and it is green while blocked.** Every obligation that
 *can* be discharged against the tree is discharged: **41 274 of 41 274 runnable
 evidence rows `PASS`, 0 `FAIL`, 1 `BLOCKED`**. The single `BLOCKED` row is `W-V1`,
