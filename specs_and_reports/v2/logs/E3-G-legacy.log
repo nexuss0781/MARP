@@ -1,0 +1,15 @@
+# E3-G evidence
+# tool: engine/bin/e3_g_gate
+# spec: SPECS/COMPONENTS/e3-wire/SPECS.md §13 (normative)
+#       SPECS/SPECS-V2.md §5/§8/§15
+# components under test: C07 (v2 canonical wire), C08 (v1 legacy, read-only)
+# oracle: H3 clean-room decoder, reached as a subprocess only
+# note: fixed banner; the harness reads no clock, host, locale or environment
+# E3-G — legacy (W-V1) half log (§13.4 step 8)
+
+legacy half binary: engine/bin/e3g_legacy_half
+W-V1 directory: ./specs_and_reports/v2/W-V1
+fixtures=0 hashed=0 verified=0 decode_ok=0 digest_ok=0 canonical_ok=0
+BLOCKED: missing_w_v1_corpus
+
+RESULT: legacy BLOCKED

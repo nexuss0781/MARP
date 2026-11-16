@@ -1,0 +1,6 @@
+03ff788e42fb3b86bbf01e4e268ba2a52bc32ee0f966b1c3b2ab7f491a61a6a1  specs_and_reports/v2/gates/E3-G.tsv
+a288a75bfcc751d4b272fc0bf1437c7bb8fe7f4f539ae7904e20c4237131f4c1  specs_and_reports/v2/logs/E3-G.log
+c021ada1ecd32f2a088ac878db355bd0be74cdbb58baf1ce35710e2d7b8fb50c  specs_and_reports/v2/logs/E3-G-fuzz.log
+60b0720ad0e1e36a68dd067e13414c153b17f273f077d6475eeb06c152cdebff  specs_and_reports/v2/logs/E3-G-legacy.log
+be73443e6826fa4e88b8b37952c1eaac858212fa45a45d4f4be3d036a845eea5  specs_and_reports/v2/corpus/E3/corpus.tsv
+93cb4bd69377a80f23ecbfed76209d6edc35cf08d9e2fa4998939ef404724cc4  specs_and_reports/v2/corpus/E3/fuzz_counts.tsv

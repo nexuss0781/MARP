@@ -539,28 +539,43 @@ WireError read_atoms(Ctx& ctx, std::vector<u64>& payload_offsets) {
 // traversal, and every atom record is referenced.  E2's canonical shape covers
 // dedup and the `ATOM_MAX` bound; the traversal order is a wire rule because it
 // is what makes the wire unique.
+//
+// E3-G integration fix (see REPORT/E3/E3-GATE-REPORT.md §6.2): the traversal
+// must visit every *node* once, not once per occurrence.  E2 canonical form is
+// hash-consed (C12: no two structurally identical node records), so the same
+// `Atom` node is legitimately shared by several parents — `Interleave(a, a)`
+// in E2's own T-GEN corpus is the minimal witness.  Re-walking a shared node
+// made this check reject the wire C07 itself had just produced for 200 of the
+// 5 128 canonical T-KAT/T-GEN terms, breaking E3-I1.  H3's independent reader
+// (harness/oracle/src/decode.cpp, stage 8) already models first use this way.
+// Only the *first* visit of an Atom node claims the next atom id, so a genuine
+// violation (an atom record used by two distinct Atom nodes, or an out-of-order
+// table) is still rejected with the same code and stage.
 WireError check_atom_order(const Ir& ir) {
     const std::size_t atoms = ir.atoms.size();
     if (atoms == 0) return WireError{};
     std::vector<u8> used(atoms, 0);
+    // One visit per node: a hash-consed node is entered once, from whichever
+    // parent reaches it first in post-order.
+    std::vector<u8> entered(ir.nodes.size(), 0);
     std::size_t expected = 0;
 
     struct Frame {
         u32 node;
         std::size_t next_arg;
-        bool entered;
     };
     std::vector<Frame> stack;
-    stack.push_back(Frame{ir.root, 0, false});
+    stack.push_back(Frame{ir.root, 0});
+    entered[ir.root] = 1;
     while (!stack.empty()) {
         Frame& top = stack.back();
         const Node& node = ir.nodes[top.node];
-        if (!top.entered) {
-            top.entered = true;
-        }
         if (top.next_arg < node.args.size()) {
             const u32 child = node.args[top.next_arg++];
-            stack.push_back(Frame{child, 0, false});
+            if (child < entered.size() && entered[child] == 0) {
+                entered[child] = 1;
+                stack.push_back(Frame{child, 0});
+            }
             continue;
         }
         // Post-order visit: an Atom node's payload is appended on first use.
@@ -578,6 +593,8 @@ WireError check_atom_order(const Ir& ir) {
                 }
                 ++expected;
             } else {
+                // A second *distinct* Atom node claiming the same record.  The
+                // same node reached twice is a shared subterm, not a violation.
                 return err(WireCode::Invalid, Stage::Atoms, kStageAtomOrder,
                            "the same atom record is referenced by two Atom nodes"
                            " (canonical terms have one Atom node per payload)");
