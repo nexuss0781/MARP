@@ -142,10 +142,23 @@ jobs:
 
       - name: Build C09 (strict -Werror, -O2)
         run: |-
-          set -euo pipefail
+          set -uo pipefail
           cd engine
           make -f Makefile.c09 c09-clean
-          make -f Makefile.c09 c09-all -j4
+          make -f Makefile.c09 c09-all -j4 2>&1 | tee /tmp/c09_build.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            # A build failure must be readable from the check-run annotations:
+            # the CI log archive is not always reachable from a reviewing client,
+            # while the annotation API always is.
+            echo "::error::C09 build failed (make exit $rc)"
+            grep -nE 'error:|Error [0-9]|No rule|undefined reference' /tmp/c09_build.log \
+              | head -n 40 | while IFS= read -r diag; do
+                echo "::error::$diag"
+              done
+            exit "$rc"
+          fi
+          echo "PASS: C09 built warning-free under -Werror"
 
       - name: Verify C09 binary isolation (source grep + nm on built objects)
         run: |-
