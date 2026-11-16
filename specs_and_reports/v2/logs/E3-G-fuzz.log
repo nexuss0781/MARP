@@ -7,7 +7,7 @@
 # note: fixed banner; the harness reads no clock, host, locale or environment
 # E3-G — fuzz campaign log (§13.4 step 7)
 
-corpus: W-CANON=5144 (T-KAT=128 T-GEN=5000) hand-built W-SEED=8 W-NONCANON=48 W-V1=0 W-FUZZ seeds=7
+corpus: W-CANON=5144 (T-KAT=128 T-GEN=5000) hand-built W-SEED=8 W-NONCANON=48 W-V1=5 W-FUZZ seeds=7
 corpus seeds: T-KAT seed=0, T-GEN seed=0xE2A15EED0001 (E2 CorpusSeeds), atom seed=0xE2A15EED0002
 [E3-G wire half (C07 + H3)] cumulative pass=0 fail=0 blocked=0 rows=0
 [W-CANON: encode / decode / fixpoint / oracle agreement] cumulative pass=0 fail=0 blocked=0 rows=0

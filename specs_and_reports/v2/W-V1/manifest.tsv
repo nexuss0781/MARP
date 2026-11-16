@@ -1,0 +1,27 @@
+# W-V1 pinned fixture manifest (SPECS/COMPONENTS/e3-wire/SPECS.md §13.3).
+#
+# Exactly three tab-separated columns, no header row:
+#   <filename.mapr>	<container SHA-256>	<expected denotation SHA-256>
+#
+# The container digest is SHA-256 over the fixture's exact bytes in this
+# directory.  The expected denotation digest is SHA-256 over the byte-exact
+# decoded *output*: the evaluated root term (E2/C05 `eval_stream_digest`), which
+# is what O7.7 and §13.4 step 8 require.  It is not a payload-table
+# concatenation proxy.
+#
+# Provenance of every digest (no value here was invented):
+#   * container digests: `sha256sum` over the committed fixture bytes;
+#   * denotation digests: independently reproduced three ways — (1) C08
+#     `decode_v1` + E2 evaluation materialised to bytes and hashed with
+#     coreutils `sha256sum`; (2) the same stream hashed by E2's own
+#     `StreamDigest`; (3) the identical value found in the container's own TRLR
+#     stream SHA-256 field, which `decode_v1` verifies end-to-end and would
+#     reject as `Mismatch` if the bytes differed.  The gate re-derives the same
+#     value on every run (see logs/E3-G-legacy.log).
+#
+# Both readers (E3-G's legacy half and the C08 gate) parse this format.
+small.mapr	3c27af46e91f0fca361b04621882ca10992ae7efb77b8c9b0ae96bb979b7e3f5	a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447
+test_10mb.mapr	8e467480fbeeec6b4f0d227b8addbd0fd3c9ec765243bdff9ebc3c87eab2056b	a64e7a129a9a46650ba3287ba535404fe89656f67e21a4aeb746061d7b088327
+test_1mb.mapr	1b721544e2e0a51e8aca6febccf1644082d47dc6cb368e353d365fb18e62108d	f268167f8ff792d9a7c7d13cd6eda9c5d5eb5ca61bd258436c057e6366a1da77
+test_simd.mapr	ba8fb0f26317ddba03b815ae67b823c2871093dd86375c9987ed54699e0c2fb4	144c7552b8c29a2abd00131f431000a129d173b88368fc81a233db5a5ed32cf5
+test_simd_out.mapr	7f6f9285ff2cbaa64cf6f2818e117e29ce928da3555f45c073153b62e29238b6	144c7552b8c29a2abd00131f431000a129d173b88368fc81a233db5a5ed32cf5

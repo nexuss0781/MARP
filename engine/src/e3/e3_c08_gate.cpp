@@ -622,20 +622,78 @@ int main(int argc, char** argv) {
                 "BLOCKED",
                 "logs/C08-LEGACY.log#c08.w_v1_corpus:W-V1"});
         } else {
-            // Optional expected output SHA-256 map from W-V1/SHA256SUMS or W-V1/manifest.tsv.
-            std::map<std::string, std::string> expected_out_sha;
+            // Expected identity map from W-V1/manifest.tsv.  The format is exactly
+            // three tab-separated columns -- <name>, <container SHA-256>, <expected
+            // denotation SHA-256> -- and it is the same file E3-G's legacy half
+            // reads.  Reading it as "everything after the first tab is the output
+            // digest" (the earlier two-column assumption) silently treated the
+            // container digest as the expected output digest, so a correctly
+            // populated three-column manifest failed this gate.  Both readers now
+            // agree on the format, and both check the container digest too.
+            struct ManifestEntry {
+                std::string container_sha;
+                std::string output_sha;
+            };
+            std::map<std::string, ManifestEntry> manifest_entries;
+            std::vector<std::string> manifest_problems;
             const fs::path manifest_p = w_v1_dir / "manifest.tsv";
-            if (fs::exists(manifest_p)) {
+            if (!fs::exists(manifest_p)) {
+                manifest_problems.push_back("manifest.tsv is absent");
+            } else {
                 std::ifstream mf(manifest_p);
                 std::string line;
+                std::size_t line_no = 0;
                 while (std::getline(mf, line)) {
+                    ++line_no;
+                    if (!line.empty() && line.back() == '\r') line.pop_back();
                     if (line.empty() || line[0] == '#') continue;
-                    const auto tab = line.find('\t');
-                    if (tab != std::string::npos) {
-                        expected_out_sha[line.substr(0, tab)] = line.substr(tab + 1u);
+                    std::vector<std::string> cols;
+                    std::size_t start = 0;
+                    for (;;) {
+                        const std::size_t tab = line.find('\t', start);
+                        cols.push_back(line.substr(
+                            start, tab == std::string::npos ? std::string::npos : tab - start));
+                        if (tab == std::string::npos) break;
+                        start = tab + 1u;
+                    }
+                    if (cols.size() != 3u) {
+                        manifest_problems.push_back("manifest.tsv line " + std::to_string(line_no) +
+                                                    ": expected 3 tab-separated columns, got " +
+                                                    std::to_string(cols.size()));
+                        continue;
+                    }
+                    auto is_sha = [](const std::string& t) {
+                        if (t.size() != 64u) return false;
+                        for (const char c : t) {
+                            const bool digit = c >= '0' && c <= '9';
+                            const bool lower = c >= 'a' && c <= 'f';
+                            if (!digit && !lower) return false;
+                        }
+                        return true;
+                    };
+                    if (!is_sha(cols[1]) || !is_sha(cols[2])) {
+                        manifest_problems.push_back("manifest.tsv line " + std::to_string(line_no) +
+                                                    ": digests must be 64 lowercase hex digits");
+                        continue;
+                    }
+                    if (!manifest_entries.emplace(cols[0], ManifestEntry{cols[1], cols[2]}).second) {
+                        manifest_problems.push_back("manifest.tsv line " + std::to_string(line_no) +
+                                                    ": duplicate entry for " + cols[0]);
                     }
                 }
             }
+            record_row(EvidenceRow{
+                "c08.w_v1_manifest",
+                "W-V1",
+                "manifest.tsv",
+                "-",
+                "three columns; every fixture has one entry",
+                manifest_problems.empty()
+                    ? std::string("entries=") + std::to_string(manifest_entries.size()) +
+                          " parse_errors=0"
+                    : manifest_problems.front(),
+                manifest_problems.empty() ? "PASS" : "FAIL",
+                "logs/C08-LEGACY.log#c08.w_v1_manifest:manifest.tsv"});
 
             for (const fs::path& fp : mapr_files) {
                 bool rd_ok = false;
@@ -659,12 +717,24 @@ int main(int argc, char** argv) {
                 }
                 auto dig = eval_stream_digest(res.value());
                 const std::string got = dig.ok() ? digest_to_hex(dig.value().sha256) : "eval_err";
-                auto it = expected_out_sha.find(item);
-                const std::string want = (it != expected_out_sha.end()) ? it->second : got;
-                const bool pass = dig.ok() && check_canonical(res.value()).ok() && (got == want);
+                auto it = manifest_entries.find(item);
+                if (it == manifest_entries.end()) {
+                    record_row(EvidenceRow{
+                        "c08.w_v1_corpus", "W-V1", item, in_sha,
+                        "manifest entry with container and denotation SHA-256",
+                        "manifest_entry=absent", "FAIL",
+                        "logs/C08-LEGACY.log#c08.w_v1_corpus:" + item});
+                    continue;
+                }
+                const bool container_ok = (it->second.container_sha == in_sha);
+                const bool output_ok = (got == it->second.output_sha);
+                const bool pass = dig.ok() && check_canonical(res.value()).ok() && container_ok &&
+                                  output_ok;
                 record_row(EvidenceRow{
                     "c08.w_v1_corpus", "W-V1", item, in_sha,
-                    "sha=" + want, "sha=" + got,
+                    "container_sha=" + it->second.container_sha + ";sha=" +
+                        it->second.output_sha,
+                    "container_sha=" + in_sha + ";sha=" + got,
                     pass ? "PASS" : "FAIL",
                     "logs/C08-LEGACY.log#c08.w_v1_corpus:" + item});
             }

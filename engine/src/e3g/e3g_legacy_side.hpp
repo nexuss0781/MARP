@@ -27,6 +27,8 @@ struct LegacyRow {
     std::string log;
     // The term C08 decoded, as a `structural_key` rendering plus the atom payloads
     // in hex, so the wire side can rebuild it and re-encode it as v2 (§13.4 step 8).
+    // The rendering is the full key, parameters included, so `parse_structural_key`
+    // reconstructs the same term the gate compares against.
     std::string structure_text;
     std::vector<std::string> payload_hex;
 };
@@ -39,18 +41,19 @@ struct LegacySummary {
     int exit_code = -1;
     std::size_t fixtures_found = 0;
     std::size_t fixtures_hashed = 0;
-    std::size_t fixtures_verified = 0;   // hash matched and decode succeeded
+    std::size_t fixtures_verified = 0;   // container hash matched its manifest entry
     std::size_t decode_ok = 0;
-    std::size_t digest_ok = 0;
+    std::size_t well_formed_ok = 0;
     std::size_t canonical_ok = 0;
+    std::size_t digest_ok = 0;                 // recorded denotation SHA-256 matched
+    std::size_t denotation_crosscheck_ok = 0;  // harness SHA-256 == E2 StreamDigest
     std::size_t v2_reencoded = 0;   // fixtures whose v2 re-encode was a fixpoint
     std::size_t failures = 0;
     bool blocked = false;
     std::string blocked_reason;
     std::string surface;
-    // Structure digests of the decoded terms, so the wire side can re-encode them
-    // as v2 and prove the roundtrip (§13.4 step 8).
-    std::vector<std::string> structure_sha;   // one per verified fixture
+    // The decoded terms cross the boundary as text plus hex payloads, so the wire
+    // side can rebuild and re-encode them as v2 (§13.4 step 8).
     std::size_t payloads_received = 0;
     std::vector<LegacyRow> rows;
     std::vector<std::string> log_lines;

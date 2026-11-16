@@ -1200,8 +1200,8 @@ bool decode_payload_hex(const std::vector<std::string>& payload_hex,
 }  // namespace
 
 void reencode_legacy_term(const std::string& item_id, const std::string& structure_text,
-                          const std::vector<std::string>& payload_hex, Collector& collector,
-                          std::size_t& failures) {
+                          const std::vector<std::string>& payload_hex, const std::string& expected_digest,
+                          const Settings& settings, Collector& collector, std::size_t& failures) {
     const std::string log = "logs/E3-G-legacy.log#" + item_id;
     Ir term;
     std::string why;
@@ -1292,6 +1292,23 @@ void reencode_legacy_term(const std::string& item_id, const std::string& structu
                   std::to_string(wire.size()), "encode(decode(w)) == w",
                   fixpoint ? "byte-identical" : "differs", fixpoint, log);
     if (!fixpoint) ++failures;
+
+    if (settings.full_oracle) {
+        const OracleOutcome oracle = oracle_verify(resolve_path(settings.root, settings.oracle_path),
+                                                   wire, expected_digest);
+        if (!oracle.available) {
+            collector.row_verdict("e3g.legacy.oracle_agreement", "W-V1", item_id, input_sha,
+                                  wire_sha, std::to_string(wire.size()),
+                                  "H3 verifies denotation=" + expected_digest,
+                                  "oracle binary not available", "BLOCKED", log);
+        } else {
+            const bool agrees = oracle.ran && oracle.exit_code == 0;
+            collector.row("e3g.legacy.oracle_agreement", "W-V1", item_id, input_sha, wire_sha,
+                          std::to_string(wire.size()), "H3 verifies denotation=" + expected_digest,
+                          "oracle exit=" + std::to_string(oracle.exit_code), agrees, log);
+            if (!agrees) ++failures;
+        }
+    }
 }
 
 }  // namespace e3g

@@ -242,7 +242,8 @@ jobs:
           # assertion itself dishonest about what a BLOCKED run can contain.
           if compgen -G 'specs_and_reports/v2/W-V1/*.mapr' > /dev/null; then
             for req in e3g.legacy.decode_v1 e3g.legacy.denotation e3g.legacy.term_canonical \
-                       e3g.legacy.v2_encode e3g.legacy.v2_roundtrip e3g.legacy.v2_fixpoint; do
+                       e3g.legacy.v2_encode e3g.legacy.v2_roundtrip e3g.legacy.v2_fixpoint \
+                       e3g.legacy.oracle_agreement; do
               awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
             done
           fi
@@ -352,19 +353,30 @@ jobs:
           # C07 gate itself (run above) proves the fix does not change its evidence.
           echo "PASS: frozen components and earlier evidence untouched"
 
-      - name: E3-G final verdict — a BLOCKED corpus fails the job here
+      - name: E3-G final verdict — PASS required, BLOCKED fails the job here
         run: |-
           set -euo pipefail
           TSV="specs_and_reports/v2/gates/E3-G.tsv"
-          if compgen -G 'specs_and_reports/v2/W-V1/*.mapr' > /dev/null; then
-            echo "PASS: E3-G is PASS (W-V1 corpus present and verified)"
-            exit 0
+          # The verdict is read from the gate's own exit code and from the rows it
+          # wrote, never inferred from the presence of an input file: a corpus that
+          # exists but does not verify must not be able to pass this step.  The exit
+          # code is 0 only for PASS, 1 for FAIL and 4 for BLOCKED (§13.3, §13.6).
+          rc="${E3G_GATE_RC:-missing}"
+          if [ "$rc" != "0" ]; then
+            echo "::error::the E3-G gate did not exit 0 (E3G_GATE_RC=$rc): the gate is not PASS"
+            exit 1
           fi
-          # Deliberately last: everything above has now run and passed, so this red
-          # is attributable to the one missing input and to nothing else.
-          echo "::error::W-V1 fixture corpus absent ($(compgen -G 'specs_and_reports/v2/W-V1/*.mapr' | wc -l) fixtures): the legacy half is BLOCKED, so E3-G cannot PASS (§13.3)"
-          echo "All other checks passed. The evidence correctly records BLOCKED; no PASS is claimed."
-          exit 1
+          if awk -F'\t' '$9 == "BLOCKED" { print "BLOCKED row: " $1 " " $3; found = 1 } END { exit(found ? 1 : 0) }' "$TSV"; then
+            echo "PASS: gate exit 0 and zero BLOCKED rows"
+          else
+            echo "::error::a BLOCKED row is present, so E3-G is not closed (§13.3)"
+            exit 1
+          fi
+          awk -F'\t' '$1 == "e3g.legacy.w_v1_corpus" && $9 == "PASS" { found = 1 } END { exit(found ? 0 : 1) }' "$TSV" || {
+            echo "::error::the W-V1 corpus row is not PASS"
+            exit 1
+          }
+          echo "E3-G PASS (closed): every required row PASS, 0 FAIL, 0 BLOCKED, exit 0"
 
       - name: Upload E3-G evidence artifact
         uses: actions/upload-artifact@v4
