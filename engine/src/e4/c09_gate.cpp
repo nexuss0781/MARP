@@ -785,7 +785,14 @@ int run_gate(const fs::path& repo_root, const fs::path& out_root) {
     {
         const std::vector<u8> a_bytes = splitmix_bytes(90'000, 0x4d41525043305341ull);
         std::vector<u8> b_bytes = a_bytes;
-        b_bytes[0] = static_cast<u8>(b_bytes[0] ^ 0x01u);  // one bit differs
+        // Flip the first byte only. The loop form is deliberate: the implicit
+        // begin != end test establishes non-emptiness, so GCC 15's
+        // -Wnull-dereference does not read a bare b_bytes[0] as a dereference
+        // of a vector that might have no storage. Same semantics, no pragma.
+        for (u8& byte : b_bytes) {
+            byte = static_cast<u8>(byte ^ 0x01u);  // one bit differs
+            break;
+        }
 
         marp::v2::SpanSource a(std::span<const u8>(a_bytes.data(), a_bytes.size()));
         marp::v2::SpanSource b(std::span<const u8>(b_bytes.data(), b_bytes.size()));
