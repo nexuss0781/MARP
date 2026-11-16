@@ -321,12 +321,14 @@ branch (`2faa1b38`) and regenerates every committed artifact itself.
 | Run | `43866731951` — https://github.com/nexuss0781/MARP/actions/runs/43866731951 |
 | Conclusion | **SUCCESS**, 2026-11-16T12:27:22Z → 12:31:17Z |
 | Head commit | `2faa1b38` (`2faa1b3` — harness, evidence, workflow, report) |
+| Final-tree run | `43873262895`, head `d74fc89` — same jobs, same evidence diff, green |
 | Jobs | `h4-source-independence` ✓, `h4-selftest` ✓, `h4-campaign` ✓ (2m10s) — all hard-fail |
 | Campaign in CI | `--root .. --workers 4 --write-evidence`; counters identical to §6; evidence diffed byte-for-byte against the committed files |
 | Independent repeat | second full CI campaign diffed byte-for-byte against the first, and `sha256sum -c` re-run |
 | Sanitizers | ASan+UBSan campaign, 2,000 mutants in-process, `detect_leaks=1`, zero reports |
 | Artifact | `h4-evidence`, ID `14225942124`, 8,437 bytes, digest `sha256:c26ecc319ed45f343b0008702c5b2414779303459f6e4d923a084b8bc477cd2b` |
-| Report commit | a documentation-only follow-up commit adds this report; it triggers the same workflow again, which re-verifies the identical campaign artifacts, so the pinned run above remains authoritative for the measured values |
+| Final-tree verification | run `43873262895` (SUCCESS, head `d74fc89`) executes the same three jobs over the tree that contains this report; it re-ran the 100,000-mutant campaign, diffed all six artifacts byte-for-byte against the committed files, repeated the campaign, and passed the ASan+UBSan leg |
+| Later documentation edits | a further documentation-only commit pins the run IDs above and triggers one more identical verification run; because it changes no source, seeds or evidence, the measured values remain those of run `43866731951` |
 
 No-regression runs on the same head `2faa1b38` (all `success`): C03 TERM
 `43866731815`, C04 CANON `43866731783`, C05 EVAL `43866731784`, C06 DAG
