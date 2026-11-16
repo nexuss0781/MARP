@@ -2,7 +2,7 @@ name: MARP H3 Oracle CI
 
 on:
   push:
-    branches: [h3-oracle, 'arena/**']
+    branches: [h3-oracle, h2-gates, 'arena/**']
   pull_request:
   workflow_dispatch:
 
