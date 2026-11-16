@@ -6,8 +6,8 @@ eval.lfsr	ORACLE	lfsr-kats-and-2p70-jump	51f618a4c72e72f710bc75bdda4bb6716b90578
 eval.morph	ORACLE	all-9-morphs-all-k	cd7cfe7aa91aafe8dea8d5d81d7445aca73e57bcd91a9794613d9ea8b5455117	21/21 exact	21/21 exact	PASS	logs/H3-ORACLE.log#eval.morph
 eval.predictor	ORACLE	all-5-predictors	ea0840ef05cf7b35ce661259262ce7f1ab9c0fc18a76fd7dce262a99f18a2a0b	18/18 exact	18/18 exact	PASS	logs/H3-ORACLE.log#eval.predictor
 eval.range	ORACLE	virtual-2p50-2p70-and-bounds	573bd465c6db384b4cc2a9484a531802b3c26f8ee99a85e17ebdfce43e67cfd6	7/7 exact	7/7 exact	PASS	logs/H3-ORACLE.log#eval.range
-independence	ORACLE	grep-and-nm-clean-room	c852157faa55ad3cfb6bd8efc0a34bee321dda5c78326eab4d3cc7b561b253b4	0 engine includes, 0 engine symbols	0 forbidden includes across 10 oracle files; nm_clean=YES	PASS	logs/H3-ORACLE.log#independence
-oracle.f00-f08	ORACLE	f00-f08-cross-check	d07abede02a0272e95ebae76fd05d66eb66d0434ef9afceb90041a8362c5b5a6	byte-exact reproduction of E3 F00-F08 wires	BLOCKED: E3 wire producer absent	BLOCKED	logs/H3-ORACLE.log#oracle.f00-f08
+independence	ORACLE	grep-and-nm-clean-room	1e2354de1023bbe2810176180991c058fea8eef05924f443ac725dcb43f51033	0 engine includes, 0 engine symbols	0 forbidden includes across 10 oracle files; nm_clean=YES	PASS	logs/H3-ORACLE.log#independence
+oracle.f00-f08	ORACLE	f00-f08-cross-check	d3ed8e4cb39432535ee4e4b79698f9eb6ef453d6b693ed6c02acd85c2d1e42e0	9/9 byte-exact (sha256(out)==sha256(in))	9/9 byte-exact; wire_bytes=264651; engine_vs_oracle=9/9 digests agree	PASS	logs/H3-ORACLE.log#oracle.f00-f08
 resource.limits	ORACLE	limits-oom-depth-expansion	e5fd7c1585e31580168d60589951e07d91bb4609c3e5e3d2413aaab08c5018c0	6/6 safe	6/6 safe	PASS	logs/H3-ORACLE.log#resource.limits
 wire.atoms	ORACLE	atom-table-rules	41319bd88e9bdaca6ed27f7c29d653dd25bce6058f824beb873e283c213ba54c	11/11 passed	11/11 passed	PASS	logs/H3-ORACLE.log#wire.atoms
 wire.bigint	ORACLE	canonical-uvarint-bigint	2635428d73f90942424ddec1195088528db3fe898cd940ec83d2946214805fe7	24/24 passed	24/24 passed	PASS	logs/H3-ORACLE.log#wire.bigint

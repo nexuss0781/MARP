@@ -1,2 +1,3 @@
-1567d07d1720555537e48c2ed553e65427d5c1f3f68a6cf99662d4f59947dc6a  specs_and_reports/v2/gates/H3-ORACLE.tsv
-381ee87b843d5279d4f6f316f4eb9f6a0b87d0e0b81614b45f1b34dedf73866d  specs_and_reports/v2/logs/H3-ORACLE.log
+fa6474b7e3539dcb00531ec66b2eae6663800dfdb89a16264d401fab2a02b66f  specs_and_reports/v2/gates/H3-ORACLE.tsv
+f578665748729ce4c2edcf91116faea8f808fd4ab44ba0c91428aa75128780f9  specs_and_reports/v2/logs/H3-ORACLE.log
+78fa069b2b62938678cc8ea2e3d5028f4cfb9e76d60f63b011decb044b103421  specs_and_reports/v2/evidence/H3/f00-f08-manifest.tsv

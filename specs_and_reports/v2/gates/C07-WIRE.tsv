@@ -2,7 +2,7 @@ check	corpus	item_id	input_sha256	wire_sha256	wire_bytes	expected	actual	verdict
 precondition.e0g	E3-C07	E0-G.tsv	44486022936a39f0c310889eaa6f227825177af2916e4efc1e82cc231b85b05d			present+all_PASS/PASS	60b5756a574d56033631fcc9db0a2c653aae512f14cd8b561bdb62e7c7d26775/PASS	PASS	preconditions
 precondition.e1g	E3-C07	E1-G.tsv	325a9a3a68d7d2d2f50ff0d22099521a30b6e57d06d562341ca2579c7113b1fc			present+all_PASS/PASS	fa777c8337b1a984a83a1031fd003ad4b597840008011abd14739a3c6609b24b/PASS	PASS	preconditions
 precondition.e2g	E3-C07	E2-G.tsv	d2f3bc3be2ba2acb5597b1ab9a15397774024e5ad0fcb8952e0e6ce31f64a1d3			present+all_PASS/PASS	529c86679ca38d0d040735516c9af60b1c6fa5c715087ce241444863808b2a35/PASS	PASS	preconditions
-precondition.h3	E3-C07	H3-ORACLE.tsv	69af4a3d6b270f9dd1c2c15cb7cc89852ebc0c7a239b35b448a835fa998dd43d			present+all_PASS/PASS	1567d07d1720555537e48c2ed553e65427d5c1f3f68a6cf99662d4f59947dc6a/PASS	PASS	preconditions
+precondition.h3	E3-C07	H3-ORACLE.tsv	69af4a3d6b270f9dd1c2c15cb7cc89852ebc0c7a239b35b448a835fa998dd43d			present+all_PASS/PASS	fa6474b7e3539dcb00531ec66b2eae6663800dfdb89a16264d401fab2a02b66f/PASS	PASS	preconditions
 precondition.blocking	E3-C07	E2-G	e8ab1c4da6caac126a24c53d067f8a381e3bcabea5d19193570c7870d3e08efb			present/present	present	PASS	preconditions
 precondition.no_e4_e7	E3-C07	isolation	e08922960afdd95f875dcde68eae6971f0e50cfdad3cb55ef124fdbdf03104a3			no E4-E7 include in C07 sources/no E4-E7 include in C07 sources	see isolation.source	PASS	preconditions
 corpus.count	W-CANON	c07-corpus	6b17b8fcc411a533c822a5117e33cf73fa6766739d7d36ac86dc4bea883af4fe		60	>=40	60	PASS	corpus

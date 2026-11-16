@@ -84,6 +84,43 @@ jobs:
           fi
           echo "PASS: Binary independence verified"
 
+      - name: Build the E3 F00-F08 wire producer (engine side; never linked into the oracle)
+        env:
+          LD_LIBRARY_PATH: /usr/local/lib
+        run: |
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h3 h3-producer -j4
+          echo "Checking that the producer is a separate binary..."
+          nm -C bin/h3_f00f08_producer | grep -q 'marp::v2::' || {
+            echo "FAIL: the producer does not contain the C07 encode path"; exit 1; }
+          if nm -C bin/mapr_oracle | grep -E 'marp::v2::|h3_f00f08'; then
+            echo "FAIL: an engine/C07 symbol leaked into bin/mapr_oracle"
+            exit 1
+          fi
+          if nm -C bin/oracle_tests | grep -E 'marp::v2::|h3_f00f08'; then
+            echo "FAIL: an engine/C07 symbol leaked into bin/oracle_tests"
+            exit 1
+          fi
+          echo "PASS: the oracle binaries remain free of engine/C07 symbols"
+
+      - name: Emit the F00-F08 canonical v2 wires via C07 (E3) and record their identities
+        run: |
+          set -euo pipefail
+          cd engine
+          ./bin/h3_f00f08_producer --root .. --out build/h3-crosscheck
+          echo "--- f00-f08-manifest.tsv ---"
+          cat build/h3-crosscheck/f00-f08-manifest.tsv
+          echo "--- f00-f08-producer.log ---"
+          cat build/h3-crosscheck/f00-f08-producer.log
+          echo "--- wire files ---"
+          ls -l build/h3-crosscheck/wires
+          # The wires are build output: they must never be committed.
+          if git status --porcelain --untracked-files=all | grep -E 'wires/|build/h3-crosscheck'; then
+            echo "FAIL: cross-check build output is tracked or untracked-but-visible in the tree"
+            exit 1
+          fi
+
       - name: Snapshot committed evidence (if present) and verify committed manifest
         run: |
           set -euo pipefail
@@ -100,7 +137,8 @@ jobs:
         run: |
           set -euo pipefail
           cd engine
-          ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence ..
+          ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence .. \
+              --cross-check-dir build/h3-crosscheck --repo-root ..
 
       - name: Verify committed H3-ORACLE.tsv matches CI-generated TSV byte-for-byte
         run: |
@@ -119,11 +157,12 @@ jobs:
           mkdir -p /tmp/h3-det/harness
           ln -s "$PWD/harness/oracle" /tmp/h3-det/harness/oracle
           cd engine
-          ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence /tmp/h3-det
+          ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence /tmp/h3-det \
+              --cross-check-dir build/h3-crosscheck --repo-root ..
           diff -u ../specs_and_reports/v2/gates/H3-ORACLE.tsv /tmp/h3-det/specs_and_reports/v2/gates/H3-ORACLE.tsv
           echo "PASS: Repeat run produced byte-identical H3-ORACLE.tsv"
 
-      - name: Verify evidence schema, manifest, and honest BLOCKED state
+      - name: Verify evidence schema, manifest, and unblocked F00-F08 state
         run: |
           set -euo pipefail
           TSV="specs_and_reports/v2/gates/H3-ORACLE.tsv"
@@ -140,7 +179,24 @@ jobs:
             echo "FAIL: FAIL verdict present in H3-ORACLE.tsv"
             exit 1
           fi
-          awk -F'\t' '$1 == "oracle.f00-f08" { found = 1; if ($7 != "BLOCKED") { print "Bad f00-f08 verdict: " $7; exit 1 } } END { if (!found) { print "Missing oracle.f00-f08 row"; exit 1 } }' "$TSV"
+          # oracle.f00-f08 is no longer BLOCKED: it must be a measured PASS row.
+          awk -F'\t' '$1 == "oracle.f00-f08" { found = 1; if ($7 != "PASS") { print "Bad f00-f08 verdict: " $7; exit 1 } } END { if (!found) { print "Missing oracle.f00-f08 row"; exit 1 } }' "$TSV"
+          if awk -F'\t' 'NR > 1 && $7 == "BLOCKED" { print; found = 1 } END { exit(found ? 1 : 0) }' "$TSV"; then
+            echo "PASS: 0 BLOCKED rows in H3-ORACLE.tsv"
+          else
+            echo "FAIL: BLOCKED verdict present in H3-ORACLE.tsv"
+            exit 1
+          fi
+          grep -q '^RESULT: PASS$' "$LOG" || { echo "FAIL: H3-ORACLE.log does not report RESULT: PASS"; exit 1; }
+          for id in F00 F01 F02 F03 F04 F05 F06 F07 F08; do
+            grep -qE "^oracle\.f00-f08: ${id} .*result=PASS$" "$LOG" || {
+              echo "FAIL: H3-ORACLE.log has no PASS line for $id"; exit 1; }
+          done
+          grep -qE '^oracle\.f00-f08: cross_check_dir=.* fixtures=9 passed=9 .*result=PASS$' "$LOG" || {
+            echo "FAIL: H3-ORACLE.log has no 9/9 F00-F08 cross-check summary"; exit 1; }
+          test -s specs_and_reports/v2/evidence/H3/f00-f08-manifest.tsv
+          awk -F'\t' 'NR > 1 { n += 1 } END { if (n != 9) { print "Bad fixture manifest row count: " n; exit 1 } }' \
+              specs_and_reports/v2/evidence/H3/f00-f08-manifest.tsv
           for req in wire.header wire.bigint wire.atoms wire.nodes wire.index wire.trailer wire.mutations wire.stage_order eval.kinds eval.morph eval.predictor eval.lfsr eval.range resource.limits independence determinism oracle.f00-f08; do
             awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
           done
@@ -155,7 +211,12 @@ jobs:
         run: |
           set -euo pipefail
           cd engine
-          make -f Makefile.h3 h3-test-san -j4
+          make -f Makefile.h3 bin/mapr_oracle_san bin/oracle_tests_san -j4
+          # The 4 GiB / LFSR fixtures are exercised in the full run above; under
+          # ASan+UBSan this subset covers empty, atom, zero, repeat and affine.
+          ./bin/oracle_tests_san --oracle-bin ./bin/mapr_oracle_san \
+              --cross-check-dir build/h3-crosscheck \
+              --cross-check-only F00,F01,F02,F03,F05 --repo-root ..
 
       - name: Upload H3 oracle evidence artifact
         uses: actions/upload-artifact@v4
@@ -166,4 +227,6 @@ jobs:
             specs_and_reports/v2/gates/H3-ORACLE.tsv
             specs_and_reports/v2/logs/H3-ORACLE.log
             specs_and_reports/v2/evidence/H3/SHA256SUMS
+            specs_and_reports/v2/evidence/H3/f00-f08-manifest.tsv
+            engine/build/h3-crosscheck/f00-f08-producer.log
           retention-days: 30

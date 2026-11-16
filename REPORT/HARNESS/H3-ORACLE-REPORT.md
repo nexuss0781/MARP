@@ -16,7 +16,26 @@
   - **Uploaded artifact**: `h3-evidence` (Artifact ID `14122959123`, 2,803 bytes, digest `sha256:bef4883d6dd9f6f7209d31733ea86898fbf681a3423e19264bbb442a947b9225`)
 - **Runner & toolchain**: Ubuntu (`ubuntu-latest`), GCC C++20 (`-std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2`), GoogleTest built in CI for `bin/oracle_tests` only; **`zlib1g-dev` intentionally omitted** to prove zero third-party dependency in `bin/mapr_oracle`.
 
-### CI Jobs & Steps (Run `#43619508436` — All PASS)
+### Addendum: `oracle.f00-f08` unblock (F00–F08 cross-check)
+
+- **Branch**: `arena/d4f43dd9-marp`
+- **Base commit**: `fa41289c3f15605a17e6858001ca345af8adab02` (`origin/h2-gates`, the H3 unblock prompt commit)
+- **Implementation commit**: `4c907e9` — E3-side F00–F08 wire producer, H3 cross-check suite, refreshed H3 evidence, refreshed C07 evidence, `h3-oracle.yml` unblock checks
+- **First green H3 run (implementation commit `4c907e9`)**: `MARP H3 Oracle CI` run [`43891189743`](https://github.com/nexuss0781/MARP/actions/runs/43891189743) — **SUCCESS** (15/15 steps, including the committed-vs-CI TSV byte diff, the independent determinism re-run, the `oracle.f00-f08` PASS-state checks, and the ASan/UBSan subset)
+- **Final green run over the complete deliverable tree (commit `4bdaa8c`: report + C07 evidence refresh)**: `MARP H3 Oracle CI` run [`43896676189`](https://github.com/nexuss0781/MARP/actions/runs/43896676189) — **SUCCESS**, together with **all nine other workflows triggered by the same push**, every one green:
+  `MARP E2 C03 TERM CI` [`43896676901`](https://github.com/nexuss0781/MARP/actions/runs/43896676901),
+  `MARP E2 C04 CANON CI` [`43896676118`](https://github.com/nexuss0781/MARP/actions/runs/43896676118),
+  `MARP E2 C05 EVAL CI` [`43896675896`](https://github.com/nexuss0781/MARP/actions/runs/43896675896),
+  `MARP E2 C06 DAG CI` [`43896676302`](https://github.com/nexuss0781/MARP/actions/runs/43896676302),
+  `MARP E2-G ALGEBRA CI` [`43896676182`](https://github.com/nexuss0781/MARP/actions/runs/43896676182),
+  `MARP E3 C07 WIRE CI` [`43896676294`](https://github.com/nexuss0781/MARP/actions/runs/43896676294),
+  `MARP E3 C08 LEGACY CI` [`43896675912`](https://github.com/nexuss0781/MARP/actions/runs/43896675912),
+  `MARP E3-G integrated gate CI` [`43896675864`](https://github.com/nexuss0781/MARP/actions/runs/43896675864),
+  `MARP H4 FUZZ CI` [`43896675895`](https://github.com/nexuss0781/MARP/actions/runs/43896675895).
+- **Result**: `oracle.f00-f08` is **PASS** (measured; 9/9 byte-exact). No `BLOCKED` row remains anywhere in `H3-ORACLE.tsv`.
+- Full method, measured identities and per-fixture results: §11. The commit that carries these last report lines is documentation-only (a section cross-reference in a producer comment and this citation); it touches no source, no wire, and no evidence byte.
+
+### CI Jobs & Steps (Runs `#43619508436` and `#43891189743` — All PASS)
 
 | Job | Step | Result |
 |---|---|---|
@@ -25,13 +44,15 @@
 | `build-test-oracle` | Build GoogleTest (tests only) | PASS |
 | `build-test-oracle` | Build H3 oracle and tests (strict `-Werror`) | PASS |
 | `build-test-oracle` | Verify binary independence (`grep`, `nm -C`, `ldd`) | PASS |
+| `build-test-oracle` | **_new_**: Build the E3 F00–F08 wire producer and prove no engine/C07 symbol leaked into the oracle binaries | PASS |
+| `build-test-oracle` | **_new_**: Emit the F00–F08 canonical v2 wires via C07 and record their identities | PASS |
 | `build-test-oracle` | Snapshot committed evidence & verify committed `SHA256SUMS` | PASS |
-| `build-test-oracle` | Run H3 oracle test suite and write evidence | PASS |
+| `build-test-oracle` | Run H3 oracle test suite and write evidence (`--cross-check-dir …`) | PASS |
 | `build-test-oracle` | Verify committed `H3-ORACLE.tsv` matches CI-generated TSV byte-for-byte (`diff -u`) | PASS |
 | `build-test-oracle` | External determinism check (repeat run `diff -u`) | PASS |
-| `build-test-oracle` | Verify evidence schema, manifest, and honest `BLOCKED` state | PASS |
-| `build-test-oracle` | Run H3 oracle suite with ASan and UBSan | PASS |
-| `build-test-oracle` | Upload H3 oracle evidence artifact (`h3-evidence`) | PASS |
+| `build-test-oracle` | Verify evidence schema, manifest, and **unblocked F00–F08** state (row is `PASS`, 0 `BLOCKED`, 9-row manifest, `RESULT: PASS`) | PASS |
+| `build-test-oracle` | Run H3 oracle suite with ASan and UBSan (with a sanitizer-sized cross-check subset `F00,F01,F02,F03,F05`) | PASS |
+| `build-test-oracle` | Upload H3 oracle evidence artifact (`h3-evidence`, now also carrying the fixture/wire manifest and the producer log) | PASS |
 
 > Note: A subsequent commit adds this report (`REPORT/HARNESS/H3-ORACLE-REPORT.md`), triggering a final green CI verification run over the complete deliverable tree without altering any oracle source or evidence file.
 
@@ -73,7 +94,9 @@ All H3 deliverables live in strictly isolated paths; **zero H2/E1 files** (`engi
 | `harness/oracle/tests/wire_builder.hpp` | **Test-only** spec-derived canonical & tamperable wire builder (never linked into `bin/mapr_oracle`, never presented as E3 output). |
 | `harness/oracle/tests/oracle_test.cpp` | 15-suite GoogleTest verification harness covering digests, stages 1–11, stage precedence, canonical integers, 353 mutations, all 12 kinds / 9 morphisms / 5 predictors / LFSR jump-ahead / virtual `2^70` ranges, resource limits, CLI smoke matrix, determinism, source independence, honest `oracle.f00-f08` `BLOCKED` row, and atomic evidence/manifest emission (`--write-evidence`). |
 | `engine/Makefile.h3` | Includes `Makefile` without editing it; defines isolated `h3-all`, `h3-test`, `h3-test-san`, `h3-independence`, `h3-clean` targets. |
-| `.github/workflows/h3-oracle.yml` | Dedicated hard-fail CI workflow for H3 ORACLE. |
+| `.github/workflows/h3-oracle.yml` | Dedicated hard-fail CI workflow for H3 ORACLE (addendum: also builds/runs the E3 producer, requires the `oracle.f00-f08` PASS state, and runs a sanitizer-sized cross-check subset). |
+| `harness/crosscheck/f00f08_producer.cpp` | **E3 side** of the cross-check (added by the unblock): builds the canonical E2 term per fixture, canonicalises it, emits the C07 wire, validates it, and writes the deterministic identity manifest. Separate binary; never linked into, referenced by, or included from `harness/oracle/**`. |
+| `specs_and_reports/v2/evidence/H3/f00-f08-manifest.tsv` | Harness-published fixture/wire identity manifest (9 rows) for F00–F08; hash-pinned by `evidence/H3/SHA256SUMS`. |
 
 ---
 
@@ -173,12 +196,13 @@ Per precedence rules, where `SPECS/SPECS-V2.md` (parent) and `SPECS/COMPONENTS/e
 
 ## 8. Evidence & Verification Summary
 
-Harness-written evidence artifacts committed under `specs_and_reports/v2/`:
-- `specs_and_reports/v2/gates/H3-ORACLE.tsv` (18 rows: **17 PASS, 0 FAIL, 1 BLOCKED**; SHA-256 `171a95451efd15eb5191b4e1855ff01479fd5254a7da4e0f957dbdee5686d067`)
-- `specs_and_reports/v2/logs/H3-ORACLE.log` (SHA-256 `43c443690adf87f98fe93c1cf0450d6bf571c7e2b88e49eea414b47cfe9fa2f9`)
-- `specs_and_reports/v2/evidence/H3/SHA256SUMS`
+Harness-written evidence artifacts committed under `specs_and_reports/v2/` (state after the F00–F08 unblock; `H3-ORACLE.log` carries the host/date banner by design, so only the TSV and the manifests are compared across runs):
+- `specs_and_reports/v2/gates/H3-ORACLE.tsv` (18 rows: **18 PASS, 0 FAIL, 0 BLOCKED**; SHA-256 `fa6474b7e3539dcb00531ec66b2eae6663800dfdb89a16264d401fab2a02b66f`)
+- `specs_and_reports/v2/logs/H3-ORACLE.log` (`RESULT: PASS`; SHA-256 `f578665748729ce4c2edcf91116faea8f808fd4ab44ba0c91428aa75128780f9` as committed)
+- `specs_and_reports/v2/evidence/H3/f00-f08-manifest.tsv` (9 rows; SHA-256 `78fa069b2b62938678cc8ea2e3d5028f4cfb9e76d60f63b011decb044b103421`)
+- `specs_and_reports/v2/evidence/H3/SHA256SUMS` (3 entries: TSV, log, F00–F08 manifest)
 
-### Summary of `H3-ORACLE.tsv` Rows (Verified Byte-Identical in CI Run `#43619508436`)
+### Summary of `H3-ORACLE.tsv` Rows (Verified Byte-Identical in CI Run `#43891189743`; the 17 pre-existing rows and their values are unchanged from run `#43619508436`)
 
 | Check | Item ID | Expected / Actual | Verdict |
 |---|---|---|---|
@@ -190,7 +214,7 @@ Harness-written evidence artifacts committed under `specs_and_reports/v2/`:
 | `eval.predictor` | `all-5-predictors` | `18/18 exact` | PASS |
 | `eval.range` | `virtual-2p50-2p70-and-bounds` | `7/7 exact` | PASS |
 | `independence` | `grep-and-nm-clean-room` | `0 forbidden includes across 10 oracle files; nm_clean=YES` | PASS |
-| `oracle.f00-f08` | `f00-f08-cross-check` | `BLOCKED: E3 wire producer absent` | **BLOCKED** |
+| `oracle.f00-f08` | `f00-f08-cross-check` | `9/9 byte-exact; wire_bytes=264651; engine_vs_oracle=9/9 digests agree` | **PASS** |
 | `resource.limits` | `limits-oom-depth-expansion` | `6/6 safe` | PASS |
 | `wire.atoms` | `atom-table-rules` | `11/11 passed` | PASS |
 | `wire.bigint` | `canonical-uvarint-bigint` | `24/24 passed` | PASS |
@@ -209,11 +233,12 @@ Harness-written evidence artifacts committed under `specs_and_reports/v2/`:
 
 ---
 
-## 9. Honest Blockers (`oracle.f00-f08`)
+## 9. F00–F08 Cross-Check (`oracle.f00-f08`) — Unblocked
 
-- **Status**: `oracle.f00-f08` is recorded as **`BLOCKED`** (never `PASS`), and `H3-ORACLE.log` reports `RESULT: BLOCKED (all implemented H3 oracle checks PASS; oracle.f00-f08 BLOCKED awaiting E3)`.
-- **Reason**: Component **E3 (`e3-wire`)** has not yet been implemented in this repository, so no engine-produced MARP v2 wire files exist for fixtures `F00–F08`. Test-only `wire_builder.hpp` exercises the oracle against spec-derived synthetic wires and is explicitly **never** presented as E3 output.
-- **Unblock condition**: Once E3 emits MARP v2 containers for `F00–F08`, cross-check every E3 container with `bin/mapr_oracle verify <wire> --sha256 <fixture_sha256>` and `bin/mapr_oracle decode` / `range` (and `verify --structure-only` + tail `range` for huge virtual fixtures) to transition `oracle.f00-f08` from `BLOCKED` to `PASS`.
+- **Status**: `oracle.f00-f08` is **`PASS`**, measured, and no longer `BLOCKED`. `H3-ORACLE.log` reports `RESULT: PASS` with `totals: total=18 pass=18 fail=0 blocked=0`.
+- **What was blocked before**: H3 itself was complete, but the row could only be an honest `BLOCKED` because no engine-produced MARP v2 wire existed for `F00–F08`. The test-only `wire_builder.hpp` was never presented as E3 output, and still is not.
+- **What unblocked it**: E3 (C07/C08) landed and is green, so an *E3-side* producer (`harness/crosscheck/f00f08_producer.cpp`) now emits the unique canonical v2 wire for each of `F00–F08`, and the clean-room oracle independently decodes and verifies each one against the H1 fixture identity. See §11 for the measured evidence.
+- **Residual limitations (honest)**: byte-exactness is proven by full-stream SHA-256 equality (`sha256(out)==sha256(in)`) plus literal byte comparison for `F00`/`F01`; no multi-gigabyte fixture is materialised anywhere (see §11.6). No claim is made about `F09–F15`, which are outside this work item.
 
 ---
 
@@ -221,5 +246,116 @@ Harness-written evidence artifacts committed under `specs_and_reports/v2/`:
 
 - **H1 FIXTURES**: Can continue independently without file conflicts.
 - **E2 ALGEBRA**: Should resolve the `LINEAR2` (`pid=2`) `+ r[i]` formula defect noted in §7 before wire freeze; once resolved in both `SPECS-V2.md` §3.6 and `e2-algebra/SPECS.md` §4.11, update the single `case 2U` line in `harness/oracle/src/eval.cpp` and `oracle_test.cpp` in lockstep.
-- **E3 WIRE**: Immediately after E3 builds, integrate `bin/mapr_oracle` as the independent cross-decoder for `E3-G` and unblock `oracle.f00-f08`.
+- **E3 WIRE**: Landed. `bin/mapr_oracle` is the independent cross-decoder for `E3-G`, and `oracle.f00-f08` is unblocked (§9, §11). Future C07 wire-format changes must re-run `make -f Makefile.h3 h3-test-cross` and refresh the H3 evidence; the C07 gate records the `H3-ORACLE.tsv` digest in its `precondition.h3` row, so C07 evidence must be regenerated in the same change (see §11.9).
 - **H4 FUZZ & E7 CLI**: `marp::oracle::validate_bytes` / `decode_bytes` / `bin/mapr_oracle` provide a zero-dependency differential oracle for corpus fuzzing and end-to-end CLI verification.
+
+---
+
+## 11. Addendum — F00–F08 Cross-Check Implementation and Measured Evidence
+
+### 11.1 Base, head, and CI
+
+| Item | Value |
+|---|---|
+| Base | `fa41289c3f15605a17e6858001ca345af8adab02` (`origin/h2-gates`) |
+| Implementation commit | `4c907e9` |
+| Authoritative green run (H3 Oracle CI, implementation commit) | [`43891189743`](https://github.com/nexuss0781/MARP/actions/runs/43891189743) — **SUCCESS**, 15/15 steps |
+| Final green tree commit | `4bdaa8c` (report + C07 evidence refresh) |
+| Final green H3 run (complete tree) | [`43896676189`](https://github.com/nexuss0781/MARP/actions/runs/43896676189) — **SUCCESS**, 15/15 steps |
+| Green regression runs on the same push | E2 C03 `43896676901`, E2 C04 `43896676118`, E2 C05 `43896675896`, E2 C06 `43896676302`, E2-G `43896676182`, E3 C07 `43896676294`, E3 C08 `43896675912`, E3-G `43896675864`, H4 FUZZ `43896675895` (all SUCCESS) |
+| Evidence refresh required by the unblock | `specs_and_reports/v2/gates/C07-WIRE.tsv` (`precondition.h3` digest only), `evidence/C07/SHA256SUMS` |
+
+### 11.2 Separation of duties
+
+| Side | Artefact | Duty |
+|---|---|---|
+| E3 (engine) | `harness/crosscheck/f00f08_producer.cpp` → `bin/h3_f00f08_producer` | Build the canonical E2 term per fixture, `canon` + `check_canonical`, `encode` (twice), full §5.1 `validate`, and write the wires + identity manifest. Links E1/E2/C07 and the H1 fixture generators. |
+| H3 (clean room) | `harness/oracle/tests/oracle_test.cpp` → `OracleF00F08CrossCheck` | Read the wire files as **opaque bytes**, run stages 1–11 itself, and require its own output SHA-256 to equal the **H1** fixture digest. Links nothing from the engine. |
+
+The oracle test never receives an `Ir`, a term, or an engine-provided digest: it gets file paths and a manifest, and re-derives everything. `bin/mapr_oracle` and `bin/oracle_tests` contain **zero** `marp::v2::`/`h3_f00f08` symbols (CI checks this with `nm` immediately after the producer is built).
+
+### 11.3 Fixture and wire identities (measured)
+
+Fixtures come from the H1 §12.3 generators (`harness/src/fixtures.cpp`); the producer re-identifies each one with `marp::harness::identify()` (streaming re-hash) and requires exact agreement with the committed `specs_and_reports/v2/fixtures.tsv`. Committed copy: `specs_and_reports/v2/evidence/H3/f00-f08-manifest.tsv`.
+
+| Fixture | Bytes | Source SHA-256 (= H1 identity) | Canonical E2 term | Wire bytes | Wire SHA-256 |
+|---|---|---|---|---|---|
+| `F00` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | `empty` | 103 | `75d1ba312e42aa98297e8ff30ef9c0afb8f2c2455a1d7848c3a93e1eb48e439f` |
+| `F01` | 1 | `6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32` | `atom(n=1)` | 144 | `9b89ab60a9ac21786151d9157e5634330a3e7822c7cdf17c11921acafc57b0a7` |
+| `F02` | 1,073,741,824 | `49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14` | `zero(n=1073741824)` | 114 | `6392d69fcc0ac3832dc9c2d48fecbb28f6c13779ca972a525918d40ab94e738f` |
+| `F03` | 1,073,741,824 | `265ddb125876c185ec1ac81fb97b0f3fb8f11b0c1b175da6831af5fd0589b950` | `repeat(atom(n=65536),q=16384,r=0)` | 76,712 | `28c92786144945edbb13a87ec5caeea1045cdcb276b58ad67b7f384cc264f1f6` |
+| `F04` | 4,294,967,296 | `57b3ff1cda55685e82d65cf335c912657f5faf077855a82721deb573681f4fc8` | `repeat(atom(n=65536),q=65536,r=0)` | 110,504 | `48c51af6f2a39f8f53d0b0f9154b9789b2a89acf86bc8f345e17b050713cf76e` |
+| `F05` | 268,435,456 | `dc29c5647a3c395caa2190dcce07cc7249bdcda02e9c68c7960992df3e394263` | `affine(n=268435456,start=11,step=3)` | 116 | `c9aefd67e87fbab83894b2a73cb84c3ab2753371b47390b88cdbe60ba4685c42` |
+| `F06` | 1,073,741,824 | `2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3` | `affine(n=1073741824,start=0,step=1)` | 116 | `5edfa4636c7745e747f14f157c195853342028f03a36cdfa050c00833e84a4aa` |
+| `F07` | 1,073,741,824 | `6856a2756d4bdb7b1338cff249793b3cc3a39dfb7eaa7d0d2eb8bfb91bbb3bb9` | `lfsr(n=1073741824,conn=0xd800000000000000,init=0x4d41525048314637)` | 130 | `1deb0f8efadf42f80bf9f1de714f0b7693d4eed0701136484551d05072c94a25` |
+| `F08` | 1,073,741,824 | `11d734012586d248dccbba7a241b88b9030bcb21b847875cd3c07e7744332107` | `repeat(atom(n=65536),q=16384,r=0)` | 76,712 | `8ef782089c25dfcd4f5050d2b09e87031a73c31b1065cddfc83c9a2dc5a40c76` |
+
+Totals: **9,932,111,873 fixture bytes → 264,651 wire bytes** (all nine wires together are ~254 KiB). Every wire is canonical per E3: `canon` fixed point, `check_canonical` clean, `encode` byte-identical on a second call, `encoded_size` equal to the emitted size, and full §5.1 validation PASS.
+
+### 11.4 Per-fixture oracle verification (clean-room, independent)
+
+Expected digests are the H1 identities above — never the wire's own trailer. Each row is a full `verify_bytes(wire, expected_sha256)` by the oracle, plus a structural re-validation (stages 1–10) and a node/atom-count agreement check against the canonical term.
+
+| Fixture | Oracle output SHA-256 | = H1? | Emitted length | = H1? | nodes/atoms | index | literal bytes | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| `F00` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | yes | 0 | yes | 1/0 | absent | `equal` (empty) | PASS |
+| `F01` | `6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32` | yes | 1 | yes | 1/1 | absent | `equal` (`A5`) | PASS |
+| `F02` | `49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14` | yes | 1,073,741,824 | yes | 1/0 | absent | n/a | PASS |
+| `F03` | `265ddb125876c185ec1ac81fb97b0f3fb8f11b0c1b175da6831af5fd0589b950` | yes | 1,073,741,824 | yes | 2/1 | present | n/a | PASS |
+| `F04` | `57b3ff1cda55685e82d65cf335c912657f5faf077855a82721deb573681f4fc8` | yes | 4,294,967,296 | yes | 2/1 | present | n/a | PASS |
+| `F05` | `dc29c5647a3c395caa2190dcce07cc7249bdcda02e9c68c7960992df3e394263` | yes | 268,435,456 | yes | 1/0 | absent | n/a | PASS |
+| `F06` | `2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3` | yes | 1,073,741,824 | yes | 1/0 | absent | n/a | PASS |
+| `F07` | `6856a2756d4bdb7b1338cff249793b3cc3a39dfb7eaa7d0d2eb8bfb91bbb3bb9` | yes | 1,073,741,824 | yes | 1/0 | absent | n/a | PASS |
+| `F08` | `11d734012586d248dccbba7a241b88b9030bcb21b847875cd3c07e7744332107` | yes | 1,073,741,824 | yes | 2/1 | present | n/a | PASS |
+
+Evidence row: `oracle.f00-f08	ORACLE	f00-f08-cross-check	d3ed8e4cb39432535ee4e4b79698f9eb6ef453d6b693ed6c02acd85c2d1e42e0	9/9 byte-exact (sha256(out)==sha256(in))	9/9 byte-exact; wire_bytes=264651; engine_vs_oracle=9/9 digests agree	PASS`. The `input_sha256` is the SHA-256 of the canonical `id, bytes, H1 sha256, wire bytes, wire sha256` summary built from the oracle's own measurements, so it is host-independent.
+
+### 11.5 Decisions on ambiguity (narrowest interpretation)
+
+1. **F08 term shape.** The H1 generator nests leaf/copy/group repeats *inside* the pinned 64 KiB grammar block and mutates one byte per group; the fixture stream is that block repeated 16 384 times. No E2 kind expresses "the same block with a single mutated byte", and an `Atom` is a leaf under E2 §4.7, so the canonical term that denotes the fixture's bytes is `Repeat(Atom(64 KiB), q=16384, r=0)` — exactly the shape used for F03. This is recorded, not silently assumed.
+2. **Byte-exactness measurement.** All nine fixtures are verified by full-stream SHA-256 equality of the oracle's own evaluation against the H1 digest (equal length + equal digest over the same bytes), and `F00`/`F01` additionally by literal byte comparison. `cmp`-style comparison of two 8.6 GiB materialisations is deliberately not performed: it would require writing both sides to disk for no additional cryptographic strength. Nothing here claims more than that.
+3. **Stage-11 work bound.** The producer raises `WireLimits::max_eval_bytes` to `2^42` so stage 11 actually evaluates F04's 4 GiB (the default 1 GiB bound would return `Limit` at stage `Eval`). This is a resource bound, not a format constant: the emitted bytes depend only on the canonical `Ir`.
+4. **No stale row is representable.** `oracle_tests --write-evidence` now requires `--cross-check-dir` and exits `2` without it; `write_h3_evidence()` emits a `FAIL` row (never `BLOCKED`, never a hand-written verdict) if the cross-check test did not run. The row itself is written by the test that measured it.
+5. **C07 evidence refresh.** The C07 gate records the `H3-ORACLE.tsv` digest in its `precondition.h3` row, so changing H3 evidence necessarily changes one C07 value. It was regenerated by the gate itself (`./bin/c07_wire_gate --root .. --oracle-bin bin/mapr_oracle --write-evidence`); only that digest changed and `C07-WIRE.log` is byte-identical (§11.9).
+
+### 11.6 Scale and resource handling
+
+- **No fixture is materialised.** The producer streams the H1 generators (`identify()`), and the oracle streams its evaluation into its own SHA-256 in stage 11; peak memory is the wire itself (≤ 110,504 B), ≤ 1 MiB of atom payload, and the evaluator's 128 MiB scratch cap.
+- **Committed evidence stays small**: 9-row manifest (~2.2 KiB), 3-entry `SHA256SUMS`; the wires (254 KiB total) are build output under the git-ignored `engine/build/h3-crosscheck/` and are **never committed**.
+- **Measured wall clock** (2-core sandbox, single-threaded work): producer 212 s (identify + encode + full validate over 9.93 GB), oracle cross-check 85 s, whole H3 CI job 7 m 33 s.
+
+### 11.7 Clean-room independence (unchanged and re-proven)
+
+- `grep -rnE '#include ["<](mapr/|marp/harness/)' harness/oracle/` → **0 matches**; no `.py`/`.sh` under `harness/oracle/`.
+- `-I../harness/oracle/include` only for the oracle; `nm -C bin/mapr_oracle` free of `mapr::`/`marp::harness::`/`marp::v2::`/`test_wire`; `ldd` shows only libstdc++/libgcc/libc/libm (no `libz`, no `libgtest`).
+- CI now additionally asserts, right after the producer is built, that `bin/mapr_oracle` and `bin/oracle_tests` contain no `marp::v2::`/`h3_f00f08` symbol — i.e. building the E3 side cannot leak into the oracle.
+- The cross-check data path is file-based only: `harness/oracle/**` names no engine header, and the oracle test contains no engine type.
+
+### 11.8 Determinism
+
+- `encode()` is called twice per fixture and the bytes must match; the manifest contains no clock, host, path or ordering that varies.
+- CI compares the committed `H3-ORACLE.tsv` with the CI-generated one byte-for-byte, then re-runs the whole suite into a separate root and diffs the two TSVs again — both green in run `43891189743`.
+- The committed `evidence/H3/f00-f08-manifest.tsv` is regenerated by the producer on every CI run and re-published by the harness, so a drifted or hand-edited manifest breaks `SHA256SUMS`.
+
+### 11.9 Regressions and compatible evidence refresh
+
+- **H3**: 17 previously PASS rows unchanged (same `input_sha256`/`expected`/`actual` values); `oracle.f00-f08` flipped `BLOCKED → PASS`; 0 FAIL, 0 BLOCKED. The `independence` row's `src_tree_sha256` moved from `f01e2422…` to `1e2354de…` only because `oracle_test.cpp` changed — the include scan result is still `0 forbidden includes across 10 oracle files`.
+- **C07**: `precondition.h3` actual `1567d07d… → fa6474b7…` (the new `H3-ORACLE.tsv` digest); every other C07 row and the whole `C07-WIRE.log` byte-identical (`1170/1170` rows PASS).
+- **E2-G**: its H3 precondition hashes `harness/oracle/src/eval.cpp` (unchanged) and reads the `independence` verdict (`PASS` before and after) — no E2-G evidence change.
+- **E3-G / C08 / H4**: use the oracle binary (unchanged sources) and the predecessor manifests; all green on `4c907e9`.
+- Green on `4c907e9` (first pass): `MARP H3 Oracle CI` `43891189743`, `MARP E2 C03 TERM CI` `43891189985`, `MARP E2 C04 CANON CI` `43891189758`, `MARP E2 C05 EVAL CI` `43891189973`, `MARP E2 C06 DAG CI` `43891189638`, `MARP E2-G ALGEBRA CI` `43891189700`, `MARP E3 C08 LEGACY CI` `43891189980`, `MARP E3-G integrated gate CI` `43891189654`, `MARP H4 FUZZ CI` `43891189680`; `MARP E3 C07 WIRE CI` `43891189784` failed **only** on the stale C07 evidence refreshed in `4bdaa8c`.
+- Green on `4bdaa8c` (complete tree, all ten workflows): H3 `43896676189`, E2 C03 `43896676901`, E2 C04 `43896676118`, E2 C05 `43896675896`, E2 C06 `43896676302`, E2-G `43896676182`, E3 C07 `43896676294`, E3 C08 `43896675912`, E3-G `43896675864`, H4 FUZZ `43896675895`.
+
+### 11.10 Reproducing the evidence locally
+
+```sh
+cd engine
+make -f Makefile.h3 h3-clean && make -f Makefile.h3 h3-all -j4
+make -f Makefile.h3 h3-producer -j4
+./bin/h3_f00f08_producer --root .. --out build/h3-crosscheck   # wires + manifest
+./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence .. \
+    --cross-check-dir build/h3-crosscheck --repo-root ..       # evidence + oracle cross-check
+diff <committed H3-ORACLE.tsv> specs_and_reports/v2/gates/H3-ORACLE.tsv
+```
+
+`make -f Makefile.h3 h3-test-cross` performs the producer + oracle run in one step; `h3-test` and `h3-test-san` remain the plain (no-evidence) runs, and the sanitizer run accepts `H3_SAN_ARGS="--cross-check-dir build/h3-crosscheck --cross-check-only F00,F01,F02,F03,F05 --repo-root .."`.
