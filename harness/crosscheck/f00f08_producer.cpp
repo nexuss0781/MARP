@@ -99,7 +99,7 @@ std::string hex_u64(std::uint64_t value) {
 // is not a discovery or selection step (E4–E6 are out of scope): the term is a
 // function of the fixture id alone.
 //
-// Decision (recorded in REPORT/HARNESS/H3-ORACLE-REPORT.md §11.4): F03/F04/F08
+// Decision (recorded in REPORT/HARNESS/H3-ORACLE-REPORT.md §11.5): F03/F04/F08
 // are repeated 64 KiB blocks.  F08's *generator* nests leaf/copy/group repeats
 // inside that block, but the block is one pinned atom in the fixture stream, so
 // the canonical term that denotes the fixture is `Repeat(Atom(64 KiB), 16384)`

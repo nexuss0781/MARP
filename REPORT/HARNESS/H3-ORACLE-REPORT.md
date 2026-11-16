@@ -21,9 +21,19 @@
 - **Branch**: `arena/d4f43dd9-marp`
 - **Base commit**: `fa41289c3f15605a17e6858001ca345af8adab02` (`origin/h2-gates`, the H3 unblock prompt commit)
 - **Implementation commit**: `4c907e9` — E3-side F00–F08 wire producer, H3 cross-check suite, refreshed H3 evidence, refreshed C07 evidence, `h3-oracle.yml` unblock checks
-- **Authoritative green run for that commit**: `MARP H3 Oracle CI` run [`43891189743`](https://github.com/nexuss0781/MARP/actions/runs/43891189743) — **SUCCESS** (all 15 steps PASS, including the committed-vs-CI TSV byte diff, the independent determinism re-run, the `oracle.f00-f08` PASS-state checks, and the ASan/UBSan subset)
+- **First green H3 run (implementation commit `4c907e9`)**: `MARP H3 Oracle CI` run [`43891189743`](https://github.com/nexuss0781/MARP/actions/runs/43891189743) — **SUCCESS** (15/15 steps, including the committed-vs-CI TSV byte diff, the independent determinism re-run, the `oracle.f00-f08` PASS-state checks, and the ASan/UBSan subset)
+- **Final green run over the complete deliverable tree (commit `4bdaa8c`: report + C07 evidence refresh)**: `MARP H3 Oracle CI` run [`43896676189`](https://github.com/nexuss0781/MARP/actions/runs/43896676189) — **SUCCESS**, together with **all nine other workflows triggered by the same push**, every one green:
+  `MARP E2 C03 TERM CI` [`43896676901`](https://github.com/nexuss0781/MARP/actions/runs/43896676901),
+  `MARP E2 C04 CANON CI` [`43896676118`](https://github.com/nexuss0781/MARP/actions/runs/43896676118),
+  `MARP E2 C05 EVAL CI` [`43896675896`](https://github.com/nexuss0781/MARP/actions/runs/43896675896),
+  `MARP E2 C06 DAG CI` [`43896676302`](https://github.com/nexuss0781/MARP/actions/runs/43896676302),
+  `MARP E2-G ALGEBRA CI` [`43896676182`](https://github.com/nexuss0781/MARP/actions/runs/43896676182),
+  `MARP E3 C07 WIRE CI` [`43896676294`](https://github.com/nexuss0781/MARP/actions/runs/43896676294),
+  `MARP E3 C08 LEGACY CI` [`43896675912`](https://github.com/nexuss0781/MARP/actions/runs/43896675912),
+  `MARP E3-G integrated gate CI` [`43896675864`](https://github.com/nexuss0781/MARP/actions/runs/43896675864),
+  `MARP H4 FUZZ CI` [`43896675895`](https://github.com/nexuss0781/MARP/actions/runs/43896675895).
 - **Result**: `oracle.f00-f08` is **PASS** (measured; 9/9 byte-exact). No `BLOCKED` row remains anywhere in `H3-ORACLE.tsv`.
-- Full method, measured identities and per-fixture results: §11. This report commit is report-and-evidence only and triggers a final green verification run over the complete deliverable tree.
+- Full method, measured identities and per-fixture results: §11. The commit that carries these last report lines is documentation-only (a section cross-reference in a producer comment and this citation); it touches no source, no wire, and no evidence byte.
 
 ### CI Jobs & Steps (Runs `#43619508436` and `#43891189743` — All PASS)
 
@@ -249,8 +259,10 @@ Harness-written evidence artifacts committed under `specs_and_reports/v2/` (stat
 |---|---|
 | Base | `fa41289c3f15605a17e6858001ca345af8adab02` (`origin/h2-gates`) |
 | Implementation commit | `4c907e9` |
-| Authoritative green run (H3 Oracle CI) | [`43891189743`](https://github.com/nexuss0781/MARP/actions/runs/43891189743) — **SUCCESS**, 15/15 steps |
-| Green regression runs on the same commit | E2 C03/C04/C05/C06, E2-G, E3 C07, E3 C08, E3-G, H4 FUZZ (see §11.9) |
+| Authoritative green run (H3 Oracle CI, implementation commit) | [`43891189743`](https://github.com/nexuss0781/MARP/actions/runs/43891189743) — **SUCCESS**, 15/15 steps |
+| Final green tree commit | `4bdaa8c` (report + C07 evidence refresh) |
+| Final green H3 run (complete tree) | [`43896676189`](https://github.com/nexuss0781/MARP/actions/runs/43896676189) — **SUCCESS**, 15/15 steps |
+| Green regression runs on the same push | E2 C03 `43896676901`, E2 C04 `43896676118`, E2 C05 `43896675896`, E2 C06 `43896676302`, E2-G `43896676182`, E3 C07 `43896676294`, E3 C08 `43896675912`, E3-G `43896675864`, H4 FUZZ `43896675895` (all SUCCESS) |
 | Evidence refresh required by the unblock | `specs_and_reports/v2/gates/C07-WIRE.tsv` (`precondition.h3` digest only), `evidence/C07/SHA256SUMS` |
 
 ### 11.2 Separation of duties
@@ -331,7 +343,8 @@ Evidence row: `oracle.f00-f08	ORACLE	f00-f08-cross-check	d3ed8e4cb39432535ee4e4b
 - **C07**: `precondition.h3` actual `1567d07d… → fa6474b7…` (the new `H3-ORACLE.tsv` digest); every other C07 row and the whole `C07-WIRE.log` byte-identical (`1170/1170` rows PASS).
 - **E2-G**: its H3 precondition hashes `harness/oracle/src/eval.cpp` (unchanged) and reads the `independence` verdict (`PASS` before and after) — no E2-G evidence change.
 - **E3-G / C08 / H4**: use the oracle binary (unchanged sources) and the predecessor manifests; all green on `4c907e9`.
-- Green on `4c907e9`: `MARP H3 Oracle CI` `43891189743`, `MARP E2 C03 TERM CI` `43891189985`, `MARP E2 C04 CANON CI` `43891189758`, `MARP E2 C05 EVAL CI` `43891189973`, `MARP E2 C06 DAG CI` `43891189638`, `MARP E2-G ALGEBRA CI` `43891189700`, `MARP E3 C07 WIRE CI` `43891189784` (failed only on the stale C07 evidence refreshed in this commit), `MARP E3 C08 LEGACY CI` `43891189980`, `MARP E3-G integrated gate CI` `43891189654`, `MARP H4 FUZZ CI` `43891189680`.
+- Green on `4c907e9` (first pass): `MARP H3 Oracle CI` `43891189743`, `MARP E2 C03 TERM CI` `43891189985`, `MARP E2 C04 CANON CI` `43891189758`, `MARP E2 C05 EVAL CI` `43891189973`, `MARP E2 C06 DAG CI` `43891189638`, `MARP E2-G ALGEBRA CI` `43891189700`, `MARP E3 C08 LEGACY CI` `43891189980`, `MARP E3-G integrated gate CI` `43891189654`, `MARP H4 FUZZ CI` `43891189680`; `MARP E3 C07 WIRE CI` `43891189784` failed **only** on the stale C07 evidence refreshed in `4bdaa8c`.
+- Green on `4bdaa8c` (complete tree, all ten workflows): H3 `43896676189`, E2 C03 `43896676901`, E2 C04 `43896676118`, E2 C05 `43896675896`, E2 C06 `43896676302`, E2-G `43896676182`, E3 C07 `43896676294`, E3 C08 `43896675912`, E3-G `43896675864`, H4 FUZZ `43896675895`.
 
 ### 11.10 Reproducing the evidence locally
 
