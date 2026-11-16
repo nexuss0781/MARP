@@ -152,10 +152,17 @@ jobs:
             # the CI log archive is not always reachable from a reviewing client,
             # while the annotation API always is.
             echo "::error::C09 build failed (make exit $rc)"
-            grep -nE 'error:|Error [0-9]|No rule|undefined reference' /tmp/c09_build.log \
-              | head -n 40 | while IFS= read -r diag; do
-                echo "::error::$diag"
-              done
+            # Relay every non-empty output line: a compiler, a linker, or the
+            # shell may fail without matching a diagnostic-shaped pattern, and
+            # the annotation channel is the only one a reviewing client can
+            # always reach.  The log is bounded (a failed build is short).
+            n=0
+            while IFS= read -r diag; do
+              [ -n "$diag" ] || continue
+              echo "::error::$diag"
+              n=$((n + 1))
+              [ "$n" -lt 40 ] || break
+            done < /tmp/c09_build.log
             exit "$rc"
           fi
           echo "PASS: C09 built warning-free under -Werror"
