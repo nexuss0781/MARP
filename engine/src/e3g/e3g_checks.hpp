@@ -130,8 +130,8 @@ WireResultSummary run_wire_checks(const Corpus& corpus, const Settings& settings
 // anything that links C08 (E3 §13.1 and the process boundary documented in
 // `e3g_legacy_side.hpp`).
 void reencode_legacy_term(const std::string& item_id, const std::string& structure_text,
-                          const std::vector<std::string>& payload_hex, Collector& collector,
-                          std::size_t& failures);
+                          const std::vector<std::string>& payload_hex, const std::string& expected_digest,
+                          const Settings& settings, Collector& collector, std::size_t& failures);
 
 // §13.4 step 9's cross-thread identity check, exposed so the gate can report it
 // separately from the per-check rows.

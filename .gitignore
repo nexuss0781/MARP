@@ -11,6 +11,12 @@ archive*.mapr
 small*.mapr
 small*.txt
 
+# Exception: the pinned W-V1 legacy fixture corpus is a committed test *input*,
+# not generated output.  Its bytes are pinned by SHA-256 in
+# specs_and_reports/v2/W-V1/manifest.tsv and that file is the manifest the
+# E3-G legacy half and the C08 gate both verify against.
+!specs_and_reports/v2/W-V1/*.mapr
+
 # IDE
 .vscode/
 .idea/

@@ -116,6 +116,17 @@ std::string spec_readings_text(const e3g::Settings& settings) {
     text += "      policy is C07's (see REPORT/E3/C07-WIRE-REPORT.md §5) and H3\n";
     text += "      reconstructs its own.  Index presence and entry count are compared\n";
     text += "      through the coverage census and the C07 fixpoint instead.\n";
+    text += "  [11] W-V1's recorded output digest is the SHA-256 of the decoded root\n";
+    text += "      term's *denotation* — the byte-exact evaluated output (§13.3,\n";
+    text += "      §13.4 step 8, O7.7) — not a proxy.  The legacy half hashes the\n";
+    text += "      evaluated stream twice (E2's StreamDigest and its own SHA-256) and\n";
+    text += "      the gate requires both to agree with each other and with the\n";
+    text += "      manifest; the two byte counts must agree as well.\n";
+    text += "  [12] W-V1/manifest.tsv is exactly three tab-separated columns\n";
+    text += "      (<fixture>, <container SHA-256>, <expected denotation SHA-256>) and\n";
+    text += "      is read identically by this gate's legacy half and by the C08 gate.\n";
+    text += "      A fixture with no entry, a malformed line, or a container digest\n";
+    text += "      that does not match the bytes is a FAIL, never an inferred value.\n";
     return text;
 }
 
@@ -140,7 +151,10 @@ std::string limitations_text(const e3g::GateResult& result) {
         text += "    no expected digest was inferred from a decode.\n";
     } else {
         text += "  - W-V1: " + std::to_string(result.legacy.fixtures_found) +
-                " fixtures, all hash-certified and decoded.\n";
+                " fixtures: every container hash matches its manifest entry, every\n";
+        text += "    container decodes to a well-formed canonical term, and every decoded\n";
+        text += "    denotation is byte-exact against its recorded SHA-256 (§13.4 step 8).\n";
+        text += "    No malformed or PoC/defect container is in the decode-success set.\n";
     }
     return text;
 }
@@ -234,15 +248,17 @@ int main(int argc, char** argv) {
     for (const e3g::LegacyRow& row : legacy.rows) {
         if (row.check != "e3g.legacy.decode_v1" || row.verdict != "PASS") continue;
         bool digest_pass = false;
+        std::string expected_digest;
         for (const e3g::LegacyRow& sibling : legacy.rows) {
             if (sibling.check == "e3g.legacy.denotation" && sibling.item_id == row.item_id &&
                 sibling.verdict == "PASS") {
                 digest_pass = true;
+                expected_digest = sibling.expected;
             }
         }
         if (!digest_pass || row.structure_text.empty()) continue;
-        e3g::reencode_legacy_term(row.item_id, row.structure_text, row.payload_hex, collector,
-                                  legacy.failures);
+        e3g::reencode_legacy_term(row.item_id, row.structure_text, row.payload_hex, expected_digest, settings,
+                                  collector, legacy.failures);
     }
     legacy.v2_reencoded = 0;
     for (const e3g::Row& row : collector.rows()) {

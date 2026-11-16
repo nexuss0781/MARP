@@ -15,15 +15,53 @@
 //     whichever layout it implements corrupts the other side's arena.
 //
 // The gate therefore runs this binary and reads its stdout.  That is the same
-// mechanism §13.1 already mandates for the H3 oracle ("the harness reaches the
-// independent decoder only as a subprocess"), applied here for an identical
+// mechanism §13.1 already mandates for the H3 oracle (\"the harness reaches the
+// independent decoder only as a subprocess\"), applied here for an identical
 // reason: two independently built implementations of one wire format.
 //
 // C08 is used exactly as landed: read-only, `decode_v1` only.  No v1 emission
 // path exists here and none is reachable from the v2 side.
+//
+// ---------------------------------------------------------------------------
+// What the expected output digest means (§13.3, §13.4 step 8, O7.7)
+// ---------------------------------------------------------------------------
+//
+// W-V1's recorded digest is the SHA-256 of the fixture's **denotation**: the
+// byte-exact output of evaluating the decoded root term (`eval_stream_digest`,
+// E2's C05 evaluator).  It is *not* the concatenation of the atom-table
+// payloads: for a legacy container whose root is a `Repeat`/`Slice`/`Morph`
+// over its atoms — or any DAG with more than one node — those two byte strings
+// differ, and only the denotation is the term's output.  This process therefore
+// hashes the evaluated stream, with two independent hashers, and reports both:
+// E2's own `StreamDigest` and this harness's streaming SHA-256 fed by a
+// downstream `Sink`.  A disagreement between the two is a gate failure, never a
+// silently chosen value.
+//
+// ---------------------------------------------------------------------------
+// stdout protocol (one record per line, tab separated)
+// ---------------------------------------------------------------------------
+//
+//   dir          <path>
+//   fixtures     <count>
+//   surface      C08 read-only: decode_v1, looks_like_v1
+//   fixture      <name> <container_sha256> <bytes> <looks_like_v1>
+//   hash         <name> <match|absent|mismatch> <container_sha256>
+//   decode       <name> <Ok|Code:what>
+//   denotation   <name> <expected_sha256> <observed_sha256> <bytes> <e2_sha256>
+//   term         <name> <well_formed_state> <canonical_state>
+//   structure    <name> <one structural_key record>
+//   payload      <name> <atom_index> <lowercase hex>
+//   fail         <name> <reason>
+//
+// `manifest.tsv` is read as exactly three tab-separated columns:
+// `<filename.mapr>\t<container SHA-256>\t<denotation SHA-256>`.  A line that does
+// not have that shape is reported as a `fail` record rather than interpreted
+// loosely; this file and the C08 gate agree on the format.
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -33,17 +71,26 @@
 #include <vector>
 
 #include "mapr/e2/e2_canon.hpp"
+#include "mapr/e2/e2_eval.hpp"
 #include "mapr/e3/e3_legacy.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
+using marp::v2::EvalLimits;
 using marp::v2::Ir;
+using marp::v2::Kind;
+using marp::v2::Node;
+using marp::v2::Sink;
+using marp::v2::Status;
 using marp::v2::WireCode;
 using marp::v2::decode_v1;
+using marp::v2::eval_stream_digest;
 
 // ---------------------------------------------------------------------------
-// The harness's own SHA-256, so a digest is never taken from the decoder
+// The harness's own SHA-256, so a digest is never taken from the decoder.
+// Streaming, because a denotation is produced block by block and may be far
+// larger than one buffer.
 // ---------------------------------------------------------------------------
 
 constexpr std::uint32_t kSha256K[64] = {
@@ -60,23 +107,57 @@ constexpr std::uint32_t kSha256K[64] = {
 
 std::uint32_t rotr(std::uint32_t x, unsigned n) { return (x >> n) | (x << (32u - n)); }
 
-std::string sha256_hex(std::span<const std::uint8_t> data) {
-    std::uint32_t h[8] = {0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
-                          0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u};
-    std::vector<std::uint8_t> block(data.begin(), data.end());
-    const std::uint64_t bits = static_cast<std::uint64_t>(data.size()) * 8u;
-    block.push_back(0x80u);
-    while (block.size() % 64u != 56u) block.push_back(0x00u);
-    for (int i = 7; i >= 0; --i) {
-        block.push_back(static_cast<std::uint8_t>((bits >> (8 * i)) & 0xFFu));
+class Sha256Hasher {
+public:
+    void update(std::span<const std::uint8_t> data) {
+        total_bytes_ += data.size();
+        while (!data.empty()) {
+            const std::size_t take = std::min(data.size(), buffer_.size() - buffered_);
+            std::memcpy(buffer_.data() + buffered_, data.data(), take);
+            buffered_ += take;
+            data = data.subspan(take);
+            if (buffered_ == buffer_.size()) {
+                process_block(buffer_.data());
+                buffered_ = 0;
+            }
+        }
     }
-    std::uint32_t w[64];
-    for (std::size_t offset = 0; offset < block.size(); offset += 64u) {
+
+    // Finalises and returns the lowercase hex digest.  Safe to call once; a
+    // second call returns the same digest without re-absorbing the padding.
+    std::string hex() {
+        if (!finished_) {
+            const std::uint64_t bits = total_bytes_ * 8u;
+            std::vector<std::uint8_t> tail(buffer_.begin(),
+                                           buffer_.begin() + static_cast<std::ptrdiff_t>(buffered_));
+            tail.push_back(0x80u);
+            while (tail.size() % 64u != 56u) tail.push_back(0x00u);
+            for (int i = 7; i >= 0; --i) {
+                tail.push_back(static_cast<std::uint8_t>((bits >> (8 * i)) & 0xFFu));
+            }
+            for (std::size_t offset = 0; offset < tail.size(); offset += 64u) {
+                process_block(tail.data() + offset);
+            }
+            finished_ = true;
+        }
+        static constexpr char kHex[] = "0123456789abcdef";
+        std::string out(64, '0');
+        for (std::size_t i = 0; i < 8u; ++i) {
+            for (std::size_t k = 0; k < 8u; ++k) {
+                out[i * 8u + k] = kHex[(h_[i] >> (4u * (7u - k))) & 0xFu];
+            }
+        }
+        return out;
+    }
+
+private:
+    void process_block(const std::uint8_t* p) {
+        std::uint32_t w[64];
         for (std::size_t i = 0; i < 16u; ++i) {
-            w[i] = (static_cast<std::uint32_t>(block[offset + 4u * i]) << 24) |
-                   (static_cast<std::uint32_t>(block[offset + 4u * i + 1u]) << 16) |
-                   (static_cast<std::uint32_t>(block[offset + 4u * i + 2u]) << 8) |
-                   static_cast<std::uint32_t>(block[offset + 4u * i + 3u]);
+            w[i] = (static_cast<std::uint32_t>(p[4u * i]) << 24) |
+                   (static_cast<std::uint32_t>(p[4u * i + 1u]) << 16) |
+                   (static_cast<std::uint32_t>(p[4u * i + 2u]) << 8) |
+                   static_cast<std::uint32_t>(p[4u * i + 3u]);
         }
         for (std::size_t i = 16u; i < 64u; ++i) {
             const std::uint32_t s0 =
@@ -85,8 +166,8 @@ std::string sha256_hex(std::span<const std::uint8_t> data) {
                 rotr(w[i - 2u], 17u) ^ rotr(w[i - 2u], 19u) ^ (w[i - 2u] >> 10);
             w[i] = w[i - 16u] + s0 + w[i - 7u] + s1;
         }
-        std::uint32_t a = h[0], b = h[1], c = h[2], d = h[3];
-        std::uint32_t e = h[4], f = h[5], g = h[6], hh = h[7];
+        std::uint32_t a = h_[0], b = h_[1], c = h_[2], d = h_[3];
+        std::uint32_t e = h_[4], f = h_[5], g = h_[6], hh = h_[7];
         for (std::size_t i = 0; i < 64u; ++i) {
             const std::uint32_t s1 = rotr(e, 6u) ^ rotr(e, 11u) ^ rotr(e, 25u);
             const std::uint32_t ch = (e & f) ^ (~e & g);
@@ -103,32 +184,51 @@ std::string sha256_hex(std::span<const std::uint8_t> data) {
             b = a;
             a = t1 + t2;
         }
-        h[0] += a;
-        h[1] += b;
-        h[2] += c;
-        h[3] += d;
-        h[4] += e;
-        h[5] += f;
-        h[6] += g;
-        h[7] += hh;
+        h_[0] += a;
+        h_[1] += b;
+        h_[2] += c;
+        h_[3] += d;
+        h_[4] += e;
+        h_[5] += f;
+        h_[6] += g;
+        h_[7] += hh;
     }
-    static constexpr char kHex[] = "0123456789abcdef";
-    std::string out(64, '0');
-    for (std::size_t i = 0; i < 8u; ++i) {
-        for (std::size_t k = 0; k < 8u; ++k) {
-            out[i * 8u + k] = kHex[(h[i] >> (4u * (7u - k))) & 0xFu];
-        }
-    }
-    return out;
+
+    std::uint32_t h_[8] = {0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
+                           0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u};
+    std::array<std::uint8_t, 64> buffer_{};
+    std::size_t buffered_ = 0;
+    std::uint64_t total_bytes_ = 0;
+    bool finished_ = false;
+};
+
+std::string sha256_hex(std::span<const std::uint8_t> data) {
+    Sha256Hasher hasher;
+    hasher.update(data);
+    return hasher.hex();
 }
 
 std::string sha_of(const std::vector<std::uint8_t>& bytes) {
     return sha256_hex(std::span<const std::uint8_t>(bytes.data(), bytes.size()));
 }
-std::string sha_of_text(const std::string& text) {
-    return sha256_hex(std::span<const std::uint8_t>(
-        reinterpret_cast<const std::uint8_t*>(text.data()), text.size()));
-}
+// A `Sink` that only hashes: the denotation is never materialised, so a large
+// legacy container costs one block of memory, not its output length.
+class DenotationSink final : public Sink {
+public:
+    Status write(std::span<const marp::v2::u8> bytes) override {
+        hasher_.update(bytes);
+        bytes_ += bytes.size();
+        return Status{};
+    }
+
+    std::string hex() { return hasher_.hex(); }
+
+    std::uint64_t bytes() const { return bytes_; }
+
+private:
+    Sha256Hasher hasher_{};
+    std::uint64_t bytes_ = 0;
+};
 
 bool read_file(const fs::path& path, std::vector<std::uint8_t>& out) {
     std::ifstream in(path, std::ios::binary | std::ios::ate);
@@ -169,8 +269,60 @@ const char* kind_text(std::uint8_t kind) {
     return kind < 12u ? kNames[kind] : "Unknown";
 }
 
-// The decoded term, rendered in the same line shape the harness and the oracle
-// use, so the gate can compare three independent renderings of one container.
+// §4.6 kind-specific parameters, rendered exactly as `params_text` in
+// `e3g_support.cpp` and H3's `format_node_params` render them.  It is
+// duplicated here because this translation unit may not include the gate's
+// support header (it carries C07's `e3_wire.hpp`, which collides with C08's
+// header); the two renderings are cross-checked by the gate, which parses this
+// text back into an `Ir` and re-encodes it.
+std::string params_text(const Node& node) {
+    switch (node.kind) {
+        case Kind::Empty:
+            return "-";
+        case Kind::Atom:
+            return "atom=" + node.a.to_decimal();
+        case Kind::Zero:
+            return "n=" + node.a.to_decimal();
+        case Kind::Concat:
+            return "-";
+        case Kind::Repeat:
+            return "q=" + node.a.to_decimal() + ",r=" + node.b.to_decimal();
+        case Kind::Slice:
+            return "start=" + node.a.to_decimal() + ",len=" + node.b.to_decimal();
+        case Kind::Morph:
+            return "morph=" + std::to_string(static_cast<unsigned>(node.morph)) +
+                   ",k=" + std::to_string(static_cast<unsigned>(node.morph_k));
+        case Kind::Xor:
+            return "-";
+        case Kind::Interleave:
+            return "stride=" + std::to_string(node.a.to_u64_checked().value_or(0));
+        case Kind::Lfsr: {
+            static constexpr char kHex[] = "0123456789abcdef";
+            auto hex64 = [&](marp::v2::u64 v) {
+                std::string out(16, '0');
+                for (int i = 15; i >= 0; --i) {
+                    out[static_cast<std::size_t>(i)] = kHex[v & 0x0Fu];
+                    v >>= 4;
+                }
+                return out;
+            };
+            return "conn=0x" + hex64(node.lfsr_conn) + ",init=0x" + hex64(node.lfsr_init) +
+                   ",n=" + node.a.to_decimal();
+        }
+        case Kind::Affine:
+            return "start=" + std::to_string(static_cast<unsigned>(node.affine_start)) +
+                   ",step=" + std::to_string(static_cast<unsigned>(node.affine_step)) +
+                   ",n=" + node.a.to_decimal();
+        case Kind::Predictor:
+            return "pid=" + std::to_string(static_cast<unsigned>(node.predictor_id)) +
+                   ",param=" + std::to_string(node.predictor_param);
+    }
+    return "-";
+}
+
+// The decoded term, rendered in exactly the line shape `structural_key` emits
+// (the gate parses this back and re-encodes it as v2, §13.4 step 8), so the
+// term crosses the process boundary as text plus its atom payloads.
 std::string structure_of(const Ir& ir) {
     std::string text;
     text += "header\t2\t0\ttotal=" + ir.total_length.to_decimal() + "\t64\n";
@@ -200,11 +352,34 @@ std::string structure_of(const Ir& ir) {
                 text += std::to_string(node.args[k]);
             }
         }
-        text += "\t" + node.length.to_decimal() + "\n";
+        text += "\t" + params_text(node) + "\t" + node.length.to_decimal() + "\n";
     }
     text += "trailer\troot=" + std::to_string(ir.root) + "\tatoms=" +
             std::to_string(ir.atoms.size()) + "\tnodes=" + std::to_string(ir.nodes.size()) + "\n";
     return text;
+}
+
+std::vector<std::string> split_tabs(const std::string& line) {
+    std::vector<std::string> cols;
+    std::size_t start = 0;
+    for (;;) {
+        const std::size_t tab = line.find('\t', start);
+        cols.push_back(
+            line.substr(start, tab == std::string::npos ? std::string::npos : tab - start));
+        if (tab == std::string::npos) break;
+        start = tab + 1u;
+    }
+    return cols;
+}
+
+bool is_lower_hex_sha256(const std::string& text) {
+    if (text.size() != 64u) return false;
+    for (const char c : text) {
+        const bool digit = c >= '0' && c <= '9';
+        const bool lower = c >= 'a' && c <= 'f';
+        if (!digit && !lower) return false;
+    }
+    return true;
 }
 
 void emit(const char* key, const std::string& value) {
@@ -217,23 +392,31 @@ int main(int argc, char** argv) {
     const std::string root = argc > 1 ? argv[1] : "..";
     const fs::path dir = fs::path(root) / "specs_and_reports" / "v2" / "W-V1";
 
-    // Manifest: <fixture>\t<container sha256>\t<expected output sha256>
+    // Manifest: <fixture>\t<container sha256>\t<expected denotation sha256>.
     std::map<std::string, std::pair<std::string, std::string>> manifest;
+    std::vector<std::string> manifest_problems;
     {
         std::ifstream in(dir / "manifest.tsv");
         std::string line;
+        std::size_t line_no = 0;
         while (std::getline(in, line)) {
+            ++line_no;
+            if (!line.empty() && line.back() == '\r') line.pop_back();
             if (line.empty() || line[0] == '#') continue;
-            std::vector<std::string> cols;
-            std::size_t start = 0;
-            for (;;) {
-                const std::size_t tab = line.find('\t', start);
-                cols.push_back(
-                    line.substr(start, tab == std::string::npos ? std::string::npos : tab - start));
-                if (tab == std::string::npos) break;
-                start = tab + 1u;
+            const std::vector<std::string> cols = split_tabs(line);
+            const std::string where = "manifest.tsv line " + std::to_string(line_no);
+            if (cols.size() != 3u) {
+                manifest_problems.push_back(where + ": expected 3 tab-separated columns, got " +
+                                            std::to_string(cols.size()));
+                continue;
             }
-            if (cols.size() >= 3u) manifest[cols[0]] = {cols[1], cols[2]};
+            if (!is_lower_hex_sha256(cols[1]) || !is_lower_hex_sha256(cols[2])) {
+                manifest_problems.push_back(where + ": digests must be 64 lowercase hex digits");
+                continue;
+            }
+            if (!manifest.emplace(cols[0], std::make_pair(cols[1], cols[2])).second) {
+                manifest_problems.push_back(where + ": duplicate entry for " + cols[0]);
+            }
         }
     }
 
@@ -253,6 +436,9 @@ int main(int argc, char** argv) {
     emit("dir", dir.string());
     emit("fixtures", std::to_string(fixtures.size()));
     emit("surface", "C08 read-only: decode_v1, looks_like_v1");
+    for (const std::string& problem : manifest_problems) {
+        emit("fail", "manifest.tsv\t" + problem);
+    }
 
     for (const fs::path& path : fixtures) {
         const std::string name = path.filename().string();
@@ -262,7 +448,10 @@ int main(int argc, char** argv) {
             continue;
         }
         const std::string container_sha = sha_of(bytes);
-        emit("fixture", name + "\t" + container_sha + "\t" + std::to_string(bytes.size()));
+        const bool probe =
+            marp::v2::looks_like_v1(std::span<const std::uint8_t>(bytes.data(), bytes.size()));
+        emit("fixture", name + "\t" + container_sha + "\t" + std::to_string(bytes.size()) + "\t" +
+                            (probe ? "1" : "0"));
 
         auto found = manifest.find(name);
         if (found == manifest.end()) {
@@ -271,6 +460,7 @@ int main(int argc, char** argv) {
         }
         emit("hash", name + "\t" + (found->second.first == container_sha ? "match" : "mismatch") +
                           "\t" + container_sha);
+        if (found->second.first != container_sha) continue;
 
         auto decoded = decode_v1(std::span<const std::uint8_t>(bytes.data(), bytes.size()));
         if (!decoded.ok()) {
@@ -279,29 +469,48 @@ int main(int argc, char** argv) {
             continue;
         }
         const Ir& ir = decoded.value();
-        // The expected output digest is the manifest's; the observed one is the
-        // harness's own SHA-256 over the decoded atom payloads in table order.
-        std::vector<std::uint8_t> payload;
-        for (const auto& atom : ir.atoms) {
-            payload.insert(payload.end(), atom.payload.begin(), atom.payload.end());
+        emit("decode", name + "\tOk");
+
+        // §13.4 step 8: byte-exact denotation against the recorded digest.  The
+        // denotation is the evaluated root — the same bytes E2's C05 evaluator
+        // produces — hashed twice, by E2 and by this harness's own SHA-256.
+        DenotationSink sink;
+        auto digest = eval_stream_digest(ir, EvalLimits{}, nullptr, &sink);
+        if (!digest.ok()) {
+            emit("fail", name + "\teval=" + marp::v2::code_name(digest.code()));
+        } else {
+            const std::string observed = sink.hex();
+            std::string e2_digest;
+            {
+                static constexpr char kHex[] = "0123456789abcdef";
+                e2_digest.reserve(64);
+                for (const std::uint8_t byte : digest.value().sha256) {
+                    e2_digest.push_back(kHex[byte >> 4u]);
+                    e2_digest.push_back(kHex[byte & 0x0Fu]);
+                }
+            }
+            emit("denotation", name + "\t" + found->second.second + "\t" + observed + "\t" +
+                                   std::to_string(sink.bytes()) + "\t" + e2_digest);
+            // The two hashers and the two byte counts must agree; a boundary that
+            // dropped or duplicated a block would otherwise go unnoticed.
+            if (digest.value().bytes.to_decimal() != std::to_string(sink.bytes())) {
+                emit("fail", name + "\tdenotation_byte_count=" +
+                                 digest.value().bytes.to_decimal() + " sink=" +
+                                 std::to_string(sink.bytes()));
+            }
         }
-        const std::string payload_sha = sha_of(payload);
+
         const auto wf = marp::v2::check_well_formed_report(ir);
         const auto canon = marp::v2::check_canonical(ir);
+        std::string wf_state = "Ok";
+        if (!wf.ok()) wf_state = std::string("wf:") + wf.constraint;
         std::string canon_state = "Ok";
-        if (!wf.ok()) {
-            canon_state = std::string("wf:") + wf.constraint;
-        } else if (!canon.ok()) {
-            canon_state = std::string("canon:") + canon.constraint;
-        }
-        emit("decode", name + "\tOk\t" + found->second.second + "\t" + payload_sha + "\t" +
-                           canon_state + "\t" + sha_of_text(structure_of(ir)));
-        // Atom payloads cross the boundary as hex so the v2 side can rebuild the
-        // term and re-encode it without this process having any v2 code in it.
-        static constexpr char kHex[] = "0123456789abcdef";
-        // One `structure` line per structural record: the rendering is multi-line,
-        // and the gate parses this stream line by line, so the records cross the
-        // boundary individually rather than embedded in one line.
+        if (!canon.ok()) canon_state = std::string("canon:") + canon.constraint;
+        emit("term", name + "\t" + wf_state + "\t" + canon_state);
+
+        // One `structure` record per structural line: the gate parses the stream
+        // line by line, so the rendering crosses individually rather than
+        // embedded in one line.
         {
             const std::string rendering = structure_of(ir);
             std::size_t start = 0;
@@ -315,6 +524,9 @@ int main(int argc, char** argv) {
                 start = nl + 1u;
             }
         }
+        // Atom payloads cross the boundary as hex so the v2 side can rebuild the
+        // term and re-encode it without this process having any v2 code in it.
+        static constexpr char kHex[] = "0123456789abcdef";
         for (std::size_t i = 0; i < ir.atoms.size(); ++i) {
             std::string hex;
             hex.reserve(ir.atoms[i].payload.size() * 2u);

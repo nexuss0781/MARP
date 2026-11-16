@@ -556,23 +556,33 @@ bool parse_structural_key(const std::string& text, Ir& out, std::string& why) {
             out.atoms.push_back(std::move(atom));
         } else if (line.rfind("node\t", 0) == 0) {
             const std::vector<std::string> cols = split_on(line, '\t');
-            if (cols.size() < 7) {
-                why = "unparsable node record";
+            // The rendering is exactly eight fields:
+            //   <tag> <id> <kind> <kind_name> <argc> <args> <params> <len>
+            // `args` is field 5 and `argc` field 4.  Reading `args` at field 4
+            // (the argc slot) silently produced `args = [argc]` for every node with
+            // children, which is why the earlier fixtures — single-Atom terms, whose
+            // argc is 0 and whose args field is `-` — could not expose it.  A
+            // multi-node legacy container does: a `Concat` root then parses as a
+            // self-referential node and the encoder rejects it as unreachable.
+            if (cols.size() != 8u) {
+                why = "node record must have 8 fields";
                 return false;
             }
-            // The rendering is <tag> <id> <kind> <kind_name> <argc> <args> <params>
-            // <len>.  A record whose params field is empty (Concat, Xor, Empty after
-            // the empty-field drop) loses nothing that matters: the length is always
-            // the last column and the params always the one before it.
-            const std::string params_field = cols[cols.size() - 2];
-            const std::string length_field = cols.back();
+            const std::string argc_field = cols[4];
+            const std::string args_field = cols[5];
+            const std::string params_field = cols[6];
+            const std::string length_field = cols[7];
             Node node;
             node.kind = static_cast<Kind>(std::strtoul(cols[2].c_str(), nullptr, 10));
             // E2 §4.2 field map: `Atom` carries its atom id in `a`, not in `args`
             // (its argc is 0).  H3's rendering prints it in the params column and
             // `-` in the args column, so the two columns are read by kind, not
             // positionally.
-            const std::string args_field = cols[4];
+            u64 declared_argc = 0;
+            if (!parse_u64_text(argc_field, declared_argc)) {
+                why = "unparsable node argc";
+                return false;
+            }
             if (node.kind != Kind::Atom && args_field != "-") {
                 for (const std::string& arg : split_on(args_field, ',')) {
                     u64 value = 0;
@@ -582,6 +592,10 @@ bool parse_structural_key(const std::string& text, Ir& out, std::string& why) {
                     }
                     node.args.push_back(static_cast<u32>(value));
                 }
+            }
+            if (node.args.size() != static_cast<std::size_t>(declared_argc)) {
+                why = "node argc does not match the argument list";
+                return false;
             }
             // Key=value pairs into a map first: `start`/`len` mean different slots
             // for Slice than `start`/`step` do for Affine, so the kind decides.

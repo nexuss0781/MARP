@@ -133,14 +133,40 @@ bool write_evidence(const std::string& root, const GateResult& result) {
     //
     // A SHA256SUMS line for every file this gate produced, in a fixed order, so a
     // second run that reproduces the artefacts also reproduces this manifest.
-    const std::vector<std::string> produced = {
+    std::vector<std::string> produced = {
         p.gate_tsv, p.log, p.fuzz_log, p.legacy_log, p.corpus, p.counts,
     };
+    // The W-V1 corpus is a hard input, not an output, but it is pinned the same
+    // way: the manifest and every committed fixture container get a line, so the
+    // evidence manifest binds the exact bytes the legacy half decoded.  Sorted,
+    // so a second run reproduces the same order.
+    {
+        const std::string w_v1 = "specs_and_reports/v2/W-V1";
+        std::vector<std::string> corpus_files;
+        std::error_code dir_ec;
+        // A missing corpus is not this writer's failure: the gate has already
+        // recorded it as BLOCKED and its row says so.  Only present files are
+        // listed, and a file that is present must hash.
+        std::error_code manifest_ec;
+        if (fs::is_regular_file(fs::path(root) / w_v1 / "manifest.tsv", manifest_ec)) {
+            corpus_files.push_back(w_v1 + "/manifest.tsv");
+        }
+        if (fs::is_directory(fs::path(root) / w_v1, dir_ec)) {
+            for (const auto& entry : fs::directory_iterator(fs::path(root) / w_v1, dir_ec)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".mapr") {
+                    corpus_files.push_back(w_v1 + "/" + entry.path().filename().string());
+                }
+            }
+        }
+        std::sort(corpus_files.begin(), corpus_files.end());
+        produced.insert(produced.end(), corpus_files.begin(), corpus_files.end());
+    }
     {
         std::string sums;
         std::string manifest = "artifact\tsha256\tbytes\trequired\n";
         for (const std::string& rel : produced) {
             const std::string digest = sha_of_file(root + "/" + rel);
+            if (digest == "missing") return false;
             const std::string bytes = std::to_string(
                 static_cast<std::size_t>(fs::file_size(root + "/" + rel, ec)));
             sums += digest + "  " + rel + "\n";
