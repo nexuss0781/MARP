@@ -17,7 +17,8 @@ reproduced byte-for-byte by the authoritative CI run (§1 and §7).
 | Local toolchain | `g++ (Debian 12.2.0-14+deb12u1) 12.2.0`, `-std=c++20` |
 | Local platform | Linux x86-64, 2 cores, 3.8 GiB RAM |
 | CI workflow | `.github/workflows/h4-fuzz.yml` (`MARP H4 FUZZ CI`) |
-| Authoritative CI run | **recorded in §11** (run over the commit that adds this report) |
+| Authoritative CI run | `43866731951` — `MARP H4 FUZZ CI`, **SUCCESS** (https://github.com/nexuss0781/MARP/actions/runs/43866731951), head `2faa1b38` |
+| CI toolchain | `ubuntu-latest`, GCC 15.2.0 (H4 builds warning-free under `-Werror` there too) |
 | Third-party libraries | none in `bin/h4_fuzz` (GoogleTest is not used; no zlib, no Python, no scripts) |
 
 Build and run:
@@ -311,18 +312,29 @@ suppressed to reach the target.
 
 ## 11. CI verification
 
-The authoritative CI run is recorded here after it completes; this section is
-updated in a follow-up commit that changes nothing but this report, and that
-commit is itself verified by a further green run of the same workflow.
+The authoritative run executes the campaign on GitHub Actions over the pushed
+branch (`2faa1b38`) and regenerates every committed artifact itself.
 
 | item | value |
 |---|---|
 | Workflow | `MARP H4 FUZZ CI` (`.github/workflows/h4-fuzz.yml`) |
-| Jobs | `h4-source-independence`, `h4-selftest`, `h4-campaign` — all hard-fail |
-| Authoritative run | *pending — filled after the run* |
-| Campaign evidence in CI | regenerated with `--workers 4`, compared byte-for-byte to the committed files, then reproduced by a second CI campaign |
+| Run | `43866731951` — https://github.com/nexuss0781/MARP/actions/runs/43866731951 |
+| Conclusion | **SUCCESS**, 2026-11-16T12:27:22Z → 12:31:17Z |
+| Head commit | `2faa1b38` (`2faa1b3` — harness, evidence, workflow, report) |
+| Jobs | `h4-source-independence` ✓, `h4-selftest` ✓, `h4-campaign` ✓ (2m10s) — all hard-fail |
+| Campaign in CI | `--root .. --workers 4 --write-evidence`; counters identical to §6; evidence diffed byte-for-byte against the committed files |
+| Independent repeat | second full CI campaign diffed byte-for-byte against the first, and `sha256sum -c` re-run |
 | Sanitizers | ASan+UBSan campaign, 2,000 mutants in-process, `detect_leaks=1`, zero reports |
-| Artifact | `h4-evidence` (gate TSV, log, counters, seeds, manifest, sums, campaign log) |
+| Artifact | `h4-evidence`, ID `14225942124`, 8,437 bytes, digest `sha256:c26ecc319ed45f343b0008702c5b2414779303459f6e4d923a084b8bc477cd2b` |
+| Report commit | a documentation-only follow-up commit adds this report; it triggers the same workflow again, which re-verifies the identical campaign artifacts, so the pinned run above remains authoritative for the measured values |
+
+No-regression runs on the same head `2faa1b38` (all `success`): C03 TERM
+`43866731815`, C04 CANON `43866731783`, C05 EVAL `43866731784`, C06 DAG
+`43866731847`, C07 WIRE `43866732100`, C08 LEGACY `43866731743`, H3 Oracle
+`43866731733`, E2-G `43866731712`, E3-G `43866731756`. The H1 and H2 workflows
+are branch-pinned (`h1-fixtures` / `h2-gates`) and do not trigger on this
+branch; their sources are unchanged and the `h4-selftest` job's frozen-path
+`git diff` fails the build if that stops being true.
 
 ## 12. Acceptance checklist
 
@@ -332,7 +344,7 @@ commit is itself verified by a further green run of the same workflow.
 | Seeds are E3-produced committed canonical wires | §4, 15 × `h4.seed.reproduced`, set digest | PASS |
 | Warning-free build under required flags | `make -f Makefile.h4 h4-all` (`-Werror -Wconversion -Wshadow -Wformat=2`) | PASS |
 | H4 tests pass | `--self-test`: `PASS 0 self-test failure(s)` | PASS |
-| No regression to H1/H2/H3, E1/E2/E2-G, C03–C08, E3-G | CI diff over frozen paths; H4 adds only new files | PASS |
+| No regression to H1/H2/H3, E1/E2/E2-G, C03–C08, E3-G | §11: nine earlier workflows green on the same head; CI diff over frozen paths; H4 adds only new files | PASS |
 | Full 100,000-mutant campaign in CI with recorded config | §6, `fuzz_counts.tsv` | PASS |
 | `accepted_invalid = crashes = timeouts = 0` | §6 | PASS |
 | Every mutant accounted for | `processed = valid + rejected = 100000` | PASS |
