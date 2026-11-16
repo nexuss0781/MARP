@@ -1,10 +1,10 @@
-date_utc: 2026-11-15T13:22:18Z
+date_utc: 2026-11-16T14:51:52Z
 host: e2b.local
 kernel: 6.1.158+
 nproc: 2
 compiler: 12.2.0
 oracle_bin_sha256: ef07c04dcb0758139b7603cd57e53926f6e54b23b5176fb56fe1fa8fe0d127bd
-command_line: ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence ..
+command_line: ./bin/oracle_tests --oracle-bin ./bin/mapr_oracle --nm-verified --write-evidence .. --cross-check-dir build/h3-crosscheck --repo-root ..
 digest.vectors: sha256_kats=4 crc32_kats=4 status=PASS
 wire.header: passed=22/22
 wire.bigint: passed=24/24
@@ -21,8 +21,17 @@ eval.range: passed=7/7
 resource.limits: passed=6/6
 wire.stage_order: passed=11/11
 determinism: cli_bin=./bin/mapr_oracle status=PASS
-independence: 0 forbidden includes across 10 oracle files src_tree_sha256=c852157faa55ad3cfb6bd8efc0a34bee321dda5c78326eab4d3cc7b561b253b4 nm_verified_by_ci=YES
-oracle.f00-f08: BLOCKED (E3 wire producer absent; unblocked once E3 emits F00-F08 wires)
-totals: total=18 pass=17 fail=0 blocked=1
-RESULT: BLOCKED (all implemented H3 oracle checks PASS; oracle.f00-f08 BLOCKED awaiting E3)
+oracle.f00-f08: F00 fixture_bytes=0 fixture_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 wire_bytes=103 wire_sha256=75d1ba312e42aa98297e8ff30ef9c0afb8f2c2455a1d7848c3a93e1eb48e439f oracle_output_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 oracle_total_length=0 nodes=1 atoms=0 index=absent literal_bytes=equal result=PASS
+oracle.f00-f08: F01 fixture_bytes=1 fixture_sha256=6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32 wire_bytes=144 wire_sha256=9b89ab60a9ac21786151d9157e5634330a3e7822c7cdf17c11921acafc57b0a7 oracle_output_sha256=6922e93e3827642ce4b883c756b31abf80036649d3614bf5fcb3adda43b8ea32 oracle_total_length=1 nodes=1 atoms=1 index=absent literal_bytes=equal result=PASS
+oracle.f00-f08: F02 fixture_bytes=1073741824 fixture_sha256=49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14 wire_bytes=114 wire_sha256=6392d69fcc0ac3832dc9c2d48fecbb28f6c13779ca972a525918d40ab94e738f oracle_output_sha256=49bc20df15e412a64472421e13fe86ff1c5165e18b2afccf160d4dc19fe68a14 oracle_total_length=1073741824 nodes=1 atoms=0 index=absent literal_bytes=not-applicable result=PASS
+oracle.f00-f08: F03 fixture_bytes=1073741824 fixture_sha256=265ddb125876c185ec1ac81fb97b0f3fb8f11b0c1b175da6831af5fd0589b950 wire_bytes=76712 wire_sha256=28c92786144945edbb13a87ec5caeea1045cdcb276b58ad67b7f384cc264f1f6 oracle_output_sha256=265ddb125876c185ec1ac81fb97b0f3fb8f11b0c1b175da6831af5fd0589b950 oracle_total_length=1073741824 nodes=2 atoms=1 index=present literal_bytes=not-applicable result=PASS
+oracle.f00-f08: F04 fixture_bytes=4294967296 fixture_sha256=57b3ff1cda55685e82d65cf335c912657f5faf077855a82721deb573681f4fc8 wire_bytes=110504 wire_sha256=48c51af6f2a39f8f53d0b0f9154b9789b2a89acf86bc8f345e17b050713cf76e oracle_output_sha256=57b3ff1cda55685e82d65cf335c912657f5faf077855a82721deb573681f4fc8 oracle_total_length=4294967296 nodes=2 atoms=1 index=present literal_bytes=not-applicable result=PASS
+oracle.f00-f08: F05 fixture_bytes=268435456 fixture_sha256=dc29c5647a3c395caa2190dcce07cc7249bdcda02e9c68c7960992df3e394263 wire_bytes=116 wire_sha256=c9aefd67e87fbab83894b2a73cb84c3ab2753371b47390b88cdbe60ba4685c42 oracle_output_sha256=dc29c5647a3c395caa2190dcce07cc7249bdcda02e9c68c7960992df3e394263 oracle_total_length=268435456 nodes=1 atoms=0 index=absent literal_bytes=not-applicable result=PASS
+oracle.f00-f08: F06 fixture_bytes=1073741824 fixture_sha256=2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3 wire_bytes=116 wire_sha256=5edfa4636c7745e747f14f157c195853342028f03a36cdfa050c00833e84a4aa oracle_output_sha256=2c06ade942ee3f17a048dd1064b2fab046a4bb95386d8bb41b68dc6711ac2af3 oracle_total_length=1073741824 nodes=1 atoms=0 index=absent literal_bytes=not-applicable result=PASS
+oracle.f00-f08: F07 fixture_bytes=1073741824 fixture_sha256=6856a2756d4bdb7b1338cff249793b3cc3a39dfb7eaa7d0d2eb8bfb91bbb3bb9 wire_bytes=130 wire_sha256=1deb0f8efadf42f80bf9f1de714f0b7693d4eed0701136484551d05072c94a25 oracle_output_sha256=6856a2756d4bdb7b1338cff249793b3cc3a39dfb7eaa7d0d2eb8bfb91bbb3bb9 oracle_total_length=1073741824 nodes=1 atoms=0 index=absent literal_bytes=not-applicable result=PASS
+oracle.f00-f08: F08 fixture_bytes=1073741824 fixture_sha256=11d734012586d248dccbba7a241b88b9030bcb21b847875cd3c07e7744332107 wire_bytes=76712 wire_sha256=8ef782089c25dfcd4f5050d2b09e87031a73c31b1065cddfc83c9a2dc5a40c76 oracle_output_sha256=11d734012586d248dccbba7a241b88b9030bcb21b847875cd3c07e7744332107 oracle_total_length=1073741824 nodes=2 atoms=1 index=present literal_bytes=not-applicable result=PASS
+oracle.f00-f08: cross_check_dir=build/h3-crosscheck fixtures=9 passed=9 wire_bytes=264651 expected_sha256_source=../specs_and_reports/v2/fixtures.tsv result=PASS
+independence: 0 forbidden includes across 10 oracle files src_tree_sha256=1e2354de1023bbe2810176180991c058fea8eef05924f443ac725dcb43f51033 nm_verified_by_ci=YES
+totals: total=18 pass=18 fail=0 blocked=0
+RESULT: PASS
 exit_code: 0

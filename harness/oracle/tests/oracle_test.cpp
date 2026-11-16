@@ -47,6 +47,12 @@ struct EvidenceCollector {
     bool write_evidence = false;
     bool nm_verified_by_ci = false;
     std::string command_line;
+    // F00-F08 cross-check inputs.  `cross_check_dir` holds the wires and the
+    // manifest emitted by the E3 side (`bin/h3_f00f08_producer`); this binary
+    // only ever reads them as opaque bytes.  Empty means "not supplied".
+    std::filesystem::path cross_check_dir;
+    std::filesystem::path repo_root{".."};
+    std::string cross_check_only;  // optional comma list, e.g. "F00,F01"
 
     void add_row(std::string check,
                  std::string corpus,
@@ -2467,6 +2473,309 @@ TEST(OracleCliAndDeterminism, CliSmokeAndDeterminism) {
 }
 
 // =========================================================================
+// 16. F00-F08 cross-check: E3-emitted v2 wires decoded by the clean-room oracle
+// =========================================================================
+//
+// The wires are produced by the *E3 side* (`harness/crosscheck/f00f08_producer.cpp`,
+// built by `make -f Makefile.h3 h3-crosscheck`) and handed to this binary as
+// opaque files plus a deterministic manifest.  Nothing below includes, links,
+// or re-implements any engine/E3 code: every wire is parsed, validated and
+// evaluated here, from the bytes on disk, by `marp::oracle`.
+//
+// Independence of the *expected* value is the whole point: the digests come
+// from the committed H1 fixture manifest (`specs_and_reports/v2/fixtures.tsv`,
+// written by H1 FIXTURES from the §12.3 generators), never from the wire's own
+// trailer or from anything the producer claims.  A wire that merely agrees with
+// itself therefore cannot pass.
+
+struct CrossCheckManifestRow {
+    std::string id;
+    std::string fixture_bytes;
+    std::string fixture_sha256;
+    std::string ir_nodes;
+    std::string ir_atoms;
+    std::string wire_bytes;
+    std::string wire_sha256;
+    std::string wire_path;
+};
+
+bool read_tsv_rows(const std::filesystem::path& path,
+                   std::vector<std::vector<std::string>>& rows) {
+    std::ifstream ifs(path);
+    if (!ifs.is_open()) return false;
+    std::string line;
+    bool first = true;
+    while (std::getline(ifs, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (first) {
+            first = false;
+            continue;  // header
+        }
+        if (line.empty()) continue;
+        std::vector<std::string> columns;
+        std::size_t start = 0;
+        for (;;) {
+            const std::size_t tab = line.find('\t', start);
+            columns.push_back(line.substr(start, tab == std::string::npos
+                                                     ? std::string::npos
+                                                     : tab - start));
+            if (tab == std::string::npos) break;
+            start = tab + 1;
+        }
+        rows.push_back(std::move(columns));
+    }
+    return !rows.empty();
+}
+
+std::vector<std::string> split_csv(const std::string& text) {
+    std::vector<std::string> parts;
+    std::size_t start = 0;
+    for (;;) {
+        const std::size_t comma = text.find(',', start);
+        std::string part = text.substr(start, comma == std::string::npos
+                                                  ? std::string::npos
+                                                  : comma - start);
+        if (!part.empty()) parts.push_back(std::move(part));
+        if (comma == std::string::npos) break;
+        start = comma + 1;
+    }
+    return parts;
+}
+
+TEST(OracleF00F08CrossCheck, E3WiresReproduceFixtureBytes) {
+    auto& col = collector();
+    const std::array<const char*, 9> canonical_order = {
+        "F00", "F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08"};
+
+    if (col.cross_check_dir.empty()) {
+        GTEST_SKIP() << "no --cross-check-dir supplied; the authoritative run is "
+                        "`make -f Makefile.h3 h3-test-cross`";
+        return;
+    }
+
+    const auto manifest_path = col.cross_check_dir / "f00-f08-manifest.tsv";
+    const auto fixtures_manifest = col.repo_root / "specs_and_reports" / "v2" / "fixtures.tsv";
+
+    std::vector<std::string> wanted;
+    if (col.cross_check_only.empty()) {
+        for (const char* id : canonical_order) wanted.emplace_back(id);
+    } else {
+        wanted = split_csv(col.cross_check_only);
+    }
+
+    std::size_t passed = 0;
+    std::size_t total = 0;
+    std::size_t engine_agree = 0;
+    std::uint64_t wire_bytes_total = 0;
+    std::string identity_text;      // feed for the evidence row's input_sha256
+    std::string setup_failure;
+
+    std::vector<std::vector<std::string>> h1_rows;
+    std::vector<std::vector<std::string>> manifest_rows;
+    if (!std::filesystem::exists(manifest_path)) {
+        setup_failure = "producer manifest missing: " + manifest_path.string();
+    } else if (!read_tsv_rows(manifest_path, manifest_rows)) {
+        setup_failure = "unreadable or empty producer manifest: " + manifest_path.string();
+    } else if (!std::filesystem::exists(fixtures_manifest)) {
+        setup_failure = "H1 fixture manifest missing: " + fixtures_manifest.string();
+    } else if (!read_tsv_rows(fixtures_manifest, h1_rows)) {
+        setup_failure = "unreadable H1 fixture manifest: " + fixtures_manifest.string();
+    }
+
+    for (const std::string& id : wanted) {
+        ++total;
+        std::string why;
+        bool ok = setup_failure.empty();
+        if (!ok) why = setup_failure;
+
+        const std::vector<std::string>* h1_row = nullptr;
+        const std::vector<std::string>* manifest_row = nullptr;
+        for (const auto& row : h1_rows) {
+            if (!row.empty() && row[0] == id) h1_row = &row;
+        }
+        for (const auto& row : manifest_rows) {
+            if (!row.empty() && row[0] == id) manifest_row = &row;
+        }
+
+        if (ok && h1_row == nullptr) {
+            ok = false;
+            why = "no row for " + id + " in the H1 fixture manifest";
+        }
+        if (ok && manifest_row == nullptr) {
+            ok = false;
+            why = "no row for " + id + " in the producer manifest";
+        }
+        if (ok && (h1_row->size() < 4 || manifest_row->size() < 11)) {
+            ok = false;
+            why = "malformed manifest row for " + id;
+        }
+        if (ok && ((*h1_row)[1] != "generated")) {
+            ok = false;
+            why = "H1 row for " + id + " is not a generated fixture";
+        }
+
+        CrossCheckManifestRow row;
+        if (ok) {
+            row.id = id;
+            row.fixture_bytes = (*h1_row)[2];
+            row.fixture_sha256 = (*h1_row)[3];
+            row.ir_nodes = (*manifest_row)[3];
+            row.ir_atoms = (*manifest_row)[4];
+            row.wire_bytes = (*manifest_row)[5];
+            row.wire_sha256 = (*manifest_row)[6];
+            row.wire_path = (*manifest_row)[10];
+
+            // The producer must agree with H1 on the fixture identity.  This is a
+            // claim in the manifest; the oracle checks it, it does not trust it.
+            if ((*manifest_row)[1] != row.fixture_bytes) {
+                ok = false;
+                why = "producer fixture_bytes " + (*manifest_row)[1] + " != H1 " + row.fixture_bytes;
+            } else if ((*manifest_row)[2] != row.fixture_sha256) {
+                ok = false;
+                why = "producer fixture_sha256 " + (*manifest_row)[2] + " != H1 " + row.fixture_sha256;
+            } else if ((*manifest_row)[7] != row.fixture_sha256 ||
+                       (*manifest_row)[8] != row.fixture_bytes) {
+                ok = false;
+                why = "producer engine claim does not reproduce the H1 fixture identity";
+            }
+        }
+
+        std::vector<std::uint8_t> wire;
+        if (ok) {
+            const auto wire_path = col.cross_check_dir / row.wire_path;
+            if (!std::filesystem::exists(wire_path)) {
+                ok = false;
+                why = "wire file missing: " + wire_path.string();
+            } else {
+                wire = read_bytes_file(wire_path);
+                if (wire.empty()) {
+                    ok = false;
+                    why = "wire file is empty";
+                } else if (std::to_string(wire.size()) != row.wire_bytes) {
+                    ok = false;
+                    why = "wire size " + std::to_string(wire.size()) +
+                          " != manifest " + row.wire_bytes;
+                } else if (sha256_hex(std::span<const std::uint8_t>(wire.data(), wire.size())) !=
+                           row.wire_sha256) {
+                    ok = false;
+                    why = "wire SHA-256 disagrees with the manifest";
+                }
+            }
+        }
+
+        Info info;
+        Diagnostic diag;
+        if (ok) {
+            // Full E3 §5.1 stages 1-11, performed here, by the oracle.  The
+            // expected digest is H1's, so stage 11 must reproduce it exactly.
+            const int rc = verify_bytes(std::span<const std::uint8_t>(wire.data(), wire.size()),
+                                        row.fixture_sha256, /*structure_only=*/false, &info,
+                                        &diag);
+            if (rc != 0) {
+                ok = false;
+                why = "oracle verify failed: code " + std::to_string(rc) + " at " +
+                      stage_name(diag.stage) + ": " + diag.message;
+            } else if (info.output_sha256 != row.fixture_sha256) {
+                ok = false;
+                why = "oracle output SHA-256 " + info.output_sha256 + " != H1 " + row.fixture_sha256;
+            } else if (info.total_length != row.fixture_bytes) {
+                ok = false;
+                why = "oracle total_length " + info.total_length + " != H1 " + row.fixture_bytes;
+            } else if (std::to_string(info.file_bytes) != row.wire_bytes) {
+                ok = false;
+                why = "oracle file_bytes disagrees with the manifest";
+            } else if (std::to_string(info.node_count) != row.ir_nodes ||
+                       std::to_string(info.atom_count) != row.ir_atoms) {
+                ok = false;
+                why = "oracle node/atom counts disagree with the canonical term";
+            }
+        }
+
+        // Structural re-validation (stages 1-10 only) must also accept the wire.
+        if (ok) {
+            Info struct_info;
+            Diagnostic struct_diag;
+            const int rc_struct = validate_bytes(
+                std::span<const std::uint8_t>(wire.data(), wire.size()), /*structure_only=*/true,
+                &struct_info, &struct_diag);
+            if (rc_struct != 0) {
+                ok = false;
+                why = "oracle structural validation failed: code " + std::to_string(rc_struct) +
+                      " at " + stage_name(struct_diag.stage) + ": " + struct_diag.message;
+            }
+        }
+
+        // F00/F01 additionally get a literal byte-for-byte comparison, because
+        // for those two the exact bytes are pinned by §12.3 and are tiny.
+        std::string literal_note = "not-applicable";
+        if (ok && (id == "F00" || id == "F01")) {
+            std::vector<std::uint8_t> decoded;
+            Diagnostic decode_diag;
+            const int rc_decode = decode_bytes(
+                std::span<const std::uint8_t>(wire.data(), wire.size()), decoded, nullptr,
+                &decode_diag);
+            const std::vector<std::uint8_t> expected_bytes =
+                id == "F00" ? std::vector<std::uint8_t>{} : std::vector<std::uint8_t>{0xA5U};
+            if (rc_decode != 0) {
+                ok = false;
+                why = "oracle decode failed: code " + std::to_string(rc_decode) + " at " +
+                      stage_name(decode_diag.stage) + ": " + decode_diag.message;
+            } else if (decoded != expected_bytes) {
+                ok = false;
+                why = "decoded bytes differ from the §12.3 literal";
+            } else {
+                literal_note = "equal";
+            }
+        }
+
+        if (ok) {
+            ++passed;
+            ++engine_agree;
+            wire_bytes_total += static_cast<std::uint64_t>(wire.size());
+            identity_text += id + '\t' + row.fixture_bytes + '\t' + row.fixture_sha256 + '\t' +
+                             std::to_string(wire.size()) + '\t' + row.wire_sha256 + '\n';
+        }
+
+        col.add_log("oracle.f00-f08: " + id +
+                    " fixture_bytes=" + (row.fixture_bytes.empty() ? "?" : row.fixture_bytes) +
+                    " fixture_sha256=" + (row.fixture_sha256.empty() ? "?" : row.fixture_sha256) +
+                    " wire_bytes=" + std::to_string(wire.size()) +
+                    " wire_sha256=" +
+                    (wire.empty() ? std::string("?")
+                                  : sha256_hex(std::span<const std::uint8_t>(wire.data(), wire.size()))) +
+                    " oracle_output_sha256=" + (info.output_sha256.empty() ? "?" : info.output_sha256) +
+                    " oracle_total_length=" + (info.total_length.empty() ? "?" : info.total_length) +
+                    " nodes=" + std::to_string(info.node_count) +
+                    " atoms=" + std::to_string(info.atom_count) +
+                    " index=" + std::string(info.has_index ? "present" : "absent") +
+                    " literal_bytes=" + literal_note +
+                    " result=" + (ok ? "PASS" : "FAIL") +
+                    (ok ? std::string() : " reason=" + why));
+        EXPECT_TRUE(ok) << id << ": " << why;
+    }
+
+    const bool all_ok = setup_failure.empty() && passed == total && total > 0;
+    const std::string expected_text =
+        std::to_string(total) + "/" + std::to_string(total) +
+        " byte-exact (sha256(out)==sha256(in))";
+    const std::string actual_text =
+        std::to_string(passed) + "/" + std::to_string(total) + " byte-exact; wire_bytes=" +
+        std::to_string(wire_bytes_total) + "; engine_vs_oracle=" + std::to_string(engine_agree) +
+        "/" + std::to_string(total) + " digests agree";
+
+    col.add_row("oracle.f00-f08", "ORACLE", "f00-f08-cross-check",
+                sha256_of_string(identity_text), expected_text, actual_text,
+                all_ok ? "PASS" : "FAIL", "logs/H3-ORACLE.log#oracle.f00-f08");
+    col.add_log("oracle.f00-f08: cross_check_dir=" + col.cross_check_dir.string() +
+                " fixtures=" + std::to_string(total) + " passed=" + std::to_string(passed) +
+                " wire_bytes=" + std::to_string(wire_bytes_total) +
+                " expected_sha256_source=" + fixtures_manifest.string() +
+                " result=" + (all_ok ? "PASS" : "FAIL") +
+                (setup_failure.empty() ? std::string() : " reason=" + setup_failure));
+    EXPECT_TRUE(all_ok) << setup_failure;
+}
+
+// =========================================================================
 // Evidence writing helpers (clean-room C++20, matching H2 8-col TSV format)
 // =========================================================================
 
@@ -2556,15 +2865,25 @@ int write_h3_evidence() {
                 " src_tree_sha256=" + src_tree_sha +
                 " nm_verified_by_ci=" + std::string(col.nm_verified_by_ci ? "YES" : "NO"));
 
-    // 2) Honest BLOCKED row for oracle.f00-f08 (NEVER PASS until E3 wires exist!)
-    col.add_row(
-        "oracle.f00-f08", "ORACLE", "f00-f08-cross-check",
-        sha256_of_string("E3-ABSENT"),
-        "byte-exact reproduction of E3 F00-F08 wires",
-        "BLOCKED: E3 wire producer absent",
-        "BLOCKED",
-        "logs/H3-ORACLE.log#oracle.f00-f08");
-    col.add_log("oracle.f00-f08: BLOCKED (E3 wire producer absent; unblocked once E3 emits F00-F08 wires)");
+    // 2) oracle.f00-f08 is emitted by `OracleF00F08CrossCheck` from measured
+    //    values only.  If that test did not run (no cross-check data), no PASS
+    //    may be recorded: write an explicit FAIL row rather than a stale or
+    //    hand-written verdict.
+    {
+        bool have_cross_check_row = false;
+        for (const auto& r : col.rows) {
+            if (r.check == "oracle.f00-f08") have_cross_check_row = true;
+        }
+        if (!have_cross_check_row) {
+            col.add_row("oracle.f00-f08", "ORACLE", "f00-f08-cross-check",
+                        sha256_of_string("cross-check-absent"),
+                        "byte-exact reproduction of E3 F00-F08 wires",
+                        "FAIL: cross-check data absent (no --cross-check-dir)",
+                        "FAIL", "logs/H3-ORACLE.log#oracle.f00-f08");
+            col.add_log("oracle.f00-f08: FAIL (cross-check data absent; run "
+                        "`make -f Makefile.h3 h3-test-cross`)");
+        }
+    }
 
     // Sort rows deterministically by (check, corpus, item_id)
     std::sort(col.rows.begin(), col.rows.end(), [](const EvidenceRow& a, const EvidenceRow& b) {
@@ -2648,7 +2967,30 @@ int write_h3_evidence() {
     std::filesystem::rename(log_tmp, log_path, ec);
     if (ec) return 1;
 
-    // Write SHA256SUMS manifest covering H3-ORACLE.tsv and H3-ORACLE.log
+    // Publish the E3-side F00-F08 manifest as committed H3 evidence.  It is
+    // harness-written (copied from the producer output), never hand-edited, and
+    // it is hash-pinned by SHA256SUMS below.  CI regenerates it from the same
+    // deterministic producer, so a drifted or hand-edited copy shows up as a
+    // TSV/SHA256SUMS mismatch.
+    const auto fixture_evidence = ev_dir / "f00-f08-manifest.tsv";
+    bool have_fixture_evidence = false;
+    if (!col.cross_check_dir.empty()) {
+        const auto produced = col.cross_check_dir / "f00-f08-manifest.tsv";
+        if (std::filesystem::exists(produced)) {
+            std::error_code copy_ec;
+            std::filesystem::copy_file(produced, fixture_evidence,
+                                       std::filesystem::copy_options::overwrite_existing, copy_ec);
+            if (copy_ec) {
+                std::cerr << "failed to publish " << fixture_evidence << ": " << copy_ec.message()
+                          << '\n';
+                return 1;
+            }
+            have_fixture_evidence = true;
+        }
+    }
+
+    // Write SHA256SUMS manifest covering H3-ORACLE.tsv, H3-ORACLE.log and the
+    // F00-F08 fixture/wire identity manifest when it is present.
     const auto manifest_path = ev_dir / "SHA256SUMS";
     const auto manifest_tmp  = ev_dir / "SHA256SUMS.tmp";
     {
@@ -2658,6 +3000,10 @@ int write_h3_evidence() {
         if (!ofs.is_open()) return 1;
         ofs << tsv_sha << "  specs_and_reports/v2/gates/H3-ORACLE.tsv\n";
         ofs << log_sha << "  specs_and_reports/v2/logs/H3-ORACLE.log\n";
+        if (have_fixture_evidence) {
+            ofs << sha256_of_file(fixture_evidence)
+                << "  specs_and_reports/v2/evidence/H3/f00-f08-manifest.tsv\n";
+        }
         ofs.flush();
         if (!ofs.good()) return 1;
     }
@@ -2692,10 +3038,25 @@ int main(int argc, char** argv) {
             col.oracle_bin = argv[++i];
         } else if (arg == "--nm-verified") {
             col.nm_verified_by_ci = true;
+        } else if (arg == "--cross-check-dir" && i + 1 < argc) {
+            col.cross_check_dir = argv[++i];
+        } else if (arg == "--cross-check-only" && i + 1 < argc) {
+            col.cross_check_only = argv[++i];
+        } else if (arg == "--repo-root" && i + 1 < argc) {
+            col.repo_root = argv[++i];
         } else {
             gtest_argv.push_back(argv[i]);
         }
     }
+    // Refuse to write evidence that cannot state the `oracle.f00-f08` verdict
+    // from measured values.  The cross-check is the whole point of this row, so
+    // an evidence run without it is a hard usage error, not a silent BLOCKED.
+    if (col.write_evidence && col.cross_check_dir.empty()) {
+        std::cerr << "error: --write-evidence requires --cross-check-dir <dir> "
+                     "(run `make -f Makefile.h3 h3-test-cross` or the producer first)\n";
+        return 2;
+    }
+
     int gtest_argc = static_cast<int>(gtest_argv.size());
     ::testing::InitGoogleTest(&gtest_argc, gtest_argv.data());
 

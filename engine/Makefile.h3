@@ -24,7 +24,44 @@ H3_LIB_OBJS  := $(patsubst ../harness/oracle/src/%.cpp,obj/h3/%.o,$(H3_LIB_SRCS)
 H3_CLI_OBJ   := obj/h3/cli.o
 H3_TEST_OBJ  := obj/h3_tests/oracle_test.o
 
-.PHONY: h3-all h3-clean h3-test h3-test-san h3-independence
+# ---------------------------------------------------------------------------
+# H3 F00-F08 cross-check *wire producer* (E3 side).
+#
+# This is the only H3 build target that links the engine (E1 + E2 + C07).  It
+# produces the canonical v2 wires for F00-F08 and the deterministic manifest the
+# clean-room oracle consumes.  It is a *separate* binary: neither
+# bin/mapr_oracle nor bin/oracle_tests links any of these objects, and nothing
+# under harness/oracle/ includes or references them.
+# ---------------------------------------------------------------------------
+H3P_WARN_FLAGS := -std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow \
+    -Wnull-dereference -Wdouble-promotion -Wformat=2 -pthread
+H3P_CXXFLAGS   := $(H3P_WARN_FLAGS) -O2 -I. -Isrc -I../include -I../harness/include
+
+H3P_SRCS := \
+    src/e1_bigint.cpp \
+    src/e1_sha256.cpp \
+    src/e1_crc32.cpp \
+    src/e1_length.cpp \
+    src/e2/e2_term.cpp \
+    src/e2/e2_canon.cpp \
+    src/e2/e2_eval.cpp \
+    src/e2/e2_dag.cpp \
+    src/e3/e3_wire.cpp \
+    src/e3/e3_wire_read.cpp \
+    src/e3/e3_wire_index.cpp \
+    ../harness/src/fixtures.cpp
+
+H3P_SRC := ../harness/crosscheck/f00f08_producer.cpp
+H3P_HDRS := ../harness/include/marp/harness/fixtures.hpp \
+    ../include/mapr/e3/e3_wire.hpp \
+    src/e2/c03_build.hpp
+
+# Cross-check data directory (git-ignored build output; never committed).
+H3_CROSSCHECK_DIR ?= build/h3-crosscheck
+# Extra arguments handed to oracle_tests (e.g. --cross-check-only F00,F01).
+H3_SAN_ARGS ?=
+
+.PHONY: h3-all h3-clean h3-test h3-test-san h3-test-cross h3-producer h3-crosscheck h3-independence
 
 h3-all: bin/mapr_oracle bin/oracle_tests
 
@@ -52,11 +89,26 @@ bin/mapr_oracle_san: $(H3_LIB_SRCS) $(H3_CLI_SRC) ../harness/oracle/include/marp
 	@mkdir -p bin
 	$(CXX) $(H3_SANFLAGS) -o $@ $(H3_LIB_SRCS) $(H3_CLI_SRC) -lpthread
 
+bin/h3_f00f08_producer: $(H3P_SRC) $(H3P_SRCS) $(H3P_HDRS)
+	@mkdir -p bin
+	$(CXX) $(H3P_CXXFLAGS) -o $@ $(H3P_SRC) $(H3P_SRCS)
+
+h3-producer: bin/h3_f00f08_producer
+
+# Emit the F00-F08 wires + manifest into $(H3_CROSSCHECK_DIR).
+h3-crosscheck: bin/h3_f00f08_producer
+	./bin/h3_f00f08_producer --root .. --out $(H3_CROSSCHECK_DIR)
+
 h3-test: bin/mapr_oracle bin/oracle_tests
 	./bin/oracle_tests --oracle-bin ./bin/mapr_oracle
 
+# The authoritative cross-check run: producer first, then the oracle.
+h3-test-cross: bin/mapr_oracle bin/oracle_tests h3-crosscheck
+	./bin/oracle_tests --oracle-bin ./bin/mapr_oracle \
+	    --cross-check-dir $(H3_CROSSCHECK_DIR) --repo-root ..
+
 h3-test-san: bin/mapr_oracle_san bin/oracle_tests_san
-	./bin/oracle_tests_san --oracle-bin ./bin/mapr_oracle_san
+	./bin/oracle_tests_san --oracle-bin ./bin/mapr_oracle_san $(H3_SAN_ARGS)
 
 h3-independence: bin/mapr_oracle
 	@test -x bin/mapr_oracle || (echo "FAIL: bin/mapr_oracle missing"; exit 1)
@@ -74,4 +126,7 @@ h3-independence: bin/mapr_oracle
 	@echo "PASS: H3 oracle independence verified (grep + nm)"
 
 h3-clean:
-	rm -rf obj/h3 obj/h3_tests bin/mapr_oracle bin/mapr_oracle_san bin/oracle_tests bin/oracle_tests_san
+	rm -rf obj/h3 obj/h3_tests obj/h3p
+	rm -f bin/mapr_oracle bin/mapr_oracle_san bin/oracle_tests bin/oracle_tests_san
+	rm -f bin/h3_f00f08_producer
+	rm -rf build/h3-crosscheck
