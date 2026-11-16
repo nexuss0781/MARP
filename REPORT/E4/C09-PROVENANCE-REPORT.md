@@ -24,17 +24,22 @@ report claims **C09 only**. C10 `SEGMENT`, C11 `PROBE` and the integrated
 | Locally observed gate result | `rows=348 pass=348 blocked=0 fail=0` — `RESULT: PASS` |
 | Locally observed unit tests | 17/17 GoogleTest cases pass (plain and ASan+UBSan builds) |
 
-The authoritative CI run on this branch is the `MARP E4 C09 PROVENANCE CI`
-workflow run recorded on the GitHub PR/commit for the implementation commit. Its
-run ID and URL are recorded in the pull request body at push time; the evidence
-files committed with this report are byte-identical to the artefacts that run
-regenerates (the workflow diffs them, §4).
+The authoritative CI run on this branch is `MARP E4 C09 PROVENANCE CI` on
+Ubuntu with GCC 15.2.0. After five iterations — three of them portability defects
+that only the CI toolchain exposes, recorded in §5 reading 11 — the workflow is
+green:
 
-**Why no run ID is written here:** this report is committed in the same push as
-the code it describes, so any run ID written at that moment would describe the
-*previous* commit. The workflow instead makes the claim mechanically checkable —
-`diff -u` against the committed files — which is a stronger statement than an ID
-pasted into prose. See §4.
+* run **[43959110008](https://github.com/nexuss0781/MARP/actions/runs/43959110008)**
+  is the green run at the commit this report's acceptance table describes, and
+  all ten pre-existing workflows are green at the same commit.
+
+**Why this report did not carry a run ID from the start:** it was committed in
+the same push as the code it describes, so any ID written at that moment would
+have described the *previous* commit. The claim is instead mechanically
+checkable, which is stronger than an ID pasted into prose: the workflow diffs the
+committed TSV, log and manifest against a freshly generated set and fails on any
+byte of difference (§4), so a report that disagreed with the code could not have
+a green run at all.
 
 ---
 
@@ -371,13 +376,25 @@ Each is the narrowest reading consistent with the normative text.
 11. **A constant subscript on a `std::vector` is written as a range-for.** The
     local toolchain is GCC 12.2; CI runs GCC 15.2, whose `-Wnull-dereference`
     (under `-Werror`) reads `v[0]` on a vector as a possible dereference of
-    storage that may not exist and rejects the build. The three such reads in
-    the gate and the tests were rewritten to bind a reference from the range,
+    storage that may not exist and rejects the build. The three such reads (two in
+    the tests, one in the gate) were rewritten to bind a reference from the range,
     which also establishes non-emptiness, rather than silenced with a pragma or
     a suppression attribute. `std::array` subscripts are unaffected because the
     storage is part of the object. Both fixes leave every produced value
     unchanged: the committed TSV, log and manifest regenerate byte for byte on
     both compilers, so nothing in §4.4 moved.
+
+    The same iteration exposed two defects in the workflow itself, both fixed
+    rather than worked around. First, Actions runs `run:` blocks with `bash -e`,
+    so the build step aborted before its diagnostic relay could print and the
+    only visible symptom was "exit code 2"; the step now clears `-e` and relays
+    the failure text as annotations. Second, the log-length check counted only
+    `[c09.*]` identity lines while its threshold had been written for the
+    identity lines *and* the `[summary:*]` block — the committed log has 58 + 31,
+    so the check failed at 58 < 80 with every row present. It now counts both
+    prefixes and separately requires at least 25 summary checks. The validation
+    body also runs inside a captured subshell, so `-e` still aborts at the first
+    failure while the reason reaches the annotation channel.
 
 ---
 
@@ -440,7 +457,7 @@ neither).
 | 2 | `provenance` returns exact `length`, whole-input SHA-256, gear (seed 0), seed per spec; one streaming pass, no whole-input materialisation | **Met** — `c09.kat.*`, `c09.reference.*`, `c09.streaming.*` |
 | 3 | Seed/outputs deterministic (bytes+effort only); correct vs references | **Met** — `c09.repeat.*`, `c09.seed.*`, `c09.kat.seed`, `c09.reference.seed` |
 | 4 | No E2–E7 linkage; no term/candidate emission; no filename/type dependence | **Met** — `c09.isolation.*` (source `grep`, `nm`, `static_assert`), `c09.names.independent` |
-| 5 | Evidence/log/manifest/report committed and matching the final green CI run | **Met on push** — the workflow diffs the committed TSV/log/manifest against a fresh run, an independent repeat run, and a sanitizer run; a mismatch fails CI |
+| 5 | Evidence/log/manifest/report committed and matching the final green CI run | **Met** — workflow `MARP E4 C09 PROVENANCE CI` run **43959110008** is green on `arena/e9fde969-marp` (GCC 15.2.0, Ubuntu): independence job, then strict build, isolation, GoogleTest, byte-for-byte evidence regeneration, schema/verdict/check validation, independent repeat, ASan+UBSan, and the no-regression check. All ten pre-existing workflows are also green at the same commit |
 | 6 | `REPORT/E4/C09-PROVENANCE-REPORT.md` committed | **Met** — this file |
 
 **Not claimed:** C10 `SEGMENT`, C11 `PROBE`, **E4-G**, and any E5–E7 behavior.
