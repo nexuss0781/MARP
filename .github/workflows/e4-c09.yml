@@ -212,47 +212,78 @@ jobs:
 
       - name: Validate C09 evidence schema, verdicts, and required checks
         run: |-
-          set -euo pipefail
-          TSV="specs_and_reports/v2/gates/C09-PROVENANCE.tsv"
-          LOG="specs_and_reports/v2/logs/C09-PROVENANCE.log"
-          SUMS="specs_and_reports/v2/evidence/C09/SHA256SUMS"
-          test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
-          head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
-          awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
-          if awk -F'\t' 'NR > 1 && $7 != "PASS" { print; exit 1 }' "$TSV"; then
-            echo "PASS: zero non-PASS verdicts in C09-PROVENANCE.tsv"
-          else
-            echo "FAIL: non-PASS verdict present in C09-PROVENANCE.tsv"
-            exit 1
+          # The checks run in a captured subshell so that -e still aborts on the
+          # first failure (a skipped test -s would silently weaken the gate),
+          # while the failure text is relayed as annotations: the CI log archive
+          # is not always reachable from a reviewing client.
+          set +e
+          set -uo pipefail
+          out=$( set -euo pipefail
+            TSV="specs_and_reports/v2/gates/C09-PROVENANCE.tsv"
+            LOG="specs_and_reports/v2/logs/C09-PROVENANCE.log"
+            SUMS="specs_and_reports/v2/evidence/C09/SHA256SUMS"
+            test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
+            head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+            awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+            if awk -F'\t' 'NR > 1 && $7 != "PASS" { print; exit 1 }' "$TSV"; then
+              echo "PASS: zero non-PASS verdicts in C09-PROVENANCE.tsv"
+            else
+              echo "FAIL: non-PASS verdict present in C09-PROVENANCE.tsv"
+              exit 1
+            fi
+            # Every obligation the C09 prompt names must have at least one row, and
+            # every row's log reference must resolve into the committed log.
+            for req in c09.kat.length c09.kat.sha256 c09.kat.gear c09.kat.seed \
+                       c09.kat.seed_effort_sweep c09.reference.sha256 c09.reference.gear \
+                       c09.reference.seed c09.reference.length c09.reference.e1_oneshot \
+                       c09.streaming.single_pass c09.streaming.bounded_buffer \
+                       c09.streaming.no_materialisation c09.streaming.bytes_accounted \
+                       c09.repeat.deterministic c09.repeat.reread_identical c09.repeat.matches \
+                       c09.seed.stable c09.seed.effort_separates c09.seed.byte_sensitive \
+                       c09.seed.formula c09.errors.short_read c09.errors.read_failure \
+                       c09.errors.effort_domain c09.errors.effort_domain_ok \
+                       c09.names.independent c09.isolation.includes c09.isolation.environment \
+                       c09.isolation.no_terms c09.isolation.return_types; do
+              awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+            done
+            # The log must be a fixed banner plus rows: no host, date, compiler
+            # string, pid, or timing may appear, or the evidence is not reproducible.
+            if grep -niE '(hostname|^host:|^date|^compiler|^pid|elapsed|seconds|wall clock|user@|/home/|/tmp/)' "$LOG"; then
+              echo "FAIL: environment-dependent text in the C09 log"
+              exit 1
+            fi
+            # A row line is either a per-fixture identity line or a [summary:...]
+            # aggregate; both are required, so the count spans both prefixes.
+            log_rows=$(grep -cE '^\[(c09\.|summary:)' "$LOG" || true)
+            if [ "$log_rows" -lt 80 ]; then
+              echo "FAIL: expected at least 80 log rows, found $log_rows"
+              exit 1
+            fi
+            summary_rows=$(grep -c '^\[summary:' "$LOG" || true)
+            if [ "$summary_rows" -lt 25 ]; then
+              echo "FAIL: expected a summary block of at least 25 checks, found $summary_rows"
+              exit 1
+            fi
+            sha256sum -c "$SUMS"
+            echo "PASS: C09 evidence schema, verdicts, required checks, and log hygiene verified"
+            exit 0
+            2>&1 )
+          rc=$?
+          printf '%s\n' "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::C09 evidence validation failed (exit $rc)"
+            n=0
+            while IFS= read -r diag; do
+              [ -n "$diag" ] || continue
+              # Lines the step already labelled PASS are not errors; relaying them
+              # as such would misreport a partial success.
+              case "$diag" in
+                PASS:*) ;;
+                *) echo "::error::$diag"; n=$((n + 1)); [ "$n" -lt 30 ] || break ;;
+              esac
+            done < <(printf '%s\n' "$out" | tail -n 30)
+            exit "$rc"
           fi
-          # Every obligation the C09 prompt names must have at least one row, and
-          # every row's log reference must resolve into the committed log.
-          for req in c09.kat.length c09.kat.sha256 c09.kat.gear c09.kat.seed \
-                     c09.kat.seed_effort_sweep c09.reference.sha256 c09.reference.gear \
-                     c09.reference.seed c09.reference.length c09.reference.e1_oneshot \
-                     c09.streaming.single_pass c09.streaming.bounded_buffer \
-                     c09.streaming.no_materialisation c09.streaming.bytes_accounted \
-                     c09.repeat.deterministic c09.repeat.reread_identical c09.repeat.matches \
-                     c09.seed.stable c09.seed.effort_separates c09.seed.byte_sensitive \
-                     c09.seed.formula c09.errors.short_read c09.errors.read_failure \
-                     c09.errors.effort_domain c09.errors.effort_domain_ok \
-                     c09.names.independent c09.isolation.includes c09.isolation.environment \
-                     c09.isolation.no_terms c09.isolation.return_types; do
-            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
-          done
-          # The log must be a fixed banner plus rows: no host, date, compiler
-          # string, pid, or timing may appear, or the evidence is not reproducible.
-          if grep -niE '(hostname|^host:|^date|^compiler|^pid|elapsed|seconds|wall clock|user@|/home/|/tmp/)' "$LOG"; then
-            echo "FAIL: environment-dependent text in the C09 log"
-            exit 1
-          fi
-          log_rows=$(grep -c '^\[c09\.' "$LOG" || true)
-          if [ "$log_rows" -lt 80 ]; then
-            echo "FAIL: expected at least 80 log rows, found $log_rows"
-            exit 1
-          fi
-          sha256sum -c "$SUMS"
-          echo "PASS: C09 evidence schema, verdicts, required checks, and log hygiene verified"
 
       - name: Determinism (independent repeat run reproduces byte-identical evidence)
         run: |-
