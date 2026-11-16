@@ -348,6 +348,12 @@ meaningless:
    script before `rc=${PIPESTATUS[0]}` and before any sanitizer/oracle assertion ran.
    The step now captures the exit code the same way the main gate step does.
 
+A third, structural problem: the schema step exited 1 as soon as it saw the BLOCKED
+W-V1 row, which skipped the counter, sanitizer and no-regression steps entirely — so
+CI failed for the right reason while never running half its checks. The W-V1 verdict
+is now a dedicated **final** step, after every other check, so a red job is
+attributable to the missing fixture and to nothing else.
+
 Neither failure changes the evidence — the committed artefacts are byte-identical
 before and after — but both meant the CI could have gone green while checking less
 than it claimed to check.

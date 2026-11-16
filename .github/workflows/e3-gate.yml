@@ -266,15 +266,15 @@ jobs:
             echo "FAIL: a row other than W-V1 is BLOCKED"
             exit 1
           fi
+          # W-V1's own verdict is checked in the dedicated final step, not here, so
+          # that a BLOCKED corpus does not short-circuit the counter, sanitizer and
+          # no-regression steps below.
           if compgen -G 'specs_and_reports/v2/W-V1/*.mapr' > /dev/null; then
             awk -F'\t' '$1 == "e3g.legacy.w_v1_corpus" && $9 != "PASS" { print "W-V1 present but not PASS: " $0; exit 1 }' "$TSV"
-            echo "PASS: W-V1 corpus present and verified"
+            echo "W-V1 corpus present and verified"
           else
             awk -F'\t' '$1 == "e3g.legacy.w_v1_corpus" && $9 != "BLOCKED" { print "W-V1 absent but not BLOCKED: " $0; exit 1 }' "$TSV"
-            echo "::error::W-V1 fixture corpus absent: the legacy half is BLOCKED, so E3-G cannot PASS (§13.3)"
-            echo "The evidence correctly records BLOCKED; no PASS is claimed."
-            sha256sum -c "$SUMS"
-            exit 1
+            echo "W-V1 corpus absent; the legacy half is recorded as BLOCKED (§13.3)"
           fi
           sha256sum -c "$SUMS"
           echo "PASS: E3-G evidence schema and verdicts verified"
@@ -351,6 +351,20 @@ jobs:
           # step pins the file list so a wider change is caught by review, and the
           # C07 gate itself (run above) proves the fix does not change its evidence.
           echo "PASS: frozen components and earlier evidence untouched"
+
+      - name: E3-G final verdict — a BLOCKED corpus fails the job here
+        run: |-
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/E3-G.tsv"
+          if compgen -G 'specs_and_reports/v2/W-V1/*.mapr' > /dev/null; then
+            echo "PASS: E3-G is PASS (W-V1 corpus present and verified)"
+            exit 0
+          fi
+          # Deliberately last: everything above has now run and passed, so this red
+          # is attributable to the one missing input and to nothing else.
+          echo "::error::W-V1 fixture corpus absent ($(compgen -G 'specs_and_reports/v2/W-V1/*.mapr' | wc -l) fixtures): the legacy half is BLOCKED, so E3-G cannot PASS (§13.3)"
+          echo "All other checks passed. The evidence correctly records BLOCKED; no PASS is claimed."
+          exit 1
 
       - name: Upload E3-G evidence artifact
         uses: actions/upload-artifact@v4
