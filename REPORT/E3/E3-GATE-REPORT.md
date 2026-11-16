@@ -338,6 +338,30 @@ lost between the counters.
 | Full gate against a scratch v1 fixture (outside the repo) | `PASS`, `rows=5264 pass=5264 fail=0 blocked=0` |
 | Repository v1 fixtures | **0** (nothing added, nothing to add) |
 
+### 8.0 The one C08 rule E3-G had to touch
+
+C08's `c08-isolation` target greps **every** source for `decode_v1` and fails if
+anything outside its own files mentions the symbol. E3-G's legacy adapter is, by
+construction, a consumer of that symbol — that is the whole point of the subprocess —
+so the rule had to distinguish "C08 reached from the v2 side" from "C08's read-only
+API used by an explicitly separated consumer". `Makefile.c08` already draws exactly
+that line for `src/e3/e3_c08_gate.cpp`, and E3-G's adapter is exempted the same way
+(`e3g_legacy_side.cpp`, `e3g_legacy_check.cpp`, `e3g_main.cpp` — the last matching
+only on a row-name string).
+
+The exemption is kept honest rather than merely granted: the target now *positively
+asserts* that `e3g_checks.cpp` — the file where E3-G actually re-encodes a decoded
+legacy term, i.e. the v2 encode path — contains no v1 reference, and
+`e3g_checks.cpp` is deliberately **not** on the exemption list. Appending a probe
+reference to it during verification made `c08-isolation` fail as intended, so the
+assertion is not vacuous. The symbol-level proof is unaffected and stronger:
+`nm -C bin/e3g_legacy_half` shows 0 v2 entry points and 0 legacy entry points in the
+wire half and the gate.
+
+This is a change to a predecessor's build file, so it is listed here rather than
+buried: it narrows nothing and weakens nothing — the C08 library files themselves are
+untouched, and `c08-isolation` now checks strictly more than it did before.
+
 ### 8.1 Two defects the workflow found that reading it did not
 
 Both are worth recording because both are the kind that make a green CI run

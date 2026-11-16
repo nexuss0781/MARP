@@ -133,13 +133,27 @@ c08-isolation: $(C08_E1_OBJS) $(C08_E2_OBJS) $(C08_LIB_OBJ)
 	@rm -f /tmp/e3_c08_nm.txt
 	@echo "Checking decode_v1 is unreachable from any v2 encode source..."
 	@# Exempt only the exact C07 boundary comment and evidence-label line, not their files.
+	@# E3-G's legacy adapter is exempted for the same reason `e3_c08_gate.cpp` is: it is a
+	@# *consumer* of the read-only C08 surface, not part of the C08 library and not on
+	@# any v2 encode path.  It lives in its own process and its own binary precisely so
+	@# that the C08 API is never reachable from the v2 side; the exemption is what
+	@# allows the one boundary crossing to be a deliberate, reviewable place.
 	@if find src ../include -type f \( -name '*.cpp' -o -name '*.hpp' \) \
 	    ! -path 'src/e3/e3_legacy.cpp' ! -path 'src/e3/e3_c08_gate.cpp' ! -path '../include/mapr/e3/e3_legacy.hpp' \
+	    ! -path 'src/e3g/e3g_legacy_side.cpp' ! -path 'src/e3g/e3g_legacy_check.cpp' \
+	    ! -path 'src/e3g/e3g_main.cpp' \
 	    -exec grep -HE '\b(decode_v1|looks_like_v1)\b|^[[:space:]]*#[[:space:]]*include[[:space:]]*["<]mapr/e3/e3_legacy\.hpp[">]' {} + | \
 	    grep -vxF \
 	      -e 'src/e3g/c07_gate.cpp:                   "", "1", "no decode_v1/looks_like_v1", "absent", true, "isolation");' \
 	      -e '../include/mapr/e3/e3_wire.hpp://     (`decode_v1` is C08 LEGACY and is absent from this surface);'; then \
 	  echo "FAIL: legacy v1 symbols or header referenced outside C08"; exit 1; \
+	fi
+	@# The exemptions above are only sound if nothing on the *v2 encode path* can reach
+	@# v1.  `e3g_checks.cpp` is that path (it is where E3-G re-encodes a decoded legacy
+	@# term), and it is deliberately NOT exempted from the rule; this asserts the rule
+	@# holds for it directly, so the exemption list cannot silently grow to cover it.
+	@if grep -nE '\b(decode_v1|looks_like_v1)\b|#[[:space:]]*include[[:space:]]*["<]mapr/e3/e3_legacy\.hpp[">]' src/e3g/e3g_checks.cpp; then \
+	  echo "FAIL: C08 symbols reachable from the E3-G v2 encode path"; exit 1; \
 	fi
 	@echo "C08 isolation checks PASS."
 
