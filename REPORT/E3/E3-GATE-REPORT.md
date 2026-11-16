@@ -3,7 +3,7 @@
 **Component**: E3-G (the gate over C07 WIRE and C08 LEGACY; the last sub-component of E3).
 **Branch**: `arena/d7f4f950-marp` (base `967f19fae265bff622375caeae12a98e86583eda`).
 **Status: E3-G is `BLOCKED`, and it is green while blocked.** Every obligation that
-*can* be discharged against the tree is discharged: **41 273 of 41 273 runnable
+*can* be discharged against the tree is discharged: **41 274 of 41 274 runnable
 evidence rows `PASS`, 0 `FAIL`, 1 `BLOCKED`**. The single `BLOCKED` row is `W-V1`,
 and it is blocked for one honest reason: **the repository contains no v1 fixture**,
 and `SPECS/COMPONENTS/e3-wire/SPECS.md` §13.3 says a missing fixture is `BLOCKED`,
@@ -42,7 +42,7 @@ development, outside the repository.
 
 | Path | Contents |
 |---|---|
-| `specs_and_reports/v2/gates/E3-G.tsv` | 41 274 rows. Columns: `check`, `workload`, `item`, `input_sha`, `output_sha`, `wire_bytes`, `expected`, `actual`, `status`, `log_ref`. |
+| `specs_and_reports/v2/gates/E3-G.tsv` | 41 275 rows. Columns: `check`, `workload`, `item`, `input_sha`, `output_sha`, `wire_bytes`, `expected`, `actual`, `status`, `log_ref`. |
 | `specs_and_reports/v2/logs/E3-G.log` | Per-section totals, coverage counters, `RESULT: BLOCKED (E3-G)`. |
 | `specs_and_reports/v2/logs/E3-G-fuzz.log` | Per-stage rejection histogram and the diagnostic worst-case wall time. |
 | `specs_and_reports/v2/logs/E3-G-legacy.log` | The legacy subprocess transcript: surface, per-fixture hashes, structure records. |
@@ -63,6 +63,7 @@ Row counts by check family:
 | `e3g.fuzz.*` | 5 | the campaign's deterministic counters |
 | `e3g.legacy.*` | 3 | the legacy half: 1 `BLOCKED` corpus row + 2 machinery rows (`half`, `readonly_surface`) |
 | `e3g.coverage.counters` | 1 | every coverage bucket non-zero |
+| `e3g.determinism.threads` | 1 | §13.4 step 9: every configured thread count measures the same wires and verdicts, and two in-process passes agree |
 
 ### 2.1 Determinism — a requirement, not a nicety
 
@@ -83,6 +84,14 @@ classes of mistake are easy to make again:
    `accepted_invalid`, `alloc_violations` — and a `timeout` verdict is only
    *enforced* when `fuzz_threads == 1`, because a wall-clock timeout measured under
    concurrent load is not a statement about the code.
+
+`e3g.determinism.threads` is the assertion, and it is not vacuous: it compares the
+full measurement vector — item id, wire SHA-256, size and verdict — across every
+configured thread count and across a repeated in-process pass. With `--threads 1,4`
+all three vectors hash to the same value
+(`17d178cc31230d6b2c31b48643dc51ea004371469a74db416052c8e3212a08cd`, 5143 items),
+which is what makes the `--fuzz-threads 4` campaign defensible: concurrency does not
+change a single measured byte.
 
 Two consecutive full 100 000-mutant runs now produce identical SHA-256 for all
 eight artefacts. The CI workflow proves this on every run: it checks the committed
@@ -239,7 +248,7 @@ committed — no `.mapr` file is added by this branch):
 
 Full gate against the scratch root: `E3-G: PASS — rows=5264 pass=5264 fail=0
 blocked=0`, `W-V1 fixtures=1 verified=1 decode_ok=1 blocked=no`. With the fixture
-removed: `BLOCKED`, one row, and 41 273 passes.
+removed: `BLOCKED`, one row, and 41 274 passes.
 
 **What this establishes and what it does not.** It establishes that the legacy
 pipeline is *correct on a real v1 container* — a 229-byte file produced by C08's
@@ -309,7 +318,7 @@ lost between the counters.
 
 | Check | Result |
 |---|---|
-| Full gate, 100 000 mutants, 4 workers, `--threads 1,4` | `BLOCKED`; `rows=41274 pass=41273 fail=0 blocked=1`; exit 4 |
+| Full gate, 100 000 mutants, 4 workers, `--threads 1,4` | `BLOCKED`; `rows=41275 pass=41274 fail=0 blocked=1`; exit 4 |
 | Two consecutive evidence runs, 8 artefacts | **byte-identical** |
 | `make -f Makefile.e3g e3g-isolation` | PASS (0 v2 entry points in the legacy half, 0 legacy entry points in the wire half, 0 forbidden symbols in the gate) |
 | ASan + UBSan gate run (`e3g-san`, 2000 mutants, 1 thread) | 0 sanitizer reports, same `BLOCKED` summary |

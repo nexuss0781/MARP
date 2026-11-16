@@ -905,6 +905,49 @@ WireResultSummary run_wire_checks(const Corpus& corpus, const Settings& settings
         }
     }
 
+    // ---------------- step 9: thread-count invariance ----------------------
+    //
+    // §13.4 step 9 requires the evidence to be reproducible, and the sharpest form
+    // of that for a concurrent harness is: the measured wire bytes and verdicts must
+    // not depend on how many workers produced them.  Each pass above records the
+    // measurement vector of its own thread count; this compares them pairwise.  Rows
+    // are only taken from the first pass, so the TSV is stable while this row still
+    // proves the later passes agreed with it.
+    {
+        std::string first_key;
+        bool consistent = true;
+        std::string actual_text;
+        for (const auto& entry : by_threads) {
+            const std::string key = measurement_key(entry.second);
+            if (first_key.empty()) first_key = key;
+            if (key != first_key) consistent = false;
+            if (!actual_text.empty()) actual_text += ";";
+            actual_text += "threads=" + std::to_string(entry.first) + " sha=" + sha_of_text(key) +
+                           " items=" + std::to_string(entry.second.size());
+        }
+        // A single configured thread count cannot falsify invariance; the check is
+        // only meaningful (and only claimed) for two or more.
+        const bool multi = by_threads.size() >= 2;
+        std::string why;
+        const bool repro = determinism_identical(corpus, settings, why);
+        collector.row("e3g.determinism.threads", "W-CANON", "corpus",
+                      sha_of_text(std::to_string(corpus.canon.size())), "-", "-",
+                      multi ? "every thread count measures the same wires and verdicts, and two "
+                              "in-process passes agree (step 9)"
+                            : "two in-process passes agree (step 9; no thread-count comparison "
+                              "was configured)",
+                      actual_text + ";repeat=" + why, consistent && repro,
+                      "logs/E3-G.log#W-CANON");
+        if (!consistent) {
+            ++summary.determinism_mismatches;
+            collector.log("  FAIL: thread counts disagree on the measured wires");
+        }
+        if (!repro) {
+            ++summary.determinism_mismatches;
+            collector.log("  FAIL: two in-process passes disagree: " + why);
+        }
+    }
+
     summary.canon_items = corpus.canon.size();
     summary.canon_encoded = first_pass_encoded;
     summary.canon_failed = first_pass_failed;

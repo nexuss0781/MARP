@@ -177,7 +177,8 @@ jobs:
 
       - name: Run the E3-G gate (100,000 mutants, 1 and 4 threads)
         run: |-
-          set -euo pipefail
+          set -uo pipefail
+          set +e
           ./engine/bin/e3_g_gate \
             --root . \
             --oracle-bin engine/bin/mapr_oracle \
@@ -185,7 +186,18 @@ jobs:
             --fuzz-iterations 100000 \
             --fuzz-threads 4 \
             --threads 1,4 \
-            --write-evidence
+            --write-evidence 2>&1 | tee /tmp/e3g-console.txt
+          rc=${PIPESTATUS[0]}
+          echo "gate exit code: $rc"
+          # 0 = PASS, 4 = BLOCKED (§13.3: a missing fixture corpus is not a PASS and
+          # not a FAIL).  BLOCKED is allowed to reach the verdict step, which reports
+          # it precisely and fails the job there; 2 (FAIL) or anything else is a real
+          # failure of the gate itself and stops here.
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 4 ]; then
+            echo "::error::the E3-G gate exited $rc (expected 0 for PASS or 4 for BLOCKED)"
+            exit 1
+          fi
+          echo "E3G_GATE_RC=$rc" >> "$GITHUB_ENV"
 
       - name: Verify regenerated evidence is byte-identical to the committed evidence
         run: |-
@@ -220,10 +232,20 @@ jobs:
                      e3g.canon.oracle_agreement e3g.seed.fixpoint e3g.noncanon.validate \
                      e3g.noncanon.decode e3g.fuzz.accepted_invalid e3g.fuzz.crashes \
                      e3g.fuzz.timeouts e3g.fuzz.alloc_guard e3g.fuzz.accounted \
-                     e3g.coverage.counters e3g.determinism.threads e3g.legacy.decode_v1 \
-                     e3g.legacy.readonly_surface e3g.legacy.w_v1_corpus; do
+                     e3g.coverage.counters e3g.determinism.threads \
+                     e3g.legacy.half e3g.legacy.readonly_surface e3g.legacy.w_v1_corpus; do
             awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
           done
+
+          # These checks only exist per fixture, so they are required exactly when the
+          # corpus is present -- requiring them unconditionally would make the schema
+          # assertion itself dishonest about what a BLOCKED run can contain.
+          if compgen -G 'specs_and_reports/v2/W-V1/*.mapr' > /dev/null; then
+            for req in e3g.legacy.decode_v1 e3g.legacy.denotation e3g.legacy.term_canonical \
+                       e3g.legacy.v2_encode e3g.legacy.v2_roundtrip e3g.legacy.v2_fixpoint; do
+              awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+            done
+          fi
 
           # One failure fails the gate: no FAIL row may exist, and the W-V1 row's
           # verdict must match the fixture corpus's actual presence.

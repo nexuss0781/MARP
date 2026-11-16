@@ -5157,8 +5157,8 @@ corpus seeds: T-KAT seed=0, T-GEN seed=0xE2A15EED0001 (E2 CorpusSeeds), atom see
   [big-limit-repeat-entry-cap] no canonical wire: 2^64/INDEX_STRIDE entries exceed the u32 entry_count
   pass threads=1: canon encoded=5143 failed=0 oracle_ok=5143 oracle_bad=0
   pass threads=4: canon encoded=5143 failed=0 oracle_ok=5143 oracle_bad=0
-[W-SEED: canonical wire fixpoint] cumulative pass=36010 fail=0 blocked=0 rows=36010
-[W-NONCANON: rejection with the expected code and stage] cumulative pass=41169 fail=0 blocked=0 rows=5159
+[W-SEED: canonical wire fixpoint] cumulative pass=36011 fail=0 blocked=0 rows=36011
+[W-NONCANON: rejection with the expected code and stage] cumulative pass=41170 fail=0 blocked=0 rows=5159
   [noncanon-size-below-96] §5.1 step 1 (source size) -> Invalid@stage1_size
   [noncanon-magic] §4.2 magic -> Invalid@stage2_header
   [noncanon-version-minor-future] §5.2 future minor version -> Unsupported@stage2_header
@@ -5207,10 +5207,10 @@ corpus seeds: T-KAT seed=0, T-GEN seed=0xE2A15EED0001 (E2 CorpusSeeds), atom see
   [noncanon-bigint-tag02-short] §4.9 tag 0x02 requires len >= 9 -> Invalid@stage8_nodes
   [noncanon-bigint-tag01-zero] §4.9 tag 0x01 v = 0 must be tag 0x00 -> Invalid@stage8_nodes
   [noncanon-total-length-mismatch] §5.1 step 11 (declared length) -> Invalid@stage8_nodes
-[W-FUZZ: 100000 mutants with timeout and allocation guard] cumulative pass=41265 fail=0 blocked=0 rows=96
+[W-FUZZ: 100000 mutants with timeout and allocation guard] cumulative pass=41266 fail=0 blocked=0 rows=96
   fuzz: iterations=100000 accepted_valid=4049 accepted_invalid=0 rejected=95951 crashes=0 timeouts=0 alloc_violations=0 peak=197635
   fuzz stages: stage1_size:4907,stage2_header:6138,stage3_bounds:48322,stage4_header_crc:14883,stage5_trailer:7479,stage6_regions:6257,stage7_atoms:7268,stage8_nodes:697
-[Coverage counters (§13.4 step 10)] cumulative pass=41270 fail=0 blocked=0 rows=5
+[Coverage counters (§13.4 step 10)] cumulative pass=41271 fail=0 blocked=0 rows=5
   coverage: kind.Empty=9,kind.Atom=1526,kind.Zero=1355,kind.Concat=1997,kind.Repeat=2381,kind.Slice=1863,kind.Morph=2595,kind.Xor=86,kind.Interleave=2657,kind.Lfsr=4021,kind.Affine=3803,kind.Predictor=2825
   coverage: morph.1=272,morph.2=800,morph.3=190,morph.4=106,morph.5=50,morph.6=269,morph.7=296,morph.8=306,morph.9=306
   coverage: predictor.0=512,predictor.1=558,predictor.2=599,predictor.3=550,predictor.4=606
@@ -5218,7 +5218,7 @@ corpus seeds: T-KAT seed=0, T-GEN seed=0xE2A15EED0001 (E2 CorpusSeeds), atom see
   coverage: total_length.u64=5147,total_length.big=4
   coverage: index.present=3,index.absent=5148
   coverage: atom.at_max=14,atom.max_plus_one_split=2,klass.values=3
-[E3-G legacy half (C08, read-only, out of process)] cumulative pass=41271 fail=0 blocked=0 rows=1
+[E3-G legacy half (C08, read-only, out of process)] cumulative pass=41272 fail=0 blocked=0 rows=1
 
 # campaign counters (also corpus/E3/fuzz_counts.tsv):
 # mutants	100000
