@@ -4,6 +4,7 @@
 // includes neither `mapr/e3/e3_wire.hpp` nor `mapr/e3/e3_legacy.hpp`: the legacy
 // boundary is crossed exactly once, by a process, and its result arrives as text.
 
+#include "e3g_support.hpp"
 #include "e3g_legacy_side.hpp"
 
 #include <array>
@@ -70,9 +71,15 @@ std::string shell_quote(const std::string& text) {
 
 }  // namespace
 
-LegacySummary run_legacy_checks(const std::string& root, const std::string& binary) {
+LegacySummary run_legacy_checks(const std::string& root, const std::string& binary_arg) {
     LegacySummary summary;
     summary.root = root;
+    // Resolved against `--root` exactly as `--oracle-bin` is, so the two external
+    // helpers cannot disagree about what a relative path means.  Before this they
+    // did: with `--root ..` the oracle was looked up under the root while the legacy
+    // half was looked up under the working directory, so one spelling worked for one
+    // binary and not the other.
+    const std::string binary = resolve_path(root, binary_arg);
     summary.binary = binary;
     summary.binary_available = executable(binary);
 

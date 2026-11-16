@@ -255,6 +255,17 @@ jobs:
             echo "FAIL: a FAIL verdict is present in E3-G.tsv"
             exit 1
           fi
+          # No row other than W-V1 may be BLOCKED.  A mis-specified --oracle-bin or
+          # --legacy-half silently blocks whole families of rows, so a gate that reports
+          # thousands of blocked items must not be able to pass as "only W-V1 is blocked".
+          if awk -F'\t' '$9 == "BLOCKED" && $1 != "e3g.legacy.w_v1_corpus" \
+                           { print "unexpected BLOCKED row: " $1; found = 1 } \
+                         END { exit(found ? 1 : 0) }' "$TSV"; then
+            echo "PASS: the only BLOCKED verdict is the W-V1 corpus row"
+          else
+            echo "FAIL: a row other than W-V1 is BLOCKED"
+            exit 1
+          fi
           if compgen -G 'specs_and_reports/v2/W-V1/*.mapr' > /dev/null; then
             awk -F'\t' '$1 == "e3g.legacy.w_v1_corpus" && $9 != "PASS" { print "W-V1 present but not PASS: " $0; exit 1 }' "$TSV"
             echo "PASS: W-V1 corpus present and verified"
@@ -288,14 +299,37 @@ jobs:
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: |-
           set -euo pipefail
-          cd engine
-          make -f Makefile.e3g e3g-san -j4
-          # A reduced campaign: the sanitizer build exists to prove memory safety,
-          # not to re-prove the 100,000-mutant statistics.
-          ./bin/e3_g_gate_san --root .. --oracle-bin bin/mapr_oracle \
-            --legacy-half bin/e3g_legacy_half --fuzz-iterations 3000 --fuzz-threads 1 \
-            --threads 1 || true
-          echo "PASS: ASan+UBSan gate run completed without a sanitizer report"
+          make -C engine -f Makefile.e3g e3g-san -j4
+          # Same root and same relative paths as the main gate step.  Running this
+          # from `engine/` with `--root ..` resolved every artefact one directory too
+          # high, so the run could not even find its own corpus directory.
+          # `set +e` around the pipeline: the gate legitimately exits 4 for BLOCKED,
+          # and under `set -e` + `pipefail` the script would die right here, before
+          # any of the assertions below could run -- which is exactly how a step can
+          # fail for a reason that is not the one it is testing.
+          set +e
+          ./engine/bin/e3_g_gate_san --root . --oracle-bin engine/bin/mapr_oracle \
+            --legacy-half engine/bin/e3g_legacy_half --fuzz-iterations 3000 --fuzz-threads 1 \
+            --threads 1 2>&1 | tee /tmp/e3g-san.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+          # 0 = PASS, 4 = BLOCKED (W-V1 fixture absent).  Anything else is a failure.
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 4 ]; then
+            echo "::error::the sanitizer gate exited $rc"
+            exit 1
+          fi
+          if grep -E 'AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error' /tmp/e3g-san.txt; then
+            echo "::error::a sanitizer report was produced"
+            exit 1
+          fi
+          # --oracle-bin is resolved against --root, so a wrong spelling finds nothing
+          # and turns all 5143 agreement rows into BLOCKED while still "passing".
+          if grep -q 'oracle binary not available' /tmp/e3g-san.txt; then
+            echo "::error::the sanitizer run could not find the H3 oracle"
+            exit 1
+          fi
+          grep -q 'oracle_agreements=5143 disagreements=0' /tmp/e3g-san.txt
+          echo "PASS: ASan+UBSan clean, H3 agreed on all 5143 items"
 
       - name: No-regression check (frozen components and earlier evidence untouched)
         run: |-

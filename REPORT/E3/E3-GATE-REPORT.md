@@ -329,6 +329,29 @@ lost between the counters.
 | Full gate against a scratch v1 fixture (outside the repo) | `PASS`, `rows=5264 pass=5264 fail=0 blocked=0` |
 | Repository v1 fixtures | **0** (nothing added, nothing to add) |
 
+### 8.1 Two defects the workflow found that reading it did not
+
+Both are worth recording because both are the kind that make a green CI run
+meaningless:
+
+1. **`--oracle-bin` was resolved against `--root`, `--legacy-half` against the working
+   directory.** In CI's sanitizer step (`cd engine` + `--root ..`) the two spellings
+   disagreed: `engine/bin/mapr_oracle` resolved to `/home/user/MARP/bin/mapr_oracle`,
+   which does not exist, so **all 5143 `oracle_agreement` rows silently became
+   `BLOCKED`** and the summary read `blocked=5144` — while the step still printed
+   "PASS". Every external helper is now resolved against `--root`, and the schema
+   step forbids any `BLOCKED` row that is not the W-V1 corpus row, so a mis-specified
+   path fails loudly instead of producing thousands of quietly-blocked rows.
+
+2. **The sanitizer step could not reach its own assertions.** It ran the gate under
+   `set -euo pipefail` without `set +e`, so the expected exit 4 (BLOCKED) killed the
+   script before `rc=${PIPESTATUS[0]}` and before any sanitizer/oracle assertion ran.
+   The step now captures the exit code the same way the main gate step does.
+
+Neither failure changes the evidence — the committed artefacts are byte-identical
+before and after — but both meant the CI could have gone green while checking less
+than it claimed to check.
+
 The strict build is `-std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion
 -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O2`; the harness compiles
 clean under it. The sanitizer build passes `-DE3G_ALLOC_GUARD_DISABLED` because the
