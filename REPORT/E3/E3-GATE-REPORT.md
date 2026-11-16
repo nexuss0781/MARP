@@ -413,3 +413,89 @@ the strongest statement that can honestly be made before the corpus exists.
 Until then the gate exits **4**, and the CI workflow turns that into a failing job
 with `::error::` text naming W-V1. A blocked gate that CI reports as success would
 be the one failure mode this design exists to prevent.
+
+---
+
+## 10. W-V1 sourcing attempt (2026-11-16)
+
+**Current verdict: BLOCKED, not closed.** This section is the current sourcing
+addendum; earlier sections describe the integration work and its historical run.
+Work branch: `arena/7bcb05ff-marp`; base and current upstream `h2-gates` head:
+`7f906ef686b7094a4db1c62c17b31c5980915144`.
+
+### Inventory and provenance
+
+The initial checkout was shallow. The investigation fetched full history with
+`git fetch --unshallow origin`, then all published branch heads with
+`git fetch origin '+refs/heads/*:refs/remotes/origin/*'` without switching branches.
+Across these refs there are 135 reachable commits and 1,286 reachable objects.
+`git rev-list --all --objects` contains no paths ending in `.mapr`, `.marp`,
+`.zip`, `.tar`, `.gz`, or `.bin`, and no `poc_defects` paths. A filesystem search
+also found no legacy containers. The default branch `master` was checked through
+the GitHub recursive tree API; no `.mapr` containers were present. `gh release
+list --limit 100` returned no published releases. No other fixture source or
+attachment was supplied with the request.
+
+| Source | Available success fixtures | Disposition |
+|---|---:|---|
+| Current checkout and full published branch history | 0 | Nothing to pin or decode |
+| `audit_suite/**/poc_defects/**` | 0 | Directory absent; malformed PoCs would be excluded regardless |
+| GitHub releases | 0 | No published releases returned |
+| C08 test/gate assemblers | Not a legacy corpus | Synthetic test construction only; not promoted to W-V1 |
+| Earlier report's `/tmp/proto/testroot/` fixture | Not supplied | Uncommitted smoke test, not recoverable legacy provenance |
+
+The README mentions `audit_suite/` and an independent decoder, but neither exists
+in this checkout. That prose is not evidence of available container bytes. No
+fixture identity, container digest, or output digest can honestly be recorded.
+
+Narrow interpretation of §13.3: “from the legacy fixture set” requires actual
+legacy inputs with provenance. Newly assembling containers solely to turn the
+row green would test the assembler/decoder pair, not certify that corpus. The
+request explicitly permits stopping BLOCKED when valid legacy inputs cannot be
+obtained. This attempt takes that fallback rather than presenting generated
+smoke tests as recovered fixtures.
+
+### Reproduction performed
+
+Built the strict E3-G binaries and the independent H3 CLI with the existing C++20
+makefiles. The initial `e3g-all` attempt could not build H3's GoogleTest target
+because GoogleTest is not installed locally; building the `bin/mapr_oracle`
+target directly succeeded. No dependency or compiler policy was changed.
+`make -C engine -f Makefile.e3g e3g-isolation` passed: no v2 entry points in the
+legacy half, no legacy entry points in the wire half, no forbidden gate symbols.
+
+Ran the full harness with `--fuzz-iterations 100000 --fuzz-threads 4 --threads
+1,4 --write-evidence`, using the independent oracle and the legacy subprocess.
+The harness regenerated all eight tracked evidence artifacts **byte-identically**
+to the base (no measured values were edited):
+
+- Exit **4**, `rows=41275 pass=41274 fail=0 blocked=1`.
+- `oracle_agreements=5143 disagreements=0`.
+- `W-NONCANON rejected=48/48`; `W-SEED fixpoint=5151/5151`.
+- 100,000 mutants; accepted-invalid/crashes/timeouts/allocation violations all 0.
+- `W-V1 fixtures=0 verified=0 decode_ok=0`, `missing_w_v1_corpus`.
+
+### Latent fixture-handling issues (not a closure claim)
+
+Code inspection also found two issues to resolve against real inputs before any
+future closure:
+
+1. C08's gate reads `manifest.tsv` as two columns (the entire suffix after the
+   first tab becomes the expected output digest), whereas E3-G requires three.
+   Populating E3-G's format would therefore fail the predecessor C08 gate.
+2. E3-G's legacy subprocess hashes concatenated atom-table payloads. General
+   denotation is evaluation of the root, not concatenation (e.g. Repeat/Slice).
+   It must use the E2 evaluator before certifying nontrivial legacy fixtures.
+
+No speculative C07/C08/harness changes are made without the missing inputs;
+these observations do not weaken or bypass the BLOCKED verdict. No v1 writer,
+E4–E7 work, H4 advancement, or H3 unblocking was introduced.
+
+### Required next input
+
+Provide the original supported v1.0.1/v1.1 fixture corpus (including expected
+outputs or verifiable output provenance). Then validate `looks_like_v1` and
+`decode_v1`, exclude invalid/unsupported cases explicitly, pin container and true
+denotation digests, repair the handling issues above with regression tests, and
+rerun the complete gate and affected predecessor workflows. Until then there is
+**no authoritative green closure run and no E3-G PASS claim**.
