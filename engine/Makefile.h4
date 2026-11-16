@@ -1,0 +1,152 @@
+# MARP v2 — E0 HARNESS — H4 FUZZ
+#
+# Isolated build for the mutation campaign of SPECS/SPECS-V2.md §12.8 and
+# SPECS/COMPONENTS-V2.md H4.
+#
+# The campaign drives the real C07 acceptance surfaces (`validate`, `decode`,
+# `encode`) and takes its seeds from the E3-G corpus builder, so this binary
+# links E1 + E2 + C07 + the E3-G seed builder — and nothing from C08, E4–E7,
+# discovery, selection, CLI or certificate.  `h4-isolation` asserts that with
+# source greps, `nm` and `ldd` instead of a comment.
+#
+# Nothing here is reachable from engine/Makefile or from another component's
+# makefile; adding H4 changes no existing rule.
+
+CXX ?= g++
+H4_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+           -Wconversion -Wshadow -Wnull-dereference \
+           -Wdouble-promotion -Wformat=2
+H4_INC  := -I. -I../include -I../harness/fuzz/include -I../harness/fuzz/src \
+           -Isrc/e3g -Isrc/e2g
+
+H4_CXXFLAGS ?= $(H4_WARN) -O2 $(H4_INC)
+H4_SANFLAGS := $(H4_WARN) -O1 -g -fno-omit-frame-pointer \
+               -fsanitize=address,undefined -fno-sanitize-recover=all $(H4_INC)
+# The allocation guard replaces `operator new`/`delete`; the sanitizer runtime
+# supplies its own, so the replacement is compiled out there and the accounting
+# reports itself as disabled (the evidence says so).
+H4_SANDEFS := -DH4_ALLOC_GUARD_DISABLED
+
+# --- E1 (frozen) -----------------------------------------------------------
+H4_E1_SRCS := src/e1_bigint.cpp src/e1_sha256.cpp src/e1_crc32.cpp
+H4_E1_OBJS := $(patsubst src/%.cpp,obj/h4/%.o,$(H4_E1_SRCS))
+
+# --- E2 (frozen) -----------------------------------------------------------
+H4_E2_SRCS := src/e2/e2_term.cpp src/e2/e2_canon.cpp src/e2/e2_eval.cpp src/e2/e2_dag.cpp
+H4_E2_OBJS := $(patsubst src/%.cpp,obj/h4/e2/%.o,$(H4_E2_SRCS))
+
+# --- C07 WIRE (v2) ---------------------------------------------------------
+H4_V2_SRCS := src/e3/e3_wire.cpp src/e3/e3_wire_read.cpp src/e3/e3_wire_index.cpp
+H4_V2_OBJS := $(patsubst src/%.cpp,obj/h4/v2/%.o,$(H4_V2_SRCS))
+
+# --- E3-G corpus builder (seed provenance; no C08, no oracle) --------------
+H4_SEED_SRCS := src/e2g/e2g_terms.cpp src/e2g/e2g_corpus.cpp \
+                src/e3g/e3g_corpus.cpp src/e3g/e3g_support.cpp
+H4_SEED_OBJS := $(patsubst src/%.cpp,obj/h4/seeds/%.o,$(H4_SEED_SRCS))
+
+# --- H4 harness ------------------------------------------------------------
+H4_SRCS := ../harness/fuzz/src/h4_mutate.cpp \
+           ../harness/fuzz/src/h4_runner.cpp \
+           ../harness/fuzz/src/h4_seeds.cpp \
+           ../harness/fuzz/src/h4_evidence.cpp \
+           ../harness/fuzz/src/h4_support.cpp \
+           ../harness/fuzz/src/h4_alloc_guard.cpp \
+           ../harness/fuzz/src/h4_selftest.cpp \
+           ../harness/fuzz/src/h4_main.cpp
+H4_OBJS := $(patsubst ../harness/fuzz/src/%.cpp,obj/h4/h/%.o,$(H4_SRCS))
+
+H4_HEADERS := ../include/mapr/e3/e3_wire.hpp ../include/mapr/e2/e2_term.hpp \
+              ../include/mapr/e1_sha256.hpp ../include/mapr/e1_crc32.hpp
+H4_HARNESS_HEADERS := ../harness/fuzz/include/marp/harness/h4_fuzz.hpp \
+                      ../harness/fuzz/src/h4_mutate.hpp \
+                      ../harness/fuzz/src/h4_seeds.hpp \
+                      ../harness/fuzz/src/h4_evidence.hpp \
+                      ../harness/fuzz/src/h4_support.hpp \
+                      ../harness/fuzz/src/h4_alloc_guard.hpp \
+                      ../harness/fuzz/src/h4_selftest.hpp
+
+.PHONY: h4-all h4-gate h4-test h4-san h4-isolation h4-clean h4-seeds-preview
+
+h4-all: bin/h4_fuzz
+
+obj/h4/%.o: src/%.cpp $(H4_HEADERS) $(H4_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(H4_CXXFLAGS) -c $< -o $@
+
+obj/h4/e2/e2/%.o: src/e2/%.cpp $(H4_HEADERS) $(H4_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(H4_CXXFLAGS) -c $< -o $@
+
+obj/h4/v2/e3/%.o: src/e3/%.cpp $(H4_HEADERS) $(H4_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(H4_CXXFLAGS) -c $< -o $@
+
+obj/h4/seeds/e2g/%.o: src/e2g/%.cpp $(H4_HEADERS) $(H4_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(H4_CXXFLAGS) -c $< -o $@
+
+obj/h4/seeds/e3g/%.o: src/e3g/%.cpp $(H4_HEADERS) $(H4_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(H4_CXXFLAGS) -c $< -o $@
+
+obj/h4/h/%.o: ../harness/fuzz/src/%.cpp $(H4_HEADERS) $(H4_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(H4_CXXFLAGS) -c $< -o $@
+
+bin/h4_fuzz: $(H4_E1_OBJS) $(H4_E2_OBJS) $(H4_V2_OBJS) $(H4_SEED_OBJS) $(H4_OBJS)
+	@mkdir -p bin
+	$(CXX) $(H4_CXXFLAGS) -o $@ $^ -pthread
+
+# The sanitizer binary compiles the same sources in one link so ASan/UBSan
+# instruments every translation unit, including the seed builder.
+bin/h4_fuzz_san: $(H4_E1_SRCS) $(H4_E2_SRCS) $(H4_V2_SRCS) $(H4_SEED_SRCS) $(H4_SRCS) \
+                 $(H4_HEADERS) $(H4_HARNESS_HEADERS)
+	@mkdir -p bin
+	$(CXX) $(H4_SANFLAGS) $(H4_SANDEFS) -o $@ $(H4_E1_SRCS) $(H4_E2_SRCS) \
+	    $(H4_V2_SRCS) $(H4_SEED_SRCS) $(H4_SRCS) -pthread
+
+h4-san: bin/h4_fuzz_san
+
+# The authoritative evidence run.  `--root ..` because the binary lives in
+# engine/ and every evidence path is repository-relative.
+h4-gate: bin/h4_fuzz
+	./bin/h4_fuzz --root .. --write-evidence
+
+h4-test: bin/h4_fuzz
+	./bin/h4_fuzz --root .. --self-test
+
+h4-seeds-preview: bin/h4_fuzz
+	./bin/h4_fuzz --root .. --print-seeds
+
+# ---- isolation ------------------------------------------------------------
+#
+# Five structural facts, checked rather than asserted:
+#   1. the H4 tree reaches no C08, E4–E7, discovery/selection/CLI/certificate
+#      header and no earlier harness header;
+#   2. no non-C++ script is committed under the H4 tree;
+#   3. the binary contains no legacy decoder, v1 encoder, CLI or third-party
+#      symbol;
+#   4. the allocation guard is linked into the H4 binary only;
+#   5. the binary links no zlib and no GoogleTest.
+h4-isolation: bin/h4_fuzz
+	@echo "Checking the H4 source tree for forbidden includes..."
+	@if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"](mapr/(e4|e5|e6|e7)|mapr/e3/e3_legacy\.hpp|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq)|marp/harness/(fixtures|gates|e0_selftest|e1_[a-z_]*)|marp/oracle)' ../harness/fuzz; then \
+	  echo "FAIL: a forbidden include is reachable from H4"; exit 1; fi
+	@if find ../harness/fuzz -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then \
+	  echo "FAIL: a non-C++ script appears under harness/fuzz"; exit 1; fi
+	@echo "  source tree: C++20 only, no C08, no E4-E7, no earlier harness"
+	@echo "Checking bin/h4_fuzz symbols..."
+	@nm -C bin/h4_fuzz > /tmp/h4_nm.txt
+	@if grep -E 'marp::v2::(decode_v1|looks_like_v1)|mapr::(ContainerWriter|ContainerReader|Encoder|Decoder|Pipeline)::|marp::harness::(generate|run_gate|decode_file)\(|testing::|gtest' /tmp/h4_nm.txt; then \
+	  rm -f /tmp/h4_nm.txt; echo "FAIL: a forbidden symbol is linked into bin/h4_fuzz"; exit 1; fi
+	@if ! grep -q 'h4::alloc_guard::begin' /tmp/h4_nm.txt; then \
+	  rm -f /tmp/h4_nm.txt; echo "FAIL: the per-mutant allocation guard is not linked"; exit 1; fi
+	@echo "  binary: $$(wc -l < /tmp/h4_nm.txt) symbols, 0 forbidden, guard present"
+	@rm -f /tmp/h4_nm.txt
+	@if ldd bin/h4_fuzz | grep -E 'libz\.|libgtest'; then \
+	  echo "FAIL: a third-party library is linked into bin/h4_fuzz"; exit 1; fi
+	@echo "PASS: H4 is isolated from C08, E4-E7, the earlier harnesses and third-party code"
+
+h4-clean:
+	rm -rf obj/h4
+	rm -f bin/h4_fuzz bin/h4_fuzz_san

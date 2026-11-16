@@ -63,3 +63,23 @@ reviewed head `076a360`).
 | Report | 2026-11-15 | `REPORT/E2/E2-GATE-REPORT.md` — decisions (§6) and limitations (§7). |
 | **E2 is frozen** | 2026-11-15 | `include/mapr/e2/**` is frozen for consumers. File hashes are recorded in `specs_and_reports/v2/evidence/E2G/FROZEN.json` and verified by `engine/Makefile.e2g` target `e2g-frozen`, which runs inside `MARP E2-G ALGEBRA CI`. A SHA-256 in `FROZEN.json` must be updated in the same PR as any intentional change. |
 | Observable limitation carried forward | 2026-11-15 | `C05-EVAL.log` records `rss_before_kib`, a process-residency measurement: it reads 3420 in isolation and 3424 on a machine that has just run heavy jobs. Pre-existing; C05 evidence was not re-baselined by E2-G. |
+
+## H4 FUZZ — mutation campaign over canonical v2 wires (2026-11-16)
+
+H4 `FUZZ` is the E0 mutation harness (SPECS-V2 §12.8, COMPONENTS-V2 §H4): it
+mutates E3-G canonical wires and feeds every mutant to the C07 `validate`
+(verify) and `decode` paths, counting `total`, `valid`, `accepted_invalid`,
+`crashes` and `timeouts`. Implementation is C++20 only under
+`harness/fuzz/{include,src}` with `engine/Makefile.h4`; nothing in `include/mapr`,
+`engine/src` or the earlier harnesses changed.
+
+| item | date | evidence |
+|---|---|---|
+| H4 prerequisite | 2026-11-16 | E3-G gate `specs_and_reports/v2/gates/E3-G.tsv` SHA-256 `1234b8d297f6d286e4fc9db19adb7c8f60e145f9a3f21526ff219104f9c4c4c3` (41,335 rows, 0 FAIL, 0 BLOCKED) and E3-G fuzz record `93cb4bd6…` (100,000 / 0 / 0 / 0). E3-G CI run `43858184768` `success`. |
+| Seeds | 2026-11-16 | 15 canonical E3-G wires rebuilt from `corpus/E3/corpus.tsv`, each wire SHA-256 re-verified against the committed digest; seed-set SHA-256 `2791a46aa25eca57ed6d7acd7de3c0fb88e98cf5e73856a1720af7003d6dec80` (`corpus/H4/seeds.tsv`). |
+| Campaign | 2026-11-16 | `bin/h4_fuzz --root .. --workers 4 --write-evidence` → `RESULT: PASS`: **total=100000 valid=6977 rejected=93023 accepted_invalid=0 crashes=0 timeouts=0 processed=100000**; classes bitflip=25005 truncation=25005 fieldswap=25000 lengthcorruption=24990; regions header=68875 index=3147 trailer=55489 body=26579; 9 distinct reject stages; fixpoint 6977 checked / 0 mismatch; peak alloc 3,147,315 B, alloc violations 0. Campaign seed `79389355498074`. |
+| Determinism | 2026-11-16 | Dry run 3,000 mutants at 1 vs N workers identical; full-campaign counts identical at 2 and 4 workers; two consecutive `--workers 4` campaigns produced byte-identical `H4-FUZZ.tsv`, `H4-FUZZ.log`, `fuzz_counts.tsv`, `seeds.tsv`, `MANIFEST.tsv`, `SHA256SUMS`. |
+| Sanitizers | 2026-11-16 | `h4-san` (ASan+UBSan, `detect_leaks=1`) over a 2,000-mutant in-process campaign: zero sanitizer reports. Allocation guard disabled in this build (ASan hook collision), so `peak alloc=0` there. |
+| Isolation | 2026-11-16 | `h4-isolation`: source grep clean, 2,475 binary symbols / 0 forbidden, guard present, no libz/gtest; `make -f Makefile.h4 h4-all` warning-free under `-Werror -Wconversion -Wshadow -Wformat=2`. |
+| Gate evidence | 2026-11-16 | `specs_and_reports/v2/gates/H4-FUZZ.tsv` SHA-256 `3593a7234e75fe5e45f440449876545d39a3733f2edad7aba4b292f3db1d9b9a`; log `0f5f7fa9…`; counters `d06b6c64…`; manifest `evidence/H4/{MANIFEST.tsv,SHA256SUMS}` verdict PASS. |
+| Report | 2026-11-16 | `REPORT/HARNESS/H4-FUZZ-REPORT.md` — decisions, coverage limitations (stages 9/11 unreached) and acceptance checklist. |
