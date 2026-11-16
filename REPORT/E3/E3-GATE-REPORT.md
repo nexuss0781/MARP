@@ -337,6 +337,8 @@ lost between the counters.
 | C08 tests | 13/13 |
 | Full gate against a scratch v1 fixture (outside the repo) | `PASS`, `rows=5264 pass=5264 fail=0 blocked=0` |
 | Repository v1 fixtures | **0** (nothing added, nothing to add) |
+| C08 `c08-isolation` (after the adapter exemption) | PASS, and it now asserts the v2 encode path is v1-free |
+| Base-vs-branch comparison for every predecessor workflow | C07, C08, H3, E2-G all **success** — C08 was failing on this branch and passes now |
 
 ### 8.0 The one C08 rule E3-G had to touch
 
