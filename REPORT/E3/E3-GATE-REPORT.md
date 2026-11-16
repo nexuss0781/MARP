@@ -1,8 +1,7 @@
 # E3-G integrated gate — W-V1 closure
 
-**Status: local verification; CI and merge pending.** Closure requires a green
-GitHub Actions E3-G run reproducing the committed evidence and a merge into
-`h2-gates`. A local PASS alone is not the CI-authoritative closure.
+**E3-G PASS (closed)** for the CI-verified gate and evidence below; integration
+into `h2-gates` remains subject to merge.
 
 ## Corpus and provenance
 
@@ -50,7 +49,7 @@ thread counts 1 and 4. The evidence is generated under `specs_and_reports/v2/`:
 `gates/E3-G.tsv`, `logs/E3-G*.log`, `corpus/E3/`, and `evidence/E3/`. C08 gate
 evidence is also regenerated because its manifest reader changed. The gate rows
 are the authoritative per-check results; `SHA256SUMS` and `MANIFEST.tsv` cover the
-recorded artifacts and pinned inputs. Full CI results and merge commit are pending.
+recorded artifacts and pinned inputs. GitHub Actions E3-G run [43851109530](https://github.com/nexuss0781/MARP/actions/runs/43851109530) passed on the pull request, including byte-identical evidence reproduction, sanitizer and final verdict checks. Push run [43851092856](https://github.com/nexuss0781/MARP/actions/runs/43851092856) also passed. These runs test commit `67e3f401bd980325096b916f9bad97e12ea6d08a`; this report-only update does not alter the measured artifacts. The PR and eventual merge record identify the integration commit.
 
 Local full run: **PASS**, exit 0, 41,335 rows PASS, zero FAIL or BLOCKED;
 5/5 W-V1 fixtures decoded and verified, with five H3 denotation-verification
