@@ -499,3 +499,16 @@ outputs or verifiable output provenance). Then validate `looks_like_v1` and
 denotation digests, repair the handling issues above with regression tests, and
 rerun the complete gate and affected predecessor workflows. Until then there is
 **no authoritative green closure run and no E3-G PASS claim**.
+
+### Authoritative CI result for this sourcing attempt
+
+[Run 43831014482](https://github.com/nexuss0781/MARP/actions/runs/43831014482)
+on commit `a1b6b7af3ec5a37c4cf7c226c23c172a5e65e0a0` completed with overall
+**failure**, as required for BLOCKED. Source isolation passed. In the build job,
+all validation steps passed, including predecessor builds/tests, binary isolation,
+full gate execution, byte-identical evidence reproduction, schema/counters,
+ASan+UBSan, and no-regression checks. The **only failed step** was `E3-G final
+verdict — a BLOCKED corpus fails the job here`, reporting zero W-V1 fixtures.
+This run validates the committed unchanged evidence; it is explicitly **not** a
+green closure run. This final documentation-only citation does not alter any
+fixture, executable source, workflow, or measured evidence.
