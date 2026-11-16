@@ -368,6 +368,16 @@ Each is the narrowest reading consistent with the normative text.
     `provenance` + `segment` + `probe`. Only the provenance clause is measurable
     today. The workflow name says C09, the log says C09, and this report says
     C09.
+11. **A constant subscript on a `std::vector` is written as a range-for.** The
+    local toolchain is GCC 12.2; CI runs GCC 15.2, whose `-Wnull-dereference`
+    (under `-Werror`) reads `v[0]` on a vector as a possible dereference of
+    storage that may not exist and rejects the build. The three such reads in
+    the gate and the tests were rewritten to bind a reference from the range,
+    which also establishes non-emptiness, rather than silenced with a pragma or
+    a suppression attribute. `std::array` subscripts are unaffected because the
+    storage is part of the object. Both fixes leave every produced value
+    unchanged: the committed TSV, log and manifest regenerate byte for byte on
+    both compilers, so nothing in §4.4 moved.
 
 ---
 

@@ -147,9 +147,8 @@ jobs:
           set +e
           set -uo pipefail
           echo "::notice::toolchain: $(make --version | head -1); $(g++ --version | head -1)"
-          cd engine || { echo "::error::cannot cd to engine"; exit 1; }
+          cd engine
           make -f Makefile.c09 c09-clean
-          echo "::notice::c09-clean exit=$?"
           make -f Makefile.c09 c09-all -j4 2>&1 | tee /tmp/c09_build.log
           rc=${PIPESTATUS[0]}
           if [ "$rc" -ne 0 ]; then

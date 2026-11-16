@@ -466,7 +466,14 @@ TEST(C09Provenance, MatchesReportsMismatch) {
 
     // Different bytes: the source is the reference, so the old record mismatches.
     Bytes other = data;
-    other[0] ^= 0x01u;
+    // Flip the first byte through a reference rather than a constant
+    // subscript: GCC 15's -Wnull-dereference treats v[0] on a vector as a
+    // possible dereference of absent storage, and the reference binds only
+    // if the range is non-empty.
+    for (u8& byte : other) {
+        byte ^= 0x01u;
+        break;
+    }
     SpanSource other_source(std::span<const u8>(other.data(), other.size()));
     EXPECT_EQ(provenance_matches(other_source, prov.value(), Policy{5}).code(),
               MeasureCode::Mismatch);
@@ -495,8 +502,15 @@ TEST(C09Provenance, NameAndExtensionIndependent) {
         ASSERT_TRUE(prov.ok()) << name;
         texts.push_back(provenance_text(prov.value()));
     }
-    for (std::size_t i = 1; i < texts.size(); ++i) {
-        EXPECT_EQ(texts[i], texts[0]) << names[i];
+    // Every rendering is identical. The reference is taken once, from the
+    // range, so no constant subscript on a vector is needed.
+    std::string first;
+    for (std::size_t i = 0; i < texts.size(); ++i) {
+        if (i == 0u) {
+            first = texts[i];
+            continue;
+        }
+        EXPECT_EQ(texts[i], first) << names[i];
     }
 }
 
