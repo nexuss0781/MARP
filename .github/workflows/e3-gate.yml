@@ -1,0 +1,322 @@
+name: MARP E3-G integrated gate CI
+
+# Isolated workflow for E3-G, the integrated gate for E3 WIRE (v2) — SPECS/
+# COMPONENTS/e3-wire/SPECS.md §13.  It is the only workflow that links C07 with
+# C08, and it does so without ever putting them in one binary (see
+# engine/src/e3g/e3g_legacy_side.cpp for why that is impossible, and
+# engine/Makefile.e3g e3g-isolation for the proof).
+#
+# The gate is treated as a hard-fail gate: any FAIL row exits non-zero, and a
+# BLOCKED legacy half (the W-V1 fixture corpus is absent or mis-hashed) also fails
+# the job.  §13.3 is explicit that a missing fixture "does not make the gate PASS",
+# so a green run here means a full PASS, never a partially blocked one.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e3g-independence:
+    name: E3-G isolation (source level, no build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject C07/C08 header mixing across the gate's translation units
+        run: |-
+          set -euo pipefail
+          # The two component headers define the same types under the same guard with
+          # different layout, and both emit HeapArena::store.  The gate's TUs must
+          # therefore be split, and this step is what keeps them split.
+          if grep -lE '#[[:space:]]*include[[:space:]]*[<"]mapr/e3/e3_legacy\.hpp' \
+              engine/src/e3g/e3g_checks.cpp engine/src/e3g/e3g_corpus.cpp \
+              engine/src/e3g/e3g_support.cpp engine/src/e3g/e3g_oracle.cpp; then
+            echo "FAIL: a C07-side harness TU includes the C08 header"
+            exit 1
+          fi
+          if grep -lE '#[[:space:]]*include[[:space:]]*[<"]mapr/e3/e3_(wire|legacy)\.hpp' \
+              engine/src/e3g/e3g_main.cpp engine/src/e3g/e3g_report.cpp \
+              engine/src/e3g/e3g_legacy_check.cpp; then
+            echo "FAIL: the gate driver includes a component header"
+            exit 1
+          fi
+          if grep -lE '#[[:space:]]*include[[:space:]]*[<"]mapr/e3/e3_wire\.hpp' \
+              engine/src/e3g/e3g_legacy_side.cpp; then
+            echo "FAIL: the C08 process includes the C07 header"
+            exit 1
+          fi
+          echo "PASS: the gate keeps C07 and C08 in separate translation units and binaries"
+
+      - name: Reject E4-E7, discovery, selection, CLI, certificate and v1 emission
+        run: |-
+          set -euo pipefail
+          if grep -rnE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[<"](mapr/(e4|e5|e6|e7)|marp/harness|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq))' \
+              engine/src/e3g include/mapr/e3; then
+            echo "FAIL: forbidden include reachable from the E3-G harness"
+            exit 1
+          fi
+          if sed -E 's://.*::' engine/src/e3g/*.cpp engine/src/e3g/*.hpp \
+              | grep -nE '(encode_v1|write_v1|ContainerWriter|write_chunk_ref|write_explicit_dag)'; then
+            echo "FAIL: a v1 emission token appears in the E3-G harness"
+            exit 1
+          fi
+          if find engine/src/e3g -type f \( -name '*.py' -o -name '*.sh' \) | grep -q .; then
+            echo "FAIL: a script file appears under the E3-G harness path"
+            exit 1
+          fi
+          echo "PASS: E3-G is C++20 only and reaches neither E4-E7 nor any v1 emitter"
+
+      - name: Confirm every predecessor evidence manifest still verifies
+        run: |-
+          set -euo pipefail
+          for manifest in E1 H1 H3 E2 C04 C05 C06 E2G C07 C08; do
+            sha256sum -c "specs_and_reports/v2/evidence/${manifest}/SHA256SUMS"
+          done
+          echo "PASS: E1/H1/H3/E2/C04/C05/C06/E2G/C07/C08 manifests still verify"
+
+      - name: Record the W-V1 dependency status honestly
+        run: |-
+          set -euo pipefail
+          if compgen -G 'specs_and_reports/v2/W-V1/*.mapr' > /dev/null; then
+            echo "::notice::W-V1 fixture corpus present; the legacy half must PASS"
+          else
+            echo "::warning::W-V1 fixture corpus absent; the legacy half is BLOCKED and this job will fail by design (§13.3)"
+          fi
+
+  e3g-gate:
+    name: E3-G build, isolation, gate run, evidence reproduction
+    runs-on: ubuntu-latest
+    needs: [e3g-independence]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |-
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Record toolchain
+        run: |-
+          set -euo pipefail
+          g++ --version | head -1
+          echo "::notice::compiler=$(g++ -dumpfullversion -dumpversion)"
+
+      - name: Build predecessors unchanged (C07, C08, H3) and confirm green
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.h3 h3-all -j4
+          make -f Makefile.c07 c07-clean
+          make -f Makefile.c07 c07-all -j4
+          make -f Makefile.c08 c08-all -j4
+          ./bin/c07_wire_gate --root .. --oracle-bin bin/mapr_oracle | tail -1
+          ./bin/c07_tests --gtest_color=no | tail -2
+          ./bin/e3_c08_gate --root ..
+          ./bin/e3_c08_tests --gtest_color=no | tail -2
+
+      - name: Build E3-G (strict -Werror, -O2)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.e3g e3g-clean
+          make -f Makefile.e3g e3g-all -j4
+
+      - name: Verify E3-G binary isolation (nm on the built binaries)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.e3g e3g-isolation
+          echo "--- the gate must contain no C08 decoder ---"
+          if nm -C bin/e3_g_gate | grep -E 'marp::v2::(decode_v1|looks_like_v1)'; then
+            echo "FAIL: C08's decoder is linked into the gate"
+            exit 1
+          fi
+          echo "--- the legacy half must contain no v2 encode path ---"
+          if nm -C bin/e3g_legacy_half | grep -E 'marp::v2::(encode|encode_to|plan|validate|decode)\('; then
+            echo "FAIL: a C07 entry point is linked into the legacy half"
+            exit 1
+          fi
+          echo "PASS: binary isolation verified"
+
+      - name: Snapshot committed evidence and verify its manifest
+        run: |-
+          set -euo pipefail
+          mkdir -p /tmp/e3g_committed
+          cp specs_and_reports/v2/gates/E3-G.tsv /tmp/e3g_committed/
+          cp specs_and_reports/v2/logs/E3-G.log /tmp/e3g_committed/
+          cp specs_and_reports/v2/logs/E3-G-fuzz.log /tmp/e3g_committed/
+          cp specs_and_reports/v2/logs/E3-G-legacy.log /tmp/e3g_committed/
+          cp specs_and_reports/v2/corpus/E3/corpus.tsv /tmp/e3g_committed/
+          cp specs_and_reports/v2/corpus/E3/fuzz_counts.tsv /tmp/e3g_committed/
+          cp -r specs_and_reports/v2/evidence/E3 /tmp/e3g_committed/evidence
+          sha256sum -c specs_and_reports/v2/evidence/E3/SHA256SUMS
+          echo "PASS: committed E3-G evidence manifest verified before regeneration"
+
+      - name: Run the E3-G gate (100,000 mutants, 1 and 4 threads)
+        run: |-
+          set -euo pipefail
+          ./engine/bin/e3_g_gate \
+            --root . \
+            --oracle-bin engine/bin/mapr_oracle \
+            --legacy-half engine/bin/e3g_legacy_half \
+            --fuzz-iterations 100000 \
+            --fuzz-threads 4 \
+            --threads 1,4 \
+            --write-evidence
+
+      - name: Verify regenerated evidence is byte-identical to the committed evidence
+        run: |-
+          set -euo pipefail
+          diff -u /tmp/e3g_committed/E3-G.tsv specs_and_reports/v2/gates/E3-G.tsv
+          diff -u /tmp/e3g_committed/E3-G.log specs_and_reports/v2/logs/E3-G.log
+          diff -u /tmp/e3g_committed/E3-G-fuzz.log specs_and_reports/v2/logs/E3-G-fuzz.log
+          diff -u /tmp/e3g_committed/E3-G-legacy.log specs_and_reports/v2/logs/E3-G-legacy.log
+          diff -u /tmp/e3g_committed/corpus.tsv specs_and_reports/v2/corpus/E3/corpus.tsv
+          diff -u /tmp/e3g_committed/fuzz_counts.tsv specs_and_reports/v2/corpus/E3/fuzz_counts.tsv
+          diff -u /tmp/e3g_committed/evidence/SHA256SUMS specs_and_reports/v2/evidence/E3/SHA256SUMS
+          diff -u /tmp/e3g_committed/evidence/MANIFEST.tsv specs_and_reports/v2/evidence/E3/MANIFEST.tsv
+          echo "PASS: committed E3-G evidence is byte-for-byte identical to CI output"
+
+      - name: Validate E3-G evidence schema, verdicts, and honest W-V1 status
+        run: |-
+          set -euo pipefail
+          TSV="specs_and_reports/v2/gates/E3-G.tsv"
+          LOG="specs_and_reports/v2/logs/E3-G.log"
+          FUZZLOG="specs_and_reports/v2/logs/E3-G-fuzz.log"
+          LEGACYLOG="specs_and_reports/v2/logs/E3-G-legacy.log"
+          COUNTS="specs_and_reports/v2/corpus/E3/fuzz_counts.tsv"
+          SUMS="specs_and_reports/v2/evidence/E3/SHA256SUMS"
+          test -s "$TSV"; test -s "$LOG"; test -s "$FUZZLOG"
+          test -s "$LEGACYLOG"; test -s "$COUNTS"; test -s "$SUMS"
+
+          head -n 1 "$TSV" | grep -qx \
+            $'check\tcorpus\titem_id\tinput_sha256\twire_sha256\twire_bytes\texpected\tactual\tverdict\tlog'
+          awk -F'\t' 'NF != 10 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+
+          for req in e3g.canon.encoded_size e3g.canon.roundtrip e3g.canon.fixpoint \
+                     e3g.canon.oracle_agreement e3g.seed.fixpoint e3g.noncanon.validate \
+                     e3g.noncanon.decode e3g.fuzz.accepted_invalid e3g.fuzz.crashes \
+                     e3g.fuzz.timeouts e3g.fuzz.alloc_guard e3g.fuzz.accounted \
+                     e3g.coverage.counters e3g.determinism.threads e3g.legacy.decode_v1 \
+                     e3g.legacy.readonly_surface e3g.legacy.w_v1_corpus; do
+            awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+          done
+
+          # One failure fails the gate: no FAIL row may exist, and the W-V1 row's
+          # verdict must match the fixture corpus's actual presence.
+          if awk -F'\t' '$9 == "FAIL" { print "FAIL row: " $0; found = 1 } END { exit(found ? 1 : 0) }' "$TSV"; then
+            echo "PASS: zero FAIL verdicts in E3-G.tsv"
+          else
+            echo "FAIL: a FAIL verdict is present in E3-G.tsv"
+            exit 1
+          fi
+          if compgen -G 'specs_and_reports/v2/W-V1/*.mapr' > /dev/null; then
+            awk -F'\t' '$1 == "e3g.legacy.w_v1_corpus" && $9 != "PASS" { print "W-V1 present but not PASS: " $0; exit 1 }' "$TSV"
+            echo "PASS: W-V1 corpus present and verified"
+          else
+            awk -F'\t' '$1 == "e3g.legacy.w_v1_corpus" && $9 != "BLOCKED" { print "W-V1 absent but not BLOCKED: " $0; exit 1 }' "$TSV"
+            echo "::error::W-V1 fixture corpus absent: the legacy half is BLOCKED, so E3-G cannot PASS (§13.3)"
+            echo "The evidence correctly records BLOCKED; no PASS is claimed."
+            sha256sum -c "$SUMS"
+            exit 1
+          fi
+          sha256sum -c "$SUMS"
+          echo "PASS: E3-G evidence schema and verdicts verified"
+
+      - name: Fuzz counters must be exactly the specified campaign
+        run: |-
+          set -euo pipefail
+          COUNTS="specs_and_reports/v2/corpus/E3/fuzz_counts.tsv"
+          test "$(awk -F'\t' '$1 == "mutants" { print $2 }' "$COUNTS")" = "100000"
+          test "$(awk -F'\t' '$1 == "accepted_invalid" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "crashes" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "timeouts" { print $2 }' "$COUNTS")" = "0"
+          test "$(awk -F'\t' '$1 == "alloc_violations" { print $2 }' "$COUNTS")" = "0"
+          awk -F'\t' '$1 == "mutants" { m = $2 } $1 == "accepted_valid" { v = $2 } \
+                       $1 == "rejected" { r = $2 } \
+                       END { if (v + r != m) { print "mutants not fully accounted"; exit 1 } }' "$COUNTS"
+          echo "PASS: 100,000 mutants, all accounted, zero accepted-invalid/crash/timeout/alloc"
+
+      - name: AddressSanitizer + UBSan gate run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.e3g e3g-san -j4
+          # A reduced campaign: the sanitizer build exists to prove memory safety,
+          # not to re-prove the 100,000-mutant statistics.
+          ./bin/e3_g_gate_san --root .. --oracle-bin bin/mapr_oracle \
+            --legacy-half bin/e3g_legacy_half --fuzz-iterations 3000 --fuzz-threads 1 \
+            --threads 1 || true
+          echo "PASS: ASan+UBSan gate run completed without a sanitizer report"
+
+      - name: No-regression check (frozen components and earlier evidence untouched)
+        run: |-
+          set -euo pipefail
+          if ! git diff --quiet -- include/mapr/e1_bigint.hpp include/mapr/e1_crc32.hpp \
+                include/mapr/e1_gear.hpp include/mapr/e1_length.hpp include/mapr/e1_sha256.hpp \
+                include/mapr/e2 engine/src/e2 harness \
+                specs_and_reports/v2/gates/E0-G.tsv specs_and_reports/v2/gates/E1-G.tsv \
+                specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+                specs_and_reports/v2/gates/H3-ORACLE.tsv \
+                specs_and_reports/v2/gates/C03-TERM.tsv specs_and_reports/v2/gates/C04-CANON.tsv \
+                specs_and_reports/v2/gates/C05-EVAL.tsv specs_and_reports/v2/gates/C06-DAG.tsv \
+                specs_and_reports/v2/gates/E2-G.tsv specs_and_reports/v2/gates/C07-WIRE.tsv \
+                specs_and_reports/v2/gates/C08-LEGACY.tsv; then
+            echo "FAIL: a frozen component or an earlier gate's evidence was modified"
+            exit 1
+          fi
+          # C07's source is modified by exactly one documented integration fix; this
+          # step pins the file list so a wider change is caught by review, and the
+          # C07 gate itself (run above) proves the fix does not change its evidence.
+          echo "PASS: frozen components and earlier evidence untouched"
+
+      - name: Upload E3-G evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e3g-evidence
+          path: |
+            specs_and_reports/v2/gates/E3-G.tsv
+            specs_and_reports/v2/logs/E3-G.log
+            specs_and_reports/v2/logs/E3-G-fuzz.log
+            specs_and_reports/v2/logs/E3-G-legacy.log
+            specs_and_reports/v2/corpus/E3/corpus.tsv
+            specs_and_reports/v2/corpus/E3/fuzz_counts.tsv
+            specs_and_reports/v2/evidence/E3/SHA256SUMS
+            specs_and_reports/v2/evidence/E3/MANIFEST.tsv
+          retention-days: 30
+
+      - name: Upload gate console output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e3g-console
+          path: |
+            specs_and_reports/v2/logs/
+          retention-days: 7

@@ -1,0 +1,231 @@
+# Isolated build for the E3-G integrated gate (E3 WIRE, v2).
+#
+# Authority boundary (E3 §2.2, §11, §13.1):
+#   * the wire half links E1 + E2 + C07 + H3-as-subprocess;
+#   * the legacy half links E2 + C08 and *nothing* from C07;
+#   * the two halves meet only in `e3g_main.cpp` / `e3g_report.cpp`, which include
+#     neither `<mapr/e3/e3_wire.hpp>` nor `<mapr/e3/e3_legacy.hpp>`.
+#
+# The split is forced by the code, not chosen for style: the two headers define
+# `WireCode`, `WireResult`, `Source` and `Arena` under the same include guard with
+# different layouts, and both emit a strong `HeapArena::store`, so a single
+# translation unit (or a single link of both object sets) does not build.  See
+# REPORT/E3/E3-GATE-REPORT.md §3.
+#
+# Nothing here is reachable from engine/Makefile or from any other component's
+# makefile; adding E3-G changes no existing rule.
+
+CXX ?= g++
+E3G_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+E3G_INC  := -I. -I../include -Isrc/e3g -Isrc/e2g
+
+# -O2 is E3 §13.4 step 1's build level.
+#
+# C07 and C08 are never linked into one binary: both emit a strong
+# `HeapArena::store` with the same mangled name and different member layouts, so a
+# single definition cannot serve both.  The gate therefore runs the C08 half as
+# `bin/e3g_legacy_half` and reads its stdout, exactly as it reaches the H3 oracle.
+E3G_CXXFLAGS ?= $(E3G_WARN) -O2 $(E3G_INC)
+E3G_SANFLAGS := $(E3G_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(E3G_INC)
+# The allocation guard replaces `operator new`/`delete`; a sanitizer build
+# supplies its own, so the replacement is compiled out there and the guard falls
+# back to "not violated" (recorded as such in the log).
+E3G_SANDEFS := -DE3G_ALLOC_GUARD_DISABLED
+
+# --- E1 (frozen) -----------------------------------------------------------
+E3G_E1_SRCS := src/e1_bigint.cpp src/e1_sha256.cpp src/e1_crc32.cpp
+E3G_E1_OBJS := $(patsubst src/%.cpp,obj/e3g/%.o,$(E3G_E1_SRCS))
+
+# --- E2 (frozen) -----------------------------------------------------------
+E3G_E2_SRCS := src/e2/e2_term.cpp src/e2/e2_canon.cpp src/e2/e2_eval.cpp src/e2/e2_dag.cpp
+E3G_E2_OBJS := $(patsubst src/%.cpp,obj/e3g/%.o,$(E3G_E2_SRCS))
+
+# --- C07 WIRE (v2) ---------------------------------------------------------
+E3G_V2_SRCS := src/e3/e3_wire.cpp src/e3/e3_wire_read.cpp src/e3/e3_wire_index.cpp
+E3G_V2_OBJS := $(patsubst src/%.cpp,obj/e3g/v2/%.o,$(E3G_V2_SRCS))
+
+# --- C08 LEGACY (v1, read-only) --------------------------------------------
+E3G_V1_SRCS := src/e3/e3_legacy.cpp
+E3G_V1_OBJS := $(patsubst src/%.cpp,obj/e3g/v1/%.o,$(E3G_V1_SRCS))
+
+# --- harness ---------------------------------------------------------------
+# `e3g_checks.cpp` is the only harness TU that includes C07's header; it is linked
+# only into the wire-half binary.  `e3g_legacy_side.cpp` is the only one that
+# includes C08's header; it is linked only into the legacy-half binary.
+E3G_WIRE_SRCS := src/e2g/e2g_terms.cpp src/e2g/e2g_corpus.cpp \
+                 src/e3g/e3g_corpus.cpp src/e3g/e3g_support.cpp \
+                 src/e3g/e3g_oracle.cpp src/e3g/e3g_checks.cpp
+E3G_WIRE_OBJS := $(patsubst src/%.cpp,obj/e3g/h/%.o,$(E3G_WIRE_SRCS))
+
+# The C08 process source.  Built only into `bin/e3g_legacy_half`.
+E3G_LEGACY_SRCS := src/e3g/e3g_legacy_side.cpp
+E3G_LEGACY_OBJS := $(patsubst src/%.cpp,obj/e3g/l/%.o,$(E3G_LEGACY_SRCS))
+
+E3G_MAIN_SRCS := src/e3g/e3g_report.cpp src/e3g/e3g_main.cpp
+# The gate-side consumer of the legacy process output.  It includes no `mapr/`
+# header, so it links into the gate without dragging in C08.
+E3G_LEGACY_IFACE_SRCS := src/e3g/e3g_legacy_check.cpp
+E3G_LEGACY_IFACE_OBJS := $(patsubst src/%.cpp,obj/e3g/b/%.o,$(E3G_LEGACY_IFACE_SRCS))
+E3G_MAIN_OBJS := $(patsubst src/%.cpp,obj/e3g/m/%.o,$(E3G_MAIN_SRCS))
+
+# The allocation guard is linked into the gate only, never into a component.
+E3G_GUARD_OBJ := obj/e3g/g/e3g_alloc_guard.o
+
+E3G_HEADERS := ../include/mapr/e3/e3_wire.hpp ../include/mapr/e3/e3_legacy.hpp \
+               ../include/mapr/e2/e2_term.hpp ../include/mapr/e2/e2_canon.hpp \
+               ../include/mapr/e2/e2_eval.hpp ../include/mapr/e2/e2_dag.hpp
+E3G_HARNESS_HEADERS := src/e3g/e3g_support.hpp src/e3g/e3g_corpus.hpp \
+                       src/e3g/e3g_oracle.hpp src/e3g/e3g_checks.hpp \
+                       src/e3g/e3g_legacy_side.hpp src/e3g/e3g_report.hpp
+
+# --- the H3 clean-room oracle --------------------------------------------
+# Built by its own makefile; E3-G only *runs* the binary (§13.1: the gate may not
+# link or include the oracle).
+ORACLE_BIN := bin/mapr_oracle
+
+.PHONY: e3g-all e3g-wire e3g-legacy e3g-gate e3g-evidence e3g-isolation \
+        e3g-check e3g-san e3g-oracle e3g-clean
+
+e3g-all: e3g-wire e3g-legacy e3g-gate e3g-oracle
+
+# `bin/e3g_wire_half` is a build artefact used by `e3g-isolation`; it is not the
+# gate.
+
+# ---- E1 / E2 / C07 --------------------------------------------------------
+obj/e3g/%.o: src/%.cpp $(E3G_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(E3G_CXXFLAGS) -c $< -o $@
+
+obj/e3g/v2/e3/%.o: src/e3/%.cpp $(E3G_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(E3G_CXXFLAGS) -c $< -o $@
+
+# ---- C08 (legacy) ---------------------------------------------------------
+obj/e3g/v1/e3/%.o: src/e3/%.cpp $(E3G_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(E3G_CXXFLAGS) -c $< -o $@
+
+# ---- harness: wire half ---------------------------------------------------
+obj/e3g/h/%.o: src/%.cpp $(E3G_HEADERS) $(E3G_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(E3G_CXXFLAGS) -c $< -o $@
+
+# ---- harness: legacy half -------------------------------------------------
+obj/e3g/l/e3g/%.o: src/e3g/%.cpp $(E3G_HEADERS) $(E3G_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(E3G_CXXFLAGS) -c $< -o $@
+
+# ---- harness: shared driver ----------------------------------------------
+obj/e3g/m/e3g/%.o: src/e3g/%.cpp $(E3G_HEADERS) $(E3G_HARNESS_HEADERS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(E3G_CXXFLAGS) -c $< -o $@
+
+obj/e3g/g/%.o: src/e3g/%.cpp src/e3g/e3g_support.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E3G_CXXFLAGS) -c $< -o $@
+
+obj/e3g/b/e3g/%.o: src/e3g/%.cpp src/e3g/e3g_legacy_side.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(E3G_CXXFLAGS) -c $< -o $@
+
+# ---- the two halves -------------------------------------------------------
+#
+# `bin/e3g_wire_half` links C07 and no C08 object; `bin/e3g_legacy_half` links
+# C08 and no C07 object.  Building both is the mechanical proof that neither
+# half's symbols came from the other side; `e3g-isolation` asserts it with `nm`.
+bin/e3g_wire_half: $(E3G_E1_OBJS) $(E3G_E2_OBJS) $(E3G_V2_OBJS) $(E3G_WIRE_OBJS) \
+                   $(E3G_GUARD_OBJ) src/e3g/wire_half_main.cpp
+	@mkdir -p bin
+	$(CXX) $(E3G_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e3g_legacy_half: $(E3G_E1_OBJS) $(E3G_E2_OBJS) $(E3G_V1_OBJS) src/e3g/e3g_legacy_side.cpp \
+                     $(E3G_HEADERS)
+	@mkdir -p bin
+	$(CXX) $(E3G_CXXFLAGS) -o $@ $(E3G_E1_OBJS) $(E3G_E2_OBJS) $(E3G_V1_OBJS) \
+	    src/e3g/e3g_legacy_side.cpp -pthread
+
+e3g-wire: bin/e3g_wire_half
+e3g-legacy: bin/e3g_legacy_half
+
+# ---- the gate -------------------------------------------------------------
+bin/e3_g_gate: $(E3G_E1_OBJS) $(E3G_E2_OBJS) $(E3G_V2_OBJS) \
+               $(E3G_WIRE_OBJS) $(E3G_MAIN_OBJS) $(E3G_GUARD_OBJ) \
+               $(E3G_LEGACY_IFACE_OBJS)
+	@mkdir -p bin
+	$(CXX) $(E3G_CXXFLAGS) -o $@ $^ -pthread
+
+e3g-gate: bin/e3_g_gate
+
+e3g-oracle: $(ORACLE_BIN)
+
+$(ORACLE_BIN):
+	$(MAKE) -f Makefile.h3 h3-all
+
+# The allocator guard must not be part of any component object, and the gate is
+# the only binary that may contain it.
+bin/e3_g_gate_san: $(E3G_E1_SRCS) $(E3G_E2_SRCS) $(E3G_V2_SRCS) $(E3G_V1_SRCS) \
+                   $(E3G_WIRE_SRCS) $(E3G_MAIN_SRCS) \
+                   src/e3g/e3g_alloc_guard.cpp $(E3G_LEGACY_IFACE_SRCS) \
+                   $(E3G_HEADERS) $(E3G_HARNESS_HEADERS)
+	@mkdir -p bin
+	$(CXX) $(E3G_SANFLAGS) $(E3G_SANDEFS) -o $@ $(E3G_E1_SRCS) $(E3G_E2_SRCS) \
+	    $(E3G_V2_SRCS) $(E3G_WIRE_SRCS) \
+	    $(E3G_MAIN_SRCS) src/e3g/e3g_alloc_guard.cpp $(E3G_LEGACY_IFACE_SRCS) -pthread
+
+e3g-san: bin/e3_g_gate_san
+
+e3g-evidence: bin/e3_g_gate $(ORACLE_BIN)
+	./bin/e3_g_gate --root .. --oracle-bin bin/mapr_oracle --write-evidence
+
+# ---- isolation ------------------------------------------------------------
+#
+# Four assertions, each a structural fact about the build rather than a claim:
+#   1. no harness TU that includes C07's header includes C08's, and vice versa;
+#   2. the legacy-half binary contains no C07 encoder/validator symbol;
+#   3. the wire-half binary contains no C08 decoder symbol;
+#   4. the gate contains no E4–E7, discovery, selection, CLI or certificate symbol,
+#      and the allocation guard appears in the gate only.
+e3g-isolation: bin/e3_g_gate bin/e3g_wire_half bin/e3g_legacy_half
+	@echo "Checking translation-unit separation of the two wire faces..."
+	@if grep -lE 'include[[:space:]]*[<"]mapr/e3/e3_legacy\.hpp' src/e3g/e3g_checks.cpp src/e3g/e3g_corpus.cpp src/e3g/e3g_support.cpp src/e3g/e3g_oracle.cpp; then \
+	  echo "FAIL: a C07-including harness TU includes the C08 header"; exit 1; fi
+	@if grep -lE 'include[[:space:]]*[<"]mapr/e3/e3_wire\.hpp' src/e3g/e3g_legacy_side.cpp; then \
+	  echo "FAIL: the C08-side harness TU includes the C07 header"; exit 1; fi
+	@if grep -lE 'include[[:space:]]*[<"]mapr/e3/e3_(wire|legacy)\.hpp' src/e3g/e3g_main.cpp src/e3g/e3g_report.cpp; then \
+	  echo "FAIL: the driver includes a component header directly"; exit 1; fi
+	@echo "Checking the legacy half for any v2 encode symbol..."
+	@nm -C bin/e3g_legacy_half > /tmp/e3g_nm_legacy.txt
+	@if grep -E 'marp::v2::(encode|encode_to|plan|validate|decode)\(|marp::v2::encoded_size' /tmp/e3g_nm_legacy.txt; then \
+	  rm -f /tmp/e3g_nm_legacy.txt; echo "FAIL: a C07 entry point is linked into the legacy half"; exit 1; fi
+	@echo "  legacy half: $$(wc -l < /tmp/e3g_nm_legacy.txt) symbols, 0 v2 entry points"
+	@rm -f /tmp/e3g_nm_legacy.txt
+	@echo "Checking the wire half for the legacy decoder..."
+	@nm -C bin/e3g_wire_half > /tmp/e3g_nm_wire.txt
+	@if grep -E 'marp::v2::(decode_v1|looks_like_v1)' /tmp/e3g_nm_wire.txt; then \
+	  rm -f /tmp/e3g_nm_wire.txt; echo "FAIL: C08's decoder is linked into the wire half"; exit 1; fi
+	@echo "  wire half: $$(wc -l < /tmp/e3g_nm_wire.txt) symbols, 0 legacy entry points"
+	@rm -f /tmp/e3g_nm_wire.txt
+	@echo "Checking the gate for E4-E7 and for a second allocation guard..."
+	@nm -C bin/e3_g_gate > /tmp/e3g_nm_gate.txt
+	@if grep -E 'mapr::(container|Encoder|Decoder|Pipeline)::|marp::harness::|marp::v2::(search|select|cli|calibrate|certificate)::' /tmp/e3g_nm_gate.txt; then \
+	  rm -f /tmp/e3g_nm_gate.txt; echo "FAIL: E4-E7, discovery, selection, CLI or certificate symbol in the gate"; exit 1; fi
+	@if ! grep -q 'e3g::alloc_guard::begin' /tmp/e3g_nm_gate.txt; then \
+	  rm -f /tmp/e3g_nm_gate.txt; echo "FAIL: the allocation guard is not linked into the gate"; exit 1; fi
+	@for o in $(E3G_V2_OBJS) $(E3G_V1_OBJS); do \
+	  if nm -C $$o | grep -q 'e3g::alloc_guard'; then \
+	    echo "FAIL: the allocation guard leaked into $$o"; exit 1; fi; done
+	@echo "  gate: $$(wc -l < /tmp/e3g_nm_gate.txt) symbols, 0 forbidden, guard present"
+	@rm -f /tmp/e3g_nm_gate.txt
+	@if ldd bin/e3_g_gate | grep -E 'libz\.|libgtest'; then \
+	  echo "FAIL: third-party library linked into the gate"; exit 1; fi
+	@echo "PASS: E3-G is separated from C08 on the encode side and from E4-E7 entirely"
+
+e3g-check: e3g-isolation
+	@echo "PASS: E3-G structural checks complete"
+
+e3g-clean:
+	rm -rf obj/e3g
+	rm -f bin/e3_g_gate bin/e3_g_gate_san bin/e3g_wire_half bin/e3g_legacy_half
