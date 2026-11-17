@@ -51,11 +51,17 @@ using BigInt = mapr::BigInt;
 // Errors (E4 §9)
 // ---------------------------------------------------------------------------
 
+// The values are the project-wide code table of `SPECS/COMPONENTS-V2.md`
+// (`Ok = 0, Io = 3, Invalid = 4, Mismatch = 6, Limit = 7`).  `Limit` was added
+// for C10 SEGMENT, which is the first E4 sub-component that can exceed a cap
+// (MARP2-E4 §9 "observation count or range cap exceeded"); it is additive, it
+// changes no existing value, and C09's behaviour is untouched.
 enum class MeasureCode : int {
     Ok = 0,
     Io = 3,        // source unreadable or short
     Mismatch = 6,  // provenance does not match the source
     Invalid = 4,   // contract violation (caller argument out of domain)
+    Limit = 7,     // a count or range cap of the component was exceeded
 };
 
 [[nodiscard]] constexpr const char* measure_code_name(MeasureCode code) noexcept {
@@ -64,6 +70,7 @@ enum class MeasureCode : int {
         case MeasureCode::Io: return "Io";
         case MeasureCode::Mismatch: return "Mismatch";
         case MeasureCode::Invalid: return "Invalid";
+        case MeasureCode::Limit: return "Limit";
     }
     return "Unknown";
 }

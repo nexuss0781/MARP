@@ -1,0 +1,168 @@
+# MARP v2 — E4 MEASURE — C10 SEGMENT isolated build.
+#
+# Authority boundary (SPECS/COMPONENTS/e4-measure/SPECS.md §2.2, §10, §12.1):
+#   * C10 depends on frozen E1 (`BigInt`, the gear table) and on C09
+#     (`Provenance`, `Source`, `provenance_matches`, `MeasureCode`).
+#   * C10 MUST NOT link E2, E3, E5, E6, E7, any Stage 1/2 engine object, any
+#     other harness, or any E4 sub-component other than C09.  It does not link
+#     C11 and does not name a probe.
+#   * Segmentation returns boundaries and a tree; it cannot emit a term, so no
+#     term-, candidate-, node-, atom-, or observation-shaped type appears in the
+#     library, the gate, or the tests.
+#
+# The independent references used by the gate are written inside
+# `src/e4/c10_gate.cpp` from the text of §4.2, §4.5, and §4.6: a separate
+# 62-bit-mantissa/128-bit-squaring `ilog2_q24`, a materialised-buffer gear loop,
+# a materialised-buffer change-point window scan, and a plain recursion for the
+# tree.  They are a reference for the *gate*, never a dependency of the library.
+#
+# Nothing here is reachable from engine/Makefile or from any other component's
+# makefile; adding C10 changes no existing rule.
+
+CXX ?= g++
+C10_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+C10_INC  := -I. -I../include
+
+C10_CXXFLAGS ?= $(C10_WARN) -O2 $(C10_INC)
+C10_SANFLAGS := $(C10_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(C10_INC)
+
+# GoogleTest: the project's existing discovery order (explicit root, then the
+# prebuilt tree, then the system install), so local and CI builds use the same
+# flags as C04–C09.
+ifeq ($(C10_GTEST_ROOT),)
+  C10_GTEST_ROOT := /tmp/gtest-install
+endif
+ifneq ($(wildcard $(C10_GTEST_ROOT)/lib/libgtest.a),)
+  C10_GTEST_CFLAGS := -isystem $(C10_GTEST_ROOT)/include
+  C10_GTEST_LIBS := -L$(C10_GTEST_ROOT)/lib -lgtest -lgtest_main
+else ifneq ($(wildcard /tmp/googletest/googletest/include),)
+  C10_GTEST_CFLAGS := -isystem /tmp/googletest/googletest/include
+  C10_GTEST_LIBS := -L/tmp/googletest/build/lib -lgtest -lgtest_main
+else
+  C10_GTEST_CFLAGS := -isystem /usr/local/include
+  C10_GTEST_LIBS := -L/usr/local/lib -lgtest -lgtest_main
+endif
+
+# --- E1 (frozen) -----------------------------------------------------------
+C10_E1_SRCS := src/e1_bigint.cpp src/e1_sha256.cpp src/e1_gear.cpp
+C10_E1_OBJS := $(patsubst src/%.cpp,obj/c10/%.o,$(C10_E1_SRCS))
+
+# --- C09 (dependency) ------------------------------------------------------
+C10_C09_SRC := src/e4/e4_provenance.cpp
+C10_C09_OBJ := obj/c10/e4/e4_provenance.o
+
+# --- C10 library -----------------------------------------------------------
+C10_LIB_SRC := src/e4/e4_segment.cpp
+C10_LIB_OBJ := obj/c10/e4/e4_segment.o
+C10_LIB_HDR := ../include/mapr/e4/e4_segment.hpp
+C10_DEP_HDR := ../include/mapr/e4/e4_measure.hpp
+
+# --- gate ------------------------------------------------------------------
+C10_GATE_SRC := src/e4/c10_gate.cpp
+C10_GATE_OBJ := obj/c10_gate/c10_gate.o
+
+# --- tests -----------------------------------------------------------------
+C10_TEST_SRC := tests/e4/e4_c10_segment_test.cpp
+C10_TEST_OBJ := obj/c10_tests/e4_c10_segment_test.o
+
+C10_LIB_SRCS := $(C10_C09_SRC) $(C10_LIB_SRC)
+C10_ALL_SRCS := $(C10_E1_SRCS) $(C10_LIB_SRCS)
+
+.PHONY: c10-all c10-gate c10-test c10-test-san c10-evidence c10-verify-evidence \
+        c10-isolation c10-shuffled c10-check c10-clean
+
+c10-all: bin/c10_gate bin/e4_c10_tests
+
+obj/c10/e4/%.o: src/e4/%.cpp $(C10_LIB_HDR) $(C10_DEP_HDR) ../include/mapr/e1_gear.hpp \
+                ../include/mapr/e1_bigint.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C10_CXXFLAGS) -c $< -o $@
+
+obj/c10/e1_%.o: src/e1_%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C10_CXXFLAGS) -c $< -o $@
+
+$(C10_GATE_OBJ): $(C10_GATE_SRC) $(C10_LIB_HDR) $(C10_DEP_HDR)
+	@mkdir -p $(dir $@)
+	$(CXX) $(C10_CXXFLAGS) -c $< -o $@
+
+$(C10_TEST_OBJ): $(C10_TEST_SRC) $(C10_LIB_HDR) $(C10_DEP_HDR)
+	@mkdir -p $(dir $@)
+	$(CXX) $(C10_CXXFLAGS) $(C10_GTEST_CFLAGS) -c $< -o $@
+
+bin/c10_gate: $(C10_E1_OBJS) $(C10_C09_OBJ) $(C10_LIB_OBJ) $(C10_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C10_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e4_c10_tests: $(C10_E1_OBJS) $(C10_C09_OBJ) $(C10_LIB_OBJ) $(C10_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C10_CXXFLAGS) -o $@ $^ $(C10_GTEST_LIBS) -pthread
+
+bin/e4_c10_tests_san: $(C10_E1_SRCS) $(C10_LIB_SRCS) $(C10_TEST_SRC) $(C10_LIB_HDR) $(C10_DEP_HDR)
+	@mkdir -p bin
+	$(CXX) $(C10_SANFLAGS) $(C10_GTEST_CFLAGS) -o $@ \
+	  $(C10_ALL_SRCS) $(C10_TEST_SRC) $(C10_GTEST_LIBS) -pthread
+
+bin/c10_gate_san: $(C10_ALL_SRCS) $(C10_GATE_SRC) $(C10_LIB_HDR) $(C10_DEP_HDR)
+	@mkdir -p bin
+	$(CXX) $(C10_SANFLAGS) -o $@ $(C10_ALL_SRCS) $(C10_GATE_SRC) -pthread
+
+c10-gate: bin/c10_gate
+
+c10-test: bin/e4_c10_tests
+	./bin/e4_c10_tests --gtest_color=no
+
+c10-test-san: bin/e4_c10_tests_san bin/c10_gate_san
+	./bin/e4_c10_tests_san --gtest_color=no
+	@mkdir -p /tmp/c10_san_evid
+	./bin/c10_gate_san --root .. --out-root /tmp/c10_san_evid
+	@rm -rf /tmp/c10_san_evid
+
+c10-evidence: bin/c10_gate
+	./bin/c10_gate --root ..
+
+c10-verify-evidence: bin/c10_gate
+	./bin/c10_gate --root .. --verify
+
+# Serial-identical merge, measured rather than asserted: the same fixtures are
+# segmented at 1 and 4 workers and the two renderings are compared byte for byte
+# outside the library's own bookkeeping.
+c10-shuffled: bin/e4_c10_tests
+	./bin/e4_c10_tests --gtest_color=no --gtest_filter='C10Determinism.*:C10Tree.*'
+
+# Static isolation: the C10 library may not name any other component, may not
+# reach a file/name/clock/locale/random facility, and may not mention a probe or
+# a term.  `std::thread` is allowed for this component only: it is the mechanism
+# S5 is measured on, and every use is read-only with a serial ordered merge.
+c10-isolation: $(C10_E1_OBJS) $(C10_C09_OBJ) $(C10_LIB_OBJ)
+	@echo "Checking C10 library includes against the E4 authority boundary..."
+	@if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e2|e3|e5|e6|e7)/|marp/harness/|mapr/oracle|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq|dag|math_core|chunk_analyzer|crypto|dedup_index|deflate_frontend|hwprobe|noise_detector|profile|thread_pool))' \
+	    src/e4/e4_segment.cpp ../include/mapr/e4/e4_segment.hpp; then \
+	  echo "FAIL: forbidden include in the C10 library"; exit 1; \
+	fi
+	@echo "Checking C10 library for file/name/clock/locale/random access..."
+	@if sed -E 's://.*::' src/e4/e4_segment.cpp ../include/mapr/e4/e4_segment.hpp \
+	   | grep -nE '(std::filesystem|fstream|std::chrono|std::time|gmtime|localtime|getenv|std::locale|setlocale|std::random_device|rand\(|srand|getpid|extension\(|filename\(|\.path\()'; then \
+	  echo "FAIL: environment, clock, locale, randomness, or file-name access in the C10 library"; exit 1; \
+	fi
+	@echo "Checking the C10 library for probe and term surfaces (E4-I6, E4-I8)..."
+	@if grep -nE '(ProbeKind|struct Observation|struct Ir|class Dag|struct Candidate|struct Atom|probe\()' \
+	    src/e4/e4_segment.cpp ../include/mapr/e4/e4_segment.hpp; then \
+	  echo "FAIL: probe- or term-shaped token in the C10 library"; exit 1; \
+	fi
+	@echo "Checking C10 objects for component symbols via nm..."
+	@nm -C $(C10_LIB_OBJ) > /tmp/c10_nm.txt
+	@if grep -E 'marp::v2::(Ir|Dag|Candidate|CandidateSet|Observation|Atom|Node|probe|discover|induce|select|encode|decode|validate)' /tmp/c10_nm.txt; then \
+	  rm -f /tmp/c10_nm.txt; echo "FAIL: forbidden symbol in e4_segment.o"; exit 1; \
+	fi
+	@rm -f /tmp/c10_nm.txt
+	@echo "C10 isolation checks PASS."
+
+c10-check: c10-all c10-isolation c10-test c10-verify-evidence
+
+c10-clean:
+	rm -rf obj/c10 obj/c10_gate obj/c10_tests
+	rm -f bin/c10_gate bin/e4_c10_tests bin/e4_c10_tests_san bin/c10_gate_san
