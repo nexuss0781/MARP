@@ -1,0 +1,357 @@
+name: MARP E4 C09 PROVENANCE CI
+
+# Isolated workflow for C09 PROVENANCE (E4 MEASURE sub-component 1 of 3).
+#
+# Builds only E1 + C09 through engine/Makefile.c09, proves the E4 authority
+# boundary (no E2-E7 linkage, no term/candidate/segment/observation, no file
+# name, clock, locale, or randomness), runs the C09 GoogleTest suite, verifies
+# the committed evidence manifest, regenerates the evidence and requires it to
+# be byte-identical, repeats the run independently, and checks that no earlier
+# component's committed evidence moved.
+#
+# This workflow does NOT claim E4-G.  C10 SEGMENT, C11 PROBE and the integrated
+# E4-G gate remain, and their prompt says so.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  c09-independence:
+    name: C09 independence and E4 authority boundary (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E2-E7, harness, oracle, and Stage 1/2 engine includes in C09
+        run: |-
+          set -euo pipefail
+          # Explicit file list, never a glob: `engine/src/e4` will also hold C10
+          # and C11, and `include/mapr/e4` will hold their headers.  A glob would
+          # make this check fail on every later E4 sub-component.
+          C09_FILES="include/mapr/e4/e4_measure.hpp
+          engine/src/e4/e4_provenance.cpp"
+          echo "Scanning the C09 file list for forbidden includes..."
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e2|e3|e5|e6|e7)/|marp/harness/|marp/oracle|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq|dag|math_core|chunk_analyzer|crypto|dedup_index|deflate_frontend|hwprobe|noise_detector|profile|thread_pool))' $C09_FILES; then
+            echo "FAIL: forbidden include found in the C09 library"
+            exit 1
+          fi
+          echo "PASS: C09 includes only frozen E1 and the standard library"
+
+      - name: Reject file, name, clock, locale, randomness, and thread access in C09
+        run: |-
+          set -euo pipefail
+          C09_FILES="include/mapr/e4/e4_measure.hpp
+          engine/src/e4/e4_provenance.cpp"
+          # Comments are stripped first: the header documents the *absence* of
+          # each facility, and a documentation sentence is not a dependency.
+          if sed -E 's://.*::' $C09_FILES \
+             | grep -nE '(std::filesystem|fstream|std::chrono|std::time|gmtime|localtime|getenv|std::locale|setlocale|std::random_device|rand\(|srand|std::thread|getpid|extension\(|filename\()'; then
+            echo "FAIL: environment, clock, locale, randomness, or file-name access in C09"
+            exit 1
+          fi
+          echo "PASS: C09 reads bytes only"
+
+      - name: Reject term, candidate, segment, and observation types in the C09 surface
+        run: |-
+          set -euo pipefail
+          # O8.11 / E4-I6, at the source level: the identity surface may not name
+          # anything that could hold a term.  `Provenance` is the whole record.
+          if grep -nE '(struct|class)[[:space:]]+(Ir|Dag|Candidate|CandidateSet|Observation|Segment)[[:space:]]*[{:;]' \
+              include/mapr/e4/e4_measure.hpp engine/src/e4/e4_provenance.cpp; then
+            echo "FAIL: a term-shaped type is declared in the C09 surface"
+            exit 1
+          fi
+          if grep -nE '^[[:space:]]*(Result|MeasureResult)<(Ir|Dag|Candidate|Observation|Segment)>' \
+              include/mapr/e4/e4_measure.hpp; then
+            echo "FAIL: a C09 entry point returns a term-shaped type"
+            exit 1
+          fi
+          echo "PASS: C09 returns identity only"
+
+      - name: Reject non-C++ artefacts under C09 paths
+        run: |-
+          set -euo pipefail
+          if find include/mapr/e4/e4_measure.hpp engine/src/e4/e4_provenance.cpp \
+                    engine/tests/e4 -type f \( -name '*.py' -o -name '*.sh' \) 2>/dev/null | grep -q .; then
+            echo "FAIL: script file found under a C09 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under C09 paths"
+
+      - name: Confirm every earlier evidence manifest still verifies
+        run: |-
+          set -euo pipefail
+          # Enumerated from the tree so a component directory added later is
+          # covered automatically; C09's own manifest is checked in the build job.
+          count=0
+          for sums in specs_and_reports/v2/evidence/*/SHA256SUMS; do
+            case "$sums" in
+              */C09/SHA256SUMS) continue ;;
+            esac
+            sha256sum -c "$sums"
+            echo "OK: $sums"
+            count=$((count + 1))
+          done
+          if [ "$count" -lt 10 ]; then
+            echo "FAIL: expected at least 10 prior evidence manifests, found $count"
+            exit 1
+          fi
+          echo "PASS: $count prior evidence manifests still verify (no regression)"
+
+  build-test-evidence:
+    name: C09 build, tests, sanitizers, evidence
+    runs-on: ubuntu-latest
+    needs: [c09-independence]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |-
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Record toolchain
+        run: |-
+          set -euo pipefail
+          g++ --version | head -1
+          echo "::notice::compiler=$(g++ -dumpfullversion -dumpversion)"
+
+      - name: Build C09 (strict -Werror, -O2)
+        run: |-
+          # Actions runs run: blocks with bash -e. Turn that off so a failed
+          # make reaches the diagnostic relay instead of aborting the step.
+          set +e
+          set -uo pipefail
+          echo "::notice::toolchain: $(make --version | head -1); $(g++ --version | head -1)"
+          cd engine
+          make -f Makefile.c09 c09-clean
+          make -f Makefile.c09 c09-all -j4 2>&1 | tee /tmp/c09_build.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            # A build failure must be readable from the check-run annotations:
+            # the CI log archive is not always reachable from a reviewing client,
+            # while the annotation API always is.
+            echo "::error::C09 build failed (make exit $rc)"
+            # Relay every non-empty output line: a compiler, a linker, or the
+            # shell may fail without matching a diagnostic-shaped pattern, and
+            # the annotation channel is the only one a reviewing client can
+            # always reach.  The log is bounded (a failed build is short).
+            n=0
+            while IFS= read -r diag; do
+              [ -n "$diag" ] || continue
+              echo "::error::$diag"
+              n=$((n + 1))
+              [ "$n" -lt 40 ] || break
+            done < /tmp/c09_build.log
+            exit "$rc"
+          fi
+          echo "PASS: C09 built warning-free under -Werror"
+
+      - name: Verify C09 binary isolation (source grep + nm on built objects)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c09 c09-isolation
+          echo "Defined symbols in the C09 library object:"
+          nm -C obj/c09/e4/e4_provenance.o | grep -E ' [TtWw] ' | sort
+          echo "Checking the C09 test binary does not link E2-E7 or Stage 1/2 code..."
+          if nm -C bin/e4_c09_tests | grep -E 'marp::v2::(Ir|Dag|Candidate|Observation|Segment|discover|induce|select|encode|decode|validate)\b|marp::harness::|mapr::(ContainerReader|ContainerWriter|Encoder|Decoder)'; then
+            echo "FAIL: forbidden symbol linked into the C09 test binary"
+            exit 1
+          fi
+          echo "PASS: binary isolation verified"
+
+      - name: Snapshot committed evidence and verify manifest
+        run: |-
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C09-PROVENANCE.tsv /tmp/committed-C09-PROVENANCE.tsv
+          cp specs_and_reports/v2/logs/C09-PROVENANCE.log /tmp/committed-C09-PROVENANCE.log
+          cp specs_and_reports/v2/evidence/C09/SHA256SUMS /tmp/committed-C09-SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C09/SHA256SUMS
+          ./engine/bin/c09_gate --root . --verify
+          echo "PASS: committed C09 evidence manifest verified before regeneration"
+
+      - name: Run C09 GoogleTest suite
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e4_c09_tests --gtest_color=no
+
+      - name: Generate C09 evidence and require byte-for-byte match
+        run: |-
+          set -euo pipefail
+          ./engine/bin/c09_gate --root .
+          diff -u /tmp/committed-C09-PROVENANCE.tsv specs_and_reports/v2/gates/C09-PROVENANCE.tsv
+          diff -u /tmp/committed-C09-PROVENANCE.log specs_and_reports/v2/logs/C09-PROVENANCE.log
+          diff -u /tmp/committed-C09-SHA256SUMS specs_and_reports/v2/evidence/C09/SHA256SUMS
+          echo "PASS: committed C09 evidence is byte-for-byte identical to CI output"
+
+      - name: Validate C09 evidence schema, verdicts, and required checks
+        run: |-
+          # The checks run in a captured subshell so that -e still aborts on the
+          # first failure (a skipped test -s would silently weaken the gate),
+          # while the failure text is relayed as annotations: the CI log archive
+          # is not always reachable from a reviewing client.
+          set +e
+          set -uo pipefail
+          out=$( set -euo pipefail
+            TSV="specs_and_reports/v2/gates/C09-PROVENANCE.tsv"
+            LOG="specs_and_reports/v2/logs/C09-PROVENANCE.log"
+            SUMS="specs_and_reports/v2/evidence/C09/SHA256SUMS"
+            test -s "$TSV"; test -s "$LOG"; test -s "$SUMS"
+            head -n 1 "$TSV" | grep -qx $'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+            awk -F'\t' 'NF != 8 { print "Bad column count at line " NR ": " NF; exit 1 }' "$TSV"
+            if awk -F'\t' 'NR > 1 && $7 != "PASS" { print; exit 1 }' "$TSV"; then
+              echo "PASS: zero non-PASS verdicts in C09-PROVENANCE.tsv"
+            else
+              echo "FAIL: non-PASS verdict present in C09-PROVENANCE.tsv"
+              exit 1
+            fi
+            # Every obligation the C09 prompt names must have at least one row, and
+            # every row's log reference must resolve into the committed log.
+            for req in c09.kat.length c09.kat.sha256 c09.kat.gear c09.kat.seed \
+                       c09.kat.seed_effort_sweep c09.reference.sha256 c09.reference.gear \
+                       c09.reference.seed c09.reference.length c09.reference.e1_oneshot \
+                       c09.streaming.single_pass c09.streaming.bounded_buffer \
+                       c09.streaming.no_materialisation c09.streaming.bytes_accounted \
+                       c09.repeat.deterministic c09.repeat.reread_identical c09.repeat.matches \
+                       c09.seed.stable c09.seed.effort_separates c09.seed.byte_sensitive \
+                       c09.seed.formula c09.errors.short_read c09.errors.read_failure \
+                       c09.errors.effort_domain c09.errors.effort_domain_ok \
+                       c09.names.independent c09.isolation.includes c09.isolation.environment \
+                       c09.isolation.no_terms c09.isolation.return_types; do
+              awk -F'\t' -v c="$req" '$1 == c { found = 1 } END { if (!found) { print "Missing required check: " c; exit 1 } }' "$TSV"
+            done
+            # The log must be a fixed banner plus rows: no host, date, compiler
+            # string, pid, or timing may appear, or the evidence is not reproducible.
+            if grep -niE '(hostname|^host:|^date|^compiler|^pid|elapsed|seconds|wall clock|user@|/home/|/tmp/)' "$LOG"; then
+              echo "FAIL: environment-dependent text in the C09 log"
+              exit 1
+            fi
+            # A row line is either a per-fixture identity line or a [summary:...]
+            # aggregate; both are required, so the count spans both prefixes.
+            log_rows=$(grep -cE '^\[(c09\.|summary:)' "$LOG" || true)
+            if [ "$log_rows" -lt 80 ]; then
+              echo "FAIL: expected at least 80 log rows, found $log_rows"
+              exit 1
+            fi
+            summary_rows=$(grep -c '^\[summary:' "$LOG" || true)
+            if [ "$summary_rows" -lt 25 ]; then
+              echo "FAIL: expected a summary block of at least 25 checks, found $summary_rows"
+              exit 1
+            fi
+            sha256sum -c "$SUMS"
+            echo "PASS: C09 evidence schema, verdicts, required checks, and log hygiene verified"
+            exit 0
+            2>&1 )
+          rc=$?
+          printf '%s\n' "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::C09 evidence validation failed (exit $rc)"
+            n=0
+            while IFS= read -r diag; do
+              [ -n "$diag" ] || continue
+              # Lines the step already labelled PASS are not errors; relaying them
+              # as such would misreport a partial success.
+              case "$diag" in
+                PASS:*) ;;
+                *) echo "::error::$diag"; n=$((n + 1)); [ "$n" -lt 30 ] || break ;;
+              esac
+            done < <(printf '%s\n' "$out" | tail -n 30)
+            exit "$rc"
+          fi
+
+      - name: Determinism (independent repeat run reproduces byte-identical evidence)
+        run: |-
+          set -euo pipefail
+          ./engine/bin/c09_gate --root . --out-root /tmp/c09_repeat
+          diff -u /tmp/committed-C09-PROVENANCE.tsv /tmp/c09_repeat/specs_and_reports/v2/gates/C09-PROVENANCE.tsv
+          diff -u /tmp/committed-C09-PROVENANCE.log /tmp/c09_repeat/specs_and_reports/v2/logs/C09-PROVENANCE.log
+          diff -u /tmp/committed-C09-SHA256SUMS /tmp/c09_repeat/specs_and_reports/v2/evidence/C09/SHA256SUMS
+          rm -rf /tmp/c09_repeat
+          echo "PASS: repeat run produced byte-identical C09 evidence"
+
+      - name: AddressSanitizer + UBSan C09 unit tests and gate run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c09 c09-test-san -j4
+          ./bin/c09_gate_san --root .. --out-root /tmp/c09_san_repro
+          diff -u /tmp/committed-C09-PROVENANCE.tsv /tmp/c09_san_repro/specs_and_reports/v2/gates/C09-PROVENANCE.tsv
+          diff -u /tmp/committed-C09-PROVENANCE.log /tmp/c09_san_repro/specs_and_reports/v2/logs/C09-PROVENANCE.log
+          diff -u /tmp/committed-C09-SHA256SUMS /tmp/c09_san_repro/specs_and_reports/v2/evidence/C09/SHA256SUMS
+          rm -rf /tmp/c09_san_repro
+          echo "PASS: ASan+UBSan unit tests and gate run reproduced committed C09 evidence"
+
+      - name: No-regression check (frozen E1/E2/H1/H2/H3 and earlier evidence untouched)
+        run: |-
+          set -euo pipefail
+          if ! git diff --quiet -- include/mapr/e1_bigint.hpp \
+                include/mapr/e1_crc32.hpp \
+                include/mapr/e1_gear.hpp \
+                include/mapr/e1_length.hpp \
+                include/mapr/e1_sha256.hpp \
+                include/mapr/e1_types.hpp \
+                include/mapr/e2 \
+                include/mapr/e3 \
+                engine/src/e1_bigint.cpp \
+                engine/src/e1_crc32.cpp \
+                engine/src/e1_gear.cpp \
+                engine/src/e1_length.cpp \
+                engine/src/e1_sha256.cpp \
+                engine/src/e2 engine/src/e3 harness \
+                specs_and_reports/v2/gates/E0-G.tsv \
+                specs_and_reports/v2/gates/E1-G.tsv \
+                specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+                specs_and_reports/v2/gates/H3-ORACLE.tsv \
+                specs_and_reports/v2/gates/H4-FUZZ.tsv \
+                specs_and_reports/v2/gates/C03-TERM.tsv \
+                specs_and_reports/v2/gates/C04-CANON.tsv \
+                specs_and_reports/v2/gates/C05-EVAL.tsv \
+                specs_and_reports/v2/gates/C06-DAG.tsv \
+                specs_and_reports/v2/gates/C07-WIRE.tsv \
+                specs_and_reports/v2/gates/C08-LEGACY.tsv \
+                specs_and_reports/v2/gates/E2-G.tsv \
+                specs_and_reports/v2/gates/E3-G.tsv; then
+            echo "FAIL: frozen component or earlier evidence modified"
+            exit 1
+          fi
+          echo "PASS: all frozen components and earlier evidence untouched"
+
+      - name: Upload C09 evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e4-c09-evidence
+          path: |
+            specs_and_reports/v2/gates/C09-PROVENANCE.tsv
+            specs_and_reports/v2/logs/C09-PROVENANCE.log
+            specs_and_reports/v2/evidence/C09/SHA256SUMS
+          retention-days: 30

@@ -83,3 +83,25 @@ mutates E3-G canonical wires and feeds every mutant to the C07 `validate`
 | Isolation | 2026-11-16 | `h4-isolation`: source grep clean, 2,475 binary symbols / 0 forbidden, guard present, no libz/gtest; `make -f Makefile.h4 h4-all` warning-free under `-Werror -Wconversion -Wshadow -Wformat=2`. |
 | Gate evidence | 2026-11-16 | `specs_and_reports/v2/gates/H4-FUZZ.tsv` SHA-256 `3593a7234e75fe5e45f440449876545d39a3733f2edad7aba4b292f3db1d9b9a`; log `0f5f7fa9…`; counters `d06b6c64…`; manifest `evidence/H4/{MANIFEST.tsv,SHA256SUMS}` verdict PASS. |
 | Report | 2026-11-16 | `REPORT/HARNESS/H4-FUZZ-REPORT.md` — decisions, coverage limitations (stages 9/11 unreached) and acceptance checklist. |
+
+## E4 MEASURE — C09 PROVENANCE (2026-11-16)
+
+C09 `PROVENANCE` is the first of three E4 sub-components: exact byte length,
+streaming SHA-256, gear at seed 0, and the deterministic effort seed. E4 MUST
+NOT link E2–E7, so the component is built from frozen E1 alone (`BigInt`,
+`Sha256`, `GearHash`) through its own makefile, test suite, gate binary and
+workflow. **E4-G is not claimed**: C10 SEGMENT, C11 PROBE and the integrated
+gate remain.
+
+| item | date | evidence |
+|---|---|---|
+| Surface | 2026-11-16 | `include/mapr/e4/e4_measure.hpp`: `Source`, `Policy`, `Provenance{length, sha256, gear, seed}`, `MeasureCode{Ok,Io,Mismatch,Invalid}`, `provenance()`, `derive_seed()`, `provenance_matches()`. Gear is a field per MARP2-E4 §4.3/§8 and the C09 prompt (the shorter `COMPONENTS-V2` §6 sketch omits it). |
+| Implementation | 2026-11-16 | `engine/src/e4/e4_provenance.cpp`: one loop, one fixed 64 KiB block, SHA-256 and gear advanced over the same buffer; `Source::read` called exactly `ceil(L/65536)` times; no whole-input buffer. Seed = `LE64(SHA-256("MARP2-seed" ‖ LE32(effort) ‖ sha256(x))[0..8))`, assembled byte by byte so it is host-endianness independent. |
+| References | 2026-11-16 | KAT values derived three ways before the implementation: H3's clean-room `harness/oracle/src/sha256.cpp`, coreutils `sha256sum`, an independently written gear recurrence, and a Perl `Digest::SHA`+`pack("V")` seed construction. All three agree on the 9 pinned vectors. |
+| Gate evidence | 2026-11-16 | `engine/bin/c09_gate --root ..` → `rows=348 pass=348 blocked=0 fail=0`, `RESULT: PASS`. Groups: `c09.kat.*` (45), `c09.reference.*` (258 over 43 fixtures), `c09.streaming.*` (24), `c09.repeat.*` (3), `c09.seed.*` (4), `c09.errors.*` (9), `c09.names.*` (1), `c09.isolation.*` (4). `specs_and_reports/v2/gates/C09-PROVENANCE.tsv` SHA-256 `005026c13e888ea6b56e082181aa7ba5185d3a1c73c65479609c0f9bb373c66d`; log `52c9009b…` (89 deterministic lines, fixed banner, no host/date/compiler/pid/timing). |
+| Determinism | 2026-11-16 | Two independent runs to different `--out-root` produced byte-identical TSV, log and manifest; the ASan+UBSan gate run reproduced all three. CI asserts the same with `diff -u` and also greps the log for environment-dependent text. |
+| Sanitizers | 2026-11-16 | `make -f Makefile.c09 c09-test-san`: 17/17 GoogleTest cases under ASan+UBSan (`detect_leaks=1`), then a sanitizer gate run reproducing the committed evidence; zero reports. |
+| Isolation | 2026-11-16 | `c09-isolation`: source `grep` clean (no E2–E7, no harness/oracle, no clock/locale/random/file-name), `nm` on `e4_provenance.o` shows only the six C09 symbols; `static_assert`s pin the return type and the field budget. Workflow re-checks source, C09 test binary symbols, and rejects script files under C09 paths. |
+| No regression | 2026-11-16 | Purely additive: no frozen E1/E2/E3 header or source, no `harness/**` file, and no earlier gate TSV changed. All 12 pre-existing `evidence/*/SHA256SUMS` manifests still verify, asserted from the tree so later components are covered automatically. |
+| CI | 2026-11-16 | `MARP E4 C09 PROVENANCE CI` run `43959110008` green on `arena/e9fde969-marp` (Ubuntu, GCC 15.2.0): independence, strict build, isolation, 17/17 GoogleTest, byte-for-byte evidence regeneration, schema/verdict/check validation, independent repeat, ASan+UBSan, no-regression. All ten pre-existing workflows green at the same commit. Three defects were found only by the CI toolchain and fixed rather than suppressed: two constant `std::vector` subscripts rejected by GCC 15 `-Wnull-dereference`, plus two workflow bugs (`bash -e` hiding the build diagnostic, and a log-length check that counted one prefix but demanded the total). |
+| Report | 2026-11-16 | `REPORT/E4/C09-PROVENANCE-REPORT.md` — decisions (§5), limitations and the C10 handoff (§6), acceptance checklist (§7). |

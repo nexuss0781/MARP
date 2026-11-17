@@ -1,0 +1,166 @@
+# MARP v2 — E4 MEASURE — C09 PROVENANCE isolated build.
+#
+# Authority boundary (SPECS/COMPONENTS/e4-measure/SPECS.md §2.2, §10, §12.1):
+#   * C09 depends ONLY on frozen E1 (`BigInt`, SHA-256, gear table, types).
+#   * C09 MUST NOT link E2, E3, E5, E6, E7, any Stage 1/2 engine object, any
+#     other harness, or any E4 sub-component other than itself.
+#   * The C09 surface returns identity only; it cannot emit a term.
+#
+# The independent reference used by the gate is H3's clean-room SHA-256
+# (`harness/oracle/src/sha256.cpp`), compiled from its own sources with its own
+# include path; it includes no `mapr/` header and links no E1 object.  It is a
+# reference for the *gate*, never a dependency of the C09 library.
+#
+# Nothing here is reachable from engine/Makefile or from any other component's
+# makefile; adding C09 changes no existing rule.
+
+CXX ?= g++
+C09_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+C09_INC  := -I. -I../include
+
+C09_CXXFLAGS ?= $(C09_WARN) -O2 $(C09_INC)
+C09_SANFLAGS := $(C09_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(C09_INC)
+
+# GoogleTest: the project's existing discovery order (prebuilt tree, then the
+# system install), so local and CI builds use the same flags as C04–C08.
+GTEST_PREBUILT_INC := $(wildcard /tmp/googletest/googletest/include)
+GTEST_PREBUILT_LIB := $(wildcard /tmp/googletest/build/lib/libgtest.a)
+GTEST_LOCAL_INC    := $(wildcard /usr/local/include/gtest)
+GTEST_LOCAL_LIB    := $(wildcard /usr/local/lib/libgtest.a)
+ifneq ($(GTEST_PREBUILT_INC),)
+  C09_GTEST_CFLAGS := -isystem $(GTEST_PREBUILT_INC) -isystem /usr/local/include
+else
+  C09_GTEST_CFLAGS := -isystem /usr/local/include
+endif
+ifneq ($(GTEST_PREBUILT_LIB),)
+  C09_GTEST_LIBS := -L/tmp/googletest/build/lib -lgtest -lgtest_main
+else ifneq ($(GTEST_LOCAL_INC),)
+  C09_GTEST_LIBS := -L/usr/local/lib -lgtest -lgtest_main
+else
+  C09_GTEST_LIBS := -lgtest -lgtest_main
+endif
+# This sandbox ships GoogleTest as a plain static archive; allow an explicit
+# override so `make -f Makefile.c09` works without a system install.
+ifeq ($(C09_GTEST_ROOT),)
+  C09_GTEST_ROOT := /tmp/gtest-install
+endif
+ifneq ($(wildcard $(C09_GTEST_ROOT)/lib/libgtest.a),)
+  C09_GTEST_CFLAGS := -isystem $(C09_GTEST_ROOT)/include -isystem /usr/local/include
+  C09_GTEST_LIBS := -L$(C09_GTEST_ROOT)/lib -lgtest -lgtest_main
+endif
+
+# --- E1 (frozen) -----------------------------------------------------------
+C09_E1_SRCS := src/e1_bigint.cpp src/e1_sha256.cpp src/e1_gear.cpp
+C09_E1_OBJS := $(patsubst src/%.cpp,obj/c09/%.o,$(C09_E1_SRCS))
+
+# --- C09 library -----------------------------------------------------------
+C09_LIB_SRC := src/e4/e4_provenance.cpp
+C09_LIB_OBJ := obj/c09/e4/e4_provenance.o
+C09_LIB_HDR := ../include/mapr/e4/e4_measure.hpp
+
+# --- gate ------------------------------------------------------------------
+C09_GATE_SRC := src/e4/c09_gate.cpp
+C09_GATE_OBJ := obj/c09_gate/c09_gate.o
+
+# --- H3 clean-room SHA-256 (independent reference, gate only) --------------
+C09_REF_SRCS := ../harness/oracle/src/sha256.cpp
+C09_REF_OBJS := $(patsubst ../harness/oracle/src/%.cpp,obj/c09_ref/%.o,$(C09_REF_SRCS))
+C09_REF_INC  := -I../harness/oracle/include -I../harness/oracle/src
+
+# --- tests -----------------------------------------------------------------
+C09_TEST_SRC := tests/e4/e4_c09_provenance_test.cpp
+C09_TEST_OBJ := obj/c09_tests/e4_c09_provenance_test.o
+
+.PHONY: c09-all c09-gate c09-test c09-test-san c09-evidence c09-verify-evidence \
+        c09-isolation c09-check c09-clean
+
+c09-all: bin/c09_gate bin/e4_c09_tests
+
+obj/c09/e4/%.o: src/e4/%.cpp $(C09_LIB_HDR) ../include/mapr/e1_sha256.hpp \
+                ../include/mapr/e1_gear.hpp ../include/mapr/e1_bigint.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C09_CXXFLAGS) -c $< -o $@
+
+obj/c09/e1_%.o: src/e1_%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C09_CXXFLAGS) -c $< -o $@
+
+obj/c09_ref/%.o: ../harness/oracle/src/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C09_WARN) -O2 $(C09_REF_INC) -c $< -o $@
+
+$(C09_GATE_OBJ): $(C09_GATE_SRC) $(C09_LIB_HDR) ../harness/oracle/include/marp/oracle/oracle.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C09_CXXFLAGS) $(C09_REF_INC) -c $< -o $@
+
+$(C09_TEST_OBJ): $(C09_TEST_SRC) $(C09_LIB_HDR)
+	@mkdir -p $(dir $@)
+	$(CXX) $(C09_CXXFLAGS) $(C09_GTEST_CFLAGS) -c $< -o $@
+
+bin/c09_gate: $(C09_E1_OBJS) $(C09_LIB_OBJ) $(C09_REF_OBJS) $(C09_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C09_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e4_c09_tests: $(C09_E1_OBJS) $(C09_LIB_OBJ) $(C09_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C09_CXXFLAGS) -o $@ $^ $(C09_GTEST_LIBS) -pthread
+
+bin/e4_c09_tests_san: $(C09_E1_SRCS) $(C09_LIB_SRC) $(C09_TEST_SRC) $(C09_LIB_HDR)
+	@mkdir -p bin
+	$(CXX) $(C09_SANFLAGS) $(C09_GTEST_CFLAGS) -o $@ \
+	  $(C09_E1_SRCS) $(C09_LIB_SRC) $(C09_TEST_SRC) $(C09_GTEST_LIBS) -pthread
+
+bin/c09_gate_san: $(C09_E1_SRCS) $(C09_LIB_SRC) $(C09_GATE_SRC) $(C09_REF_SRCS) \
+                  $(C09_LIB_HDR)
+	@mkdir -p bin
+	$(CXX) $(C09_SANFLAGS) $(C09_REF_INC) -o $@ \
+	  $(C09_E1_SRCS) $(C09_LIB_SRC) $(C09_REF_SRCS) $(C09_GATE_SRC) -pthread
+
+c09-gate: bin/c09_gate
+
+c09-test: bin/e4_c09_tests
+	./bin/e4_c09_tests --gtest_color=no
+
+c09-test-san: bin/e4_c09_tests_san bin/c09_gate_san
+	./bin/e4_c09_tests_san --gtest_color=no
+	@mkdir -p /tmp/c09_san_evid
+	./bin/c09_gate_san --root .. --out-root /tmp/c09_san_evid
+	@rm -rf /tmp/c09_san_evid
+
+c09-evidence: bin/c09_gate
+	./bin/c09_gate --root ..
+
+c09-verify-evidence: bin/c09_gate
+	./bin/c09_gate --root .. --verify
+
+# Static isolation: the C09 library may not name any other component, may not
+# reach a file/name/clock/locale/random facility, and the linked binary may not
+# contain E2/E3/E5/E6/E7 symbols.
+c09-isolation: $(C09_E1_OBJS) $(C09_LIB_OBJ)
+	@echo "Checking C09 library includes against the E4 authority boundary..."
+	@if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e2|e3|e5|e6|e7)/|marp/harness/|mapr/oracle|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq|dag|math_core|chunk_analyzer|crypto|dedup_index|deflate_frontend|hwprobe|noise_detector|profile|thread_pool))' \
+	    src/e4/e4_provenance.cpp ../include/mapr/e4/e4_measure.hpp; then \
+	  echo "FAIL: forbidden include in the C09 library"; exit 1; \
+	fi
+	@echo "Checking C09 library for file/name/clock/locale/random access..."
+	@if sed -E 's://.*::' src/e4/e4_provenance.cpp ../include/mapr/e4/e4_measure.hpp \
+	   | grep -nE '(std::filesystem|fstream|std::chrono|std::time|gmtime|localtime|getenv|std::locale|setlocale|std::random_device|rand\(|srand|std::thread|getpid|extension\(|filename\(|\.path\()'; then \
+	  echo "FAIL: environment, clock, locale, randomness, or file-name access in the C09 library"; exit 1; \
+	fi
+	@echo "Checking C09 objects for component symbols via nm..."
+	@nm -C $(C09_LIB_OBJ) > /tmp/c09_nm.txt
+	@# `provenance_text` is C09's own rendering of `Provenance`, not a term surface.
+	@if grep -E 'marp::v2::(Ir|Dag|Candidate|CandidateSet|Observation|Segment|Atom|Node|discover|induce|select|encode|decode|validate|eval_stream_digest|canonicali[sz]e)' /tmp/c09_nm.txt; then \
+	  rm -f /tmp/c09_nm.txt; echo "FAIL: forbidden symbol in e4_provenance.o"; exit 1; \
+	fi
+	@rm -f /tmp/c09_nm.txt
+	@echo "C09 isolation checks PASS."
+
+c09-check: c09-all c09-isolation c09-test c09-verify-evidence
+
+c09-clean:
+	rm -rf obj/c09 obj/c09_ref obj/c09_gate obj/c09_tests
+	rm -f bin/c09_gate bin/e4_c09_tests bin/e4_c09_tests_san bin/c09_gate_san
