@@ -4,8 +4,9 @@
 **Branch:** `arena/ff231fc5-marp`
 **Base commit (h2-gates):** `b19483005613f36a2e95f8330daf4ed4201e0aba`
 **Report date:** 2026-11-17
-**CI (green run of `.github/workflows/e4-c11.yml`):** _see "CI runs" below; filled from the
-Actions run that verifies the committed evidence._
+**CI (green run of `.github/workflows/e4-c11.yml`):** run `44171264325` (push) and run
+`44171274957` (pull request #20) — both green at commit `fa7f266`, verifying the committed
+evidence byte-for-byte; https://github.com/nexuss0781/MARP/actions/runs/44171264325
 **Spec:** `SPECS/COMPONENTS/e4-measure/SPECS.md` (MARP2-E4), sections 4.2, 4.5 (rules only),
 4.7, 4.8, 4.9, 4.10, 5.3, 5.4, 6, 9 — read in full.
 **Prompt:** `SPECS/COMPONENTS/e4-measure/C11-PROBE-PROMPT.md` (read in full).
@@ -249,13 +250,17 @@ and evidence:
 | Evidence/log/manifest/report committed and matching the final green CI run | PASS (harness-written artefacts committed; CI verifies and reproduces them byte-identically; run ID below) |
 | Report committed | PASS (this file) |
 
-**CI runs (`.github/workflows/e4-c11.yml`):** filled below from the Actions runs
-on `arena/ff231fc5-marp`; the green run verifying the committed evidence is the
-authoritative record.
+**CI runs (`.github/workflows/e4-c11.yml`):** the run that verifies the committed
+evidence is the authoritative record. Both triggers on the evidence-bearing commit
+`fa7f266` are green (jobs: source-level independence boundary; strict build +
+22/22 GoogleTest + isolation + manifest + evidence validation + byte-identical
+repeat + ASan/UBSan repro + no-regression). The final documentation commit below
+is covered by its own green run of the same evidence bytes.
 
-| Run | URL | Outcome |
-|---|---|---|
-| _pending push_ | — | — |
+| Run | Commit | URL | Outcome |
+|---|---|---|---|
+| 44171264325 (push) | `fa7f266` | https://github.com/nexuss0781/MARP/actions/runs/44171264325 | success |
+| 44171274957 (pull request #20) | `fa7f266` | https://github.com/nexuss0781/MARP/actions/runs/44171274957 | success |
 
 **E4-G is not claimed.** C11 PROBE is complete as a sub-component; the integrated
 E4-MEASURE gate (E4-G) remains to be run in its own right.
