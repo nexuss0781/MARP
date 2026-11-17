@@ -1035,6 +1035,26 @@ int run_gate(const fs::path& repo_root, const fs::path& out_root) {
         const std::vector<Observation>& rows = rows_r.value();
         note("[c11.probe:" + fx.name + "] rows=" + u64_dec(rows.size()) +
              " sha256=" + sha);
+        // End-to-end probe() contract (§5.3): every row carries the requested
+        // `where`, and the row order is (kind ordinal, param, aux).
+        {
+            bool where_ok = true;
+            bool order_ok = true;
+            for (size_t i = 0; i < rows.size(); ++i) {
+                if (rows[i].where != seg) where_ok = false;
+                if (i > 0) {
+                    const auto k_a = std::make_tuple(static_cast<int>(rows[i - 1].kind),
+                                                     rows[i - 1].param, rows[i - 1].aux);
+                    const auto k_b = std::make_tuple(static_cast<int>(rows[i].kind),
+                                                     rows[i].param, rows[i].aux);
+                    if (k_a > k_b) order_ok = false;
+                }
+            }
+            ev.either(where_ok && order_ok, "c11.probe.run", fx.corpus, fx.name, sha,
+                      "where=segment;order=kind,param,aux",
+                      std::string("where=") + (where_ok ? "1" : "0") +
+                          ";order=" + (order_ok ? "1" : "0"));
+        }
         for (const Observation& o : rows) {
             note("[c11.obs:" + fx.name + "] " + observation_text(o));
         }

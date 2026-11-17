@@ -32,8 +32,8 @@ Actions run that verifies the committed evidence._
 | `engine/src/e4/c11_gate.cpp` | Deterministic gate: fixtures, reference implementations, evidence writer (TSV + log + manifest) |
 | `engine/Makefile.c11` | Isolated strict build + evidence + isolation checks |
 | `.github/workflows/e4-c11.yml` | CI: source-level authority boundary + build/test/sanitizers/evidence/no-regression |
-| `specs_and_reports/v2/gates/C11-PROBE.tsv` | Harness-generated evidence: 1621 rows, all PASS |
-| `specs_and_reports/v2/logs/C11-PROBE.log` | Harness-generated log: fixture inventory, per-observation rows, 40 summary blocks |
+| `specs_and_reports/v2/gates/C11-PROBE.tsv` | Harness-generated evidence: 1660 rows, all PASS |
+| `specs_and_reports/v2/logs/C11-PROBE.log` | Harness-generated log: fixture inventory, per-observation rows, 41 summary blocks |
 | `specs_and_reports/v2/evidence/C11/SHA256SUMS` | Evidence manifest (header, impl, TSV, log) |
 | `REPORT/E4/C11-PROBE-REPORT.md` | This report |
 
@@ -134,16 +134,16 @@ effort budgets versus unchanged values, deterministic merge order, reproducibili
 from `where` alone, locality under mutation outside `where`, `verify_period`
 across kinds, and Io/Invalid/Limit paths.
 
-**Gate evidence:** `C11-PROBE.tsv` — 1621 rows, every one PASS, covering 39
+**Gate evidence:** `C11-PROBE.tsv` — 1660 rows, every one PASS, covering 39
 fixtures (constructed + fixed-seed random) × 12 kinds against independent
 in-gate reference implementations (62-bit-mantissa `ilog2`, map-based entropies,
 naive period, sort-based Repeat16, bit-vector BM, span change-point scan) plus
-schema discipline, rerun equality, sampling paths/offsets/threshold, effort
+probe() end-to-end contract (where propagation, output order), schema discipline, rerun equality, sampling paths/offsets/threshold, effort
 budgets, locality mutation (12 rows), merge order across four same-`begin`
 inputs, `verify_period` (8 rows), and the error routes. All nine candidate
 strides appear as winners in the fixture set (each `tile{s}` fixture makes `s`
 the winner), which pre-exercises E4-G's stride coverage. The log carries the
-observation inventory (977 `c11.obs` rows) and 40 summary blocks. The manifest
+observation inventory (977 `c11.obs` rows) and 41 summary blocks. The manifest
 hashes the header, implementation, TSV, and log; `--verify` passes.
 
 **Reproducibility:** two independent gate runs produce byte-identical

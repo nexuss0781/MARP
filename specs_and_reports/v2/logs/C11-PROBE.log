@@ -6,7 +6,7 @@ spec=MARP2-E4 sections 4.2, 4.7, 4.8, 4.9, 4.10, 5.3, 5.4, 6, 9
 depends=E1 (BigInt, SHA-256); C09 (Source, Policy); C10 (Segment, ilog2_q24); no E2-E7 linkage
 probes=H0,H1,H2,Runs,Period,Repeat16,Skew,BitComplexity,AffineFit,QuadraticFit,Stride,ChangePoint
 sampling=2MiB threshold; 16 windows of 64KiB at floor(j*(N-65536)/15); H2 and Repeat16 only
-rows_total=1621 pass=1621 blocked=0 fail=0
+rows_total=1660 pass=1660 blocked=0 fail=0
 [c11.obs:affine-a0-s1] AffineFit@0-1024 v=1 a=256 p=0 d=0000000000000000000000000000000000000000000000000000000000000000 ver=0 sam=0 sc=0 par=0
 [c11.obs:affine-a0-s1] BitComplexity@0-1024 v=129 a=0 p=0 d=f58484148927e35856a2b4c1492203d7dce9f71f9de804047b0ce6e8737597cd ver=0 sam=0 sc=0 par=7
 [c11.obs:affine-a0-s1] BitComplexity@0-1024 v=17 a=0 p=0 d=4deba34fd730be4450c1e45bdf92465a8d0259df01849d5c168bccfb2756e717 ver=0 sam=0 sc=0 par=4
@@ -1055,6 +1055,7 @@ rows_total=1621 pass=1621 blocked=0 fail=0
 [summary:c11.probe.period.verify_api] rows=39 pass=39
 [summary:c11.probe.quadratic.reference] rows=39 pass=39
 [summary:c11.probe.repeat16.reference] rows=39 pass=39
+[summary:c11.probe.run] rows=39 pass=39
 [summary:c11.probe.runs.reference] rows=39 pass=39
 [summary:c11.probe.skew.reference] rows=312 pass=312
 [summary:c11.probe.stride.reference] rows=39 pass=39

@@ -43,7 +43,7 @@ jobs:
             exit 1
           fi
           if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*\"mapr/' $C11_FILES \
-             | grep -vE '\"mapr/(e1_bigint|e1_sha256|e1_types|e1_gear)\\.hpp\"|\"mapr/e4/e4_(measure|segment|probe)\\.hpp\"'; then
+             | grep -vE '\"mapr/(e1_bigint|e1_sha256|e1_types|e1_gear)\.hpp\"|\"mapr/e4/e4_(measure|segment|probe)\.hpp\"'; then
             echo "FAIL: C11 includes a mapr/ header outside {E1, C09, C10, itself}"
             exit 1
           fi
