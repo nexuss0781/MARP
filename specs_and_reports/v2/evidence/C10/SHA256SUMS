@@ -1,0 +1,4 @@
+7bfcc5493be1d69b6e9640cee90ce5b69d406281dbee0941897426f48818d3c5  include/mapr/e4/e4_segment.hpp
+ee3cfc9a1c393f9987a753b68401596acbded0f069d2146c4557cd48438e378d  engine/src/e4/e4_segment.cpp
+51fe01c8960a4ffb2e86f59feedfb4ddbbe722cd3e3c3e4651e373c96f34ebf6  specs_and_reports/v2/gates/C10-SEGMENT.tsv
+c21aeeb68ec3ac40e35a7162096591dc59cb65f86eb8aefb2a5426077fb4a17c  specs_and_reports/v2/logs/C10-SEGMENT.log

@@ -1,0 +1,457 @@
+name: MARP E4 C10 SEGMENT CI
+
+# Isolated workflow for C10 SEGMENT (E4 MEASURE sub-component 2 of 3).
+#
+# Builds only E1 + C09 + C10 through engine/Makefile.c10, proves the E4 authority
+# boundary (no E2-E7 linkage, no probe and no term-shaped type, no file name,
+# clock, locale, or randomness), runs the C10 GoogleTest suite, verifies the
+# committed evidence manifest, regenerates the evidence and requires it to be
+# byte-identical, repeats the run independently, checks S5 (1 vs 4 workers) and
+# the partition invariants at gate scale, and checks that no earlier component's
+# committed evidence moved.
+#
+# This workflow does NOT claim E4-G.  C11 PROBE and the integrated E4-G gate
+# remain, and their prompts say so.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  c10-independence:
+    name: C10 independence and E4 authority boundary (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E2-E7, harness, oracle, and Stage 1/2 engine includes in C10
+        run: |-
+          set -euo pipefail
+          # Explicit file list, never a glob: `engine/src/e4` also holds C09 and
+          # will hold C11, and `include/mapr/e4` holds their headers.  A glob
+          # would make this check fail on every other E4 sub-component.
+          C10_FILES="include/mapr/e4/e4_segment.hpp
+          engine/src/e4/e4_segment.cpp"
+          echo "Scanning the C10 file list for forbidden includes..."
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](mapr/(e2|e3|e5|e6|e7)/|marp/harness/|marp/oracle|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq|dag|math_core|chunk_analyzer|crypto|dedup_index|deflate_frontend|hwprobe|noise_detector|profile|thread_pool))' $C10_FILES; then
+            echo "FAIL: forbidden include found in the C10 library"
+            exit 1
+          fi
+          # C10's only permitted `mapr/` includes are E1's gear table, E1's types
+          # and arithmetic (through C09's header), and C09 itself.
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*"mapr/' $C10_FILES \
+             | grep -vE '"mapr/(e1_gear|e1_types|e1_bigint)\.hpp"|"mapr/e4/e4_(measure|segment)\.hpp"'; then
+            echo "FAIL: C10 includes a mapr/ header outside {E1, C09, itself}"
+            exit 1
+          fi
+          echo "PASS: C10 includes only frozen E1, C09, and the standard library"
+
+      - name: Reject file, name, clock, locale, and randomness access in C10
+        run: |-
+          set -euo pipefail
+          C10_FILES="include/mapr/e4/e4_segment.hpp
+          engine/src/e4/e4_segment.cpp"
+          # Comments are stripped first: the header documents the *absence* of
+          # each facility, and a documentation sentence is not a dependency.
+          # `std::thread` is deliberately absent from this list: C10's worker pool
+          # is the mechanism S5 ("independent of thread count") is measured on,
+          # every use is read-only, and the merge is a serial ordered
+          # concatenation.  The library may not consult a file name or a path.
+          if sed -E 's://.*::' $C10_FILES \
+             | grep -nE '(std::filesystem|fstream|std::chrono|std::time|gmtime|localtime|getenv|std::locale|setlocale|std::random_device|rand\(|srand|getpid|extension\(|filename\(|\.path\()'; then
+            echo "FAIL: environment, clock, locale, randomness, or file-name access in C10"
+            exit 1
+          fi
+          echo "PASS: C10 reads bytes only"
+
+      - name: Reject probe and term surfaces in C10 (E4-I6, E4-I8)
+        run: |-
+          set -euo pipefail
+          # O8.11 / E4-I6 at the source level, plus E4-I8 (boundaries are
+          # independent of probe results) in its strongest form: no probe exists
+          # in this translation unit at all, so no boundary can consult one.
+          if grep -nE '(ProbeKind|struct[[:space:]]+Observation|struct[[:space:]]+Ir|class[[:space:]]+Dag|struct[[:space:]]+Candidate|struct[[:space:]]+Atom|probe[[:space:]]*\()' \
+              include/mapr/e4/e4_segment.hpp engine/src/e4/e4_segment.cpp; then
+            echo "FAIL: probe- or term-shaped token in the C10 surface"
+            exit 1
+          fi
+          if grep -nE '^[[:space:]]*(MeasureResult|Result)<(Ir|Dag|Candidate|Observation|Atom)>' \
+              include/mapr/e4/e4_segment.hpp; then
+            echo "FAIL: a C10 entry point returns a term-shaped type"
+            exit 1
+          fi
+          echo "PASS: C10 returns boundaries and a tree, and names no probe"
+
+      - name: Reject non-C++ artefacts under C10 paths
+        run: |-
+          set -euo pipefail
+          if find include/mapr/e4/e4_segment.hpp engine/src/e4/e4_segment.cpp \
+                    engine/src/e4/c10_gate.cpp engine/tests/e4/e4_c10_segment_test.cpp \
+                    -type f \( -name '*.py' -o -name '*.sh' \) 2>/dev/null | grep -q .; then
+            echo "FAIL: script file found under a C10 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under C10 paths"
+
+      - name: Confirm every earlier evidence manifest still verifies
+        run: |-
+          set -euo pipefail
+          # Enumerated from the tree so a component directory added later is
+          # covered automatically; C10's own manifest is checked in the build job.
+          count=0
+          for sums in specs_and_reports/v2/evidence/*/SHA256SUMS; do
+            case "$sums" in
+              */C10/SHA256SUMS) continue ;;
+            esac
+            sha256sum -c "$sums"
+            echo "OK: $sums"
+            count=$((count + 1))
+          done
+          if [ "$count" -lt 11 ]; then
+            echo "FAIL: expected at least 11 prior evidence manifests, found $count"
+            exit 1
+          fi
+          echo "PASS: $count prior evidence manifests still verify (no regression)"
+
+  build-test-evidence:
+    name: C10 build, tests, sanitizers, evidence
+    runs-on: ubuntu-latest
+    needs: [c10-independence]
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |-
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Record toolchain
+        run: |-
+          set -euo pipefail
+          g++ --version | head -1
+          echo "::notice::compiler=$(g++ -dumpfullversion -dumpversion)"
+
+      - name: Build C10 (strict -Werror, -O2)
+        run: |-
+          # Actions runs `run:` blocks with `bash -e`.  Turn that off so a failed
+          # make reaches the diagnostic relay instead of aborting the step.
+          set +e
+          set -uo pipefail
+          echo "::notice::toolchain: $(make --version | head -1); $(g++ --version | head -1)"
+          cd engine
+          make -f Makefile.c10 c10-clean
+          make -f Makefile.c10 c10-all -j4 2>&1 | tee /tmp/c10_build.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            # A build failure must be readable from the check-run annotations:
+            # the CI log archive is not always reachable from a reviewing client,
+            # while the annotation API always is.
+            echo "::error::C10 build failed (make exit $rc)"
+            n=0
+            while IFS= read -r diag; do
+              [ -n "$diag" ] || continue
+              echo "::error::$diag"
+              n=$((n + 1))
+              [ "$n" -lt 40 ] || break
+            done < /tmp/c10_build.log
+            exit "$rc"
+          fi
+          echo "PASS: C10 built warning-free under -Werror"
+
+      - name: Verify C10 binary isolation (source grep + nm on built objects)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c10 c10-isolation
+          echo "Defined symbols in the C10 library object:"
+          nm -C obj/c10/e4/e4_segment.o | grep -E ' [TtWw] ' | sort
+          echo "Checking the C10 test binary does not link E2-E7, C11, or Stage 1/2 code..."
+          if nm -C bin/e4_c10_tests | grep -E 'marp::v2::(Ir|Dag|Candidate|Observation|Atom|probe|discover|induce|select|encode|decode|validate)\b|marp::harness::|mapr::(ContainerReader|ContainerWriter|Encoder|Decoder)'; then
+            echo "FAIL: forbidden symbol linked into the C10 test binary"
+            exit 1
+          fi
+          echo "PASS: binary isolation verified"
+
+      - name: Snapshot committed evidence and verify manifest
+        run: |-
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C10-SEGMENT.tsv /tmp/committed-C10-SEGMENT.tsv
+          cp specs_and_reports/v2/logs/C10-SEGMENT.log /tmp/committed-C10-SEGMENT.log
+          cp specs_and_reports/v2/evidence/C10/SHA256SUMS /tmp/committed-C10-SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C10/SHA256SUMS
+          ./engine/bin/c10_gate --root . --verify
+          echo "PASS: committed C10 evidence manifest verified before regeneration"
+
+      - name: Run C10 GoogleTest suite
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e4_c10_tests --gtest_color=no
+
+      - name: Determinism (1 vs 4 workers, two runs each, over the whole corpus)
+        run: |-
+          set -euo pipefail
+          # The suite's C10Determinism cases already compare 1/2/3/4/8 workers and
+          # repeated runs of the same fixtures; this step makes the requirement
+          # explicit at the job level, so a suite edit that dropped a case could
+          # not silently drop the check.
+          cd engine
+          ./bin/e4_c10_tests --gtest_color=no \
+            --gtest_filter='C10Determinism.*:C10Tree.*' \
+            --gtest_repeat=2 | tee /tmp/c10_determinism.log
+          if ! grep -qE '^\[  PASSED  \]' /tmp/c10_determinism.log; then
+            echo "FAIL: determinism cases did not pass"
+            exit 1
+          fi
+          if grep -qE '^\[  FAILED  \]' /tmp/c10_determinism.log; then
+            echo "FAIL: determinism cases reported a failure"
+            exit 1
+          fi
+          echo "PASS: S1-S5 hold across worker counts and repeated runs"
+
+      - name: Generate C10 evidence and require byte-for-byte match
+        run: |-
+          set -euo pipefail
+          ./engine/bin/c10_gate --root .
+          diff -u /tmp/committed-C10-SEGMENT.tsv specs_and_reports/v2/gates/C10-SEGMENT.tsv
+          diff -u /tmp/committed-C10-SEGMENT.log specs_and_reports/v2/logs/C10-SEGMENT.log
+          diff -u /tmp/committed-C10-SHA256SUMS specs_and_reports/v2/evidence/C10/SHA256SUMS
+          echo "PASS: committed C10 evidence is byte-for-byte identical to CI output"
+
+      - name: Validate C10 evidence schema, verdicts, and required checks
+        run: |-
+          # The checks run in a captured subshell so that `-e` still aborts on the
+          # first failure (a skipped check -s would silently weaken the gate),
+          # while the failure text is relayed as annotations, because the CI log
+          # archive is not always reachable from a reviewing client.
+          set +e
+          set -uo pipefail
+          TSV=specs_and_reports/v2/gates/C10-SEGMENT.tsv
+          LOG=specs_and_reports/v2/logs/C10-SEGMENT.log
+          SUMS=specs_and_reports/v2/evidence/C10/SHA256SUMS
+          out=$(
+            set -euo pipefail
+            header=$(head -1 "$TSV")
+            want=$'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+            if [ "$header" != "$want" ]; then
+              echo "FAIL: C10 TSV header is not the v2 eight-column header"
+              exit 1
+            fi
+            rows=$(($(wc -l < "$TSV") - 1))
+            if [ "$rows" -lt 600 ]; then
+              echo "FAIL: expected at least 600 evidence rows, found $rows"
+              exit 1
+            fi
+            fails=$(grep -cP '\tFAIL\t' "$TSV" || true)
+            blocked=$(grep -cP '\tBLOCKED\t' "$TSV" || true)
+            if [ "$fails" -ne 0 ] || [ "$blocked" -ne 0 ]; then
+              echo "FAIL: $fails FAIL and $blocked BLOCKED rows in the C10 evidence"
+              grep -P '\t(FAIL|BLOCKED)\t' "$TSV" | head -20
+              exit 1
+            fi
+            passes=$(grep -cP '\tPASS\t' "$TSV" || true)
+            if [ "$passes" -ne "$rows" ]; then
+              echo "FAIL: $passes PASS rows for $rows rows"
+              exit 1
+            fi
+            # Every required check group must be present: a missing group is a
+            # silently weakened gate, which is worse than a failing one.
+            for prefix in \
+              c10.fixed.ilog2.kat c10.fixed.ilog2.reference c10.fixed.h0.reference \
+              c10.fixed.zerofrac c10.constants.section44_45 \
+              c10.boundaries.invariants c10.boundaries.scale_sweep \
+              c10.changepoints.reference c10.tree.partition c10.tree.containment \
+              c10.tree.nonempty_leaves c10.tree.root c10.tree.depth_bound \
+              c10.tree.reference c10.determinism.threads c10.determinism.merge_order \
+              c10.effort.scales c10.effort.invariant_boundaries c10.errors.mismatch \
+              c10.errors.io c10.errors.invalid c10.limits.bounded_buffer \
+              c10.pinned.constructed c10.names.independent c10.isolation.includes \
+              c10.isolation.environment c10.isolation.no_probes_no_terms ; do
+              if ! cut -f1 "$TSV" | grep -qx "$prefix"; then
+                echo "FAIL: required check group missing from the C10 evidence: $prefix"
+                exit 1
+              fi
+            done
+            # No empty column anywhere: an evidence row with a blank expected or
+            # actual value is not evidence.
+            if awk -F'\t' 'NF != 8 || $1 == "" || $4 == "" || $5 == "" || $6 == ""' "$TSV" | grep -q .; then
+              echo "FAIL: a C10 evidence row has a missing or empty column"
+              exit 1
+            fi
+            # Log hygiene: the log is the artefact a reviewer reads, so it may not
+            # carry a host name, a date, a compiler version, a pid, a timing, or an
+            # absolute path — any of those would make the evidence unreproducible.
+            if grep -niE '(hostname|^host:|^date|^compiler|^pid|elapsed|seconds|wall clock|user@|/home/|/tmp/)' "$LOG"; then
+              echo "FAIL: environment-dependent text in the C10 log"
+              exit 1
+            fi
+            log_rows=$(grep -cE '^\[(c10\.|summary:)' "$LOG" || true)
+            if [ "$log_rows" -lt 500 ]; then
+              echo "FAIL: expected at least 500 log rows, found $log_rows"
+              exit 1
+            fi
+            summary_rows=$(grep -c '^\[summary:' "$LOG" || true)
+            if [ "$summary_rows" -lt 25 ]; then
+              echo "FAIL: expected a summary block of at least 25 checks, found $summary_rows"
+              exit 1
+            fi
+            # The log must record a tree digest and a leaf count per fixture: an
+            # E4-G reviewer reads those rows directly.
+            if [ "$(grep -c 'tree_sha256=' "$LOG" || true)" -lt 20 ]; then
+              echo "FAIL: fewer than 20 tree digests recorded in the C10 log"
+              exit 1
+            fi
+            sha256sum -c "$SUMS"
+            echo "PASS: C10 evidence schema, verdicts, required checks, and log hygiene verified"
+            exit 0
+            2>&1 )
+          rc=$?
+          printf '%s\n' "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::C10 evidence validation failed (exit $rc)"
+            n=0
+            while IFS= read -r diag; do
+              [ -n "$diag" ] || continue
+              case "$diag" in
+                PASS:*) ;;
+                *) echo "::error::$diag"; n=$((n + 1)); [ "$n" -lt 30 ] || break ;;
+              esac
+            done < <(printf '%s\n' "$out" | tail -n 30)
+            exit "$rc"
+          fi
+
+      - name: Determinism (independent repeat run reproduces byte-identical evidence)
+        run: |-
+          set -euo pipefail
+          ./engine/bin/c10_gate --root . --out-root /tmp/c10_repeat
+          diff -u /tmp/committed-C10-SEGMENT.tsv /tmp/c10_repeat/specs_and_reports/v2/gates/C10-SEGMENT.tsv
+          diff -u /tmp/committed-C10-SEGMENT.log /tmp/c10_repeat/specs_and_reports/v2/logs/C10-SEGMENT.log
+          diff -u /tmp/committed-C10-SHA256SUMS /tmp/c10_repeat/specs_and_reports/v2/evidence/C10/SHA256SUMS
+          rm -rf /tmp/c10_repeat
+          echo "PASS: repeat run produced byte-identical C10 evidence"
+
+      - name: AddressSanitizer + UBSan C10 unit tests and gate run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c10 c10-test-san -j4
+          ./bin/c10_gate_san --root .. --out-root /tmp/c10_san_repro
+          diff -u /tmp/committed-C10-SEGMENT.tsv /tmp/c10_san_repro/specs_and_reports/v2/gates/C10-SEGMENT.tsv
+          diff -u /tmp/committed-C10-SEGMENT.log /tmp/c10_san_repro/specs_and_reports/v2/logs/C10-SEGMENT.log
+          diff -u /tmp/committed-C10-SHA256SUMS /tmp/c10_san_repro/specs_and_reports/v2/evidence/C10/SHA256SUMS
+          rm -rf /tmp/c10_san_repro
+          echo "PASS: ASan+UBSan unit tests and gate run reproduced committed C10 evidence"
+
+      - name: No-regression check (frozen E1/E2/E3/H1-H4 and earlier evidence untouched)
+        run: |-
+          set -euo pipefail
+          # C10 is additive.  The one file it touches outside its own paths is
+          # C09's header, where `MeasureCode` gained `Limit = 7` — the project-wide
+          # code table's value, which E4 §9 names ("observation count or range cap
+          # exceeded") and no earlier E4 sub-component could produce.  That change
+          # is checked here deliberately, and C09's own manifest is required to
+          # verify at the same commit, so the change cannot be a silent drift.
+          if ! git diff --quiet -- include/mapr/e1_bigint.hpp \
+                include/mapr/e1_crc32.hpp \
+                include/mapr/e1_gear.hpp \
+                include/mapr/e1_length.hpp \
+                include/mapr/e1_sha256.hpp \
+                include/mapr/e1_types.hpp \
+                include/mapr/e2 \
+                include/mapr/e3 \
+                engine/src/e1_bigint.cpp \
+                engine/src/e1_crc32.cpp \
+                engine/src/e1_gear.cpp \
+                engine/src/e1_length.cpp \
+                engine/src/e1_sha256.cpp \
+                engine/src/e2 engine/src/e3 harness \
+                engine/src/e4/e4_provenance.cpp \
+                specs_and_reports/v2/gates/E0-G.tsv \
+                specs_and_reports/v2/gates/E1-G.tsv \
+                specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+                specs_and_reports/v2/gates/H3-ORACLE.tsv \
+                specs_and_reports/v2/gates/H4-FUZZ.tsv \
+                specs_and_reports/v2/gates/C03-TERM.tsv \
+                specs_and_reports/v2/gates/C04-CANON.tsv \
+                specs_and_reports/v2/gates/C05-EVAL.tsv \
+                specs_and_reports/v2/gates/C06-DAG.tsv \
+                specs_and_reports/v2/gates/C07-WIRE.tsv \
+                specs_and_reports/v2/gates/C08-LEGACY.tsv \
+                specs_and_reports/v2/gates/E2-G.tsv \
+                specs_and_reports/v2/gates/E3-G.tsv \
+                specs_and_reports/v2/gates/C09-PROVENANCE.tsv \
+                specs_and_reports/v2/logs/C09-PROVENANCE.log; then
+            echo "FAIL: frozen component or earlier evidence modified"
+            exit 1
+          fi
+          # The one permitted cross-component edit: `Limit` added to MeasureCode.
+          added=$(git diff -U0 -- include/mapr/e4/e4_measure.hpp | grep -E '^\+' | grep -vE '^\+\+\+' || true)
+          removed=$(git diff -U0 -- include/mapr/e4/e4_measure.hpp | grep -E '^-' | grep -vE '^---' || true)
+          echo "Added lines in e4_measure.hpp:"; printf '%s\n' "$added"
+          echo "Removed lines in e4_measure.hpp:"; printf '%s\n' "$removed"
+          if printf '%s\n' "$removed" | grep -qE '^-\s*(Ok|Io|Mismatch|Invalid)\s*=' ; then
+            echo "FAIL: a pre-existing MeasureCode value changed"
+            exit 1
+          fi
+          if grep -q 'Ok = 0' include/mapr/e4/e4_measure.hpp \
+             && grep -q 'Io = 3' include/mapr/e4/e4_measure.hpp \
+             && grep -q 'Invalid = 4' include/mapr/e4/e4_measure.hpp \
+             && grep -q 'Mismatch = 6' include/mapr/e4/e4_measure.hpp \
+             && grep -q 'Limit = 7' include/mapr/e4/e4_measure.hpp; then
+            echo "PASS: MeasureCode is the project-wide table, unchanged and extended by Limit"
+          else
+            echo "FAIL: MeasureCode does not match the project-wide table"
+            exit 1
+          fi
+          # C09 must still be green at this commit, C09's manifest must verify,
+          # and every earlier manifest must verify too.
+          cd engine
+          make -f Makefile.c09 c09-all -j4 > /tmp/c09_rebuild.log 2>&1 || {
+            echo "::error::C09 no longer builds at this commit"
+            tail -20 /tmp/c09_rebuild.log
+            exit 1
+          }
+          ./bin/e4_c09_tests --gtest_color=no | tail -3
+          ./bin/c09_gate --root .. --verify
+          cd ..
+          for sums in specs_and_reports/v2/evidence/*/SHA256SUMS; do
+            sha256sum -c "$sums" > /dev/null
+          done
+          echo "PASS: C09 still green, all evidence manifests verify, frozen components untouched"
+
+      - name: Upload C10 evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e4-c10-evidence
+          path: |
+            specs_and_reports/v2/gates/C10-SEGMENT.tsv
+            specs_and_reports/v2/logs/C10-SEGMENT.log
+            specs_and_reports/v2/evidence/C10/SHA256SUMS
+          retention-days: 30
