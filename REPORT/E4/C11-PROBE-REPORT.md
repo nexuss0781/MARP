@@ -228,6 +228,10 @@ and evidence:
 - **`max_period` prefilter:** the minimal-period search prefilters KMP failures
   by `ilog2_q24`-derived divisors for speed; the reported `p` is exact and the
   full byte check is authoritative.
+- **Workflow hygiene note:** the C10 workflow carries the same `cut | grep -q`
+  under `pipefail` pattern that `e4-c11.yml` now replaces with an awk decision
+  (SIGPIPE race on large TSVs); C10's own workflow is frozen here, and the race
+  is recorded for the E4-G owner to fold in there.
 - **Handoff:** `probe()`/`merge_observations()` are ready to feed E4-G's
   `observations.tsv` + coverage bitmap; the C11 fixtures already exercise every
   stride winner and both sampling paths, so the E4-G gate can lean on this
@@ -238,7 +242,7 @@ and evidence:
 | Requirement | Status |
 |---|---|
 | Builds warning-free (`-Werror`), tests pass, no earlier regressions | PASS (strict flags; 22/22 tests; CI no-regression step) |
-| All twelve kinds per §4.7–§4.10 exact, integer/fixed-point only; Period reported only when verified; every field present, unused = 0 | PASS (field discipline table + tests + 1621 evidence rows) |
+| All twelve kinds per §4.7–§4.10 exact, integer/fixed-point only; Period reported only when verified; every field present, unused = 0 | PASS (field discipline table + tests + 1660 evidence rows) |
 | Observations local to `where`, reproducible from `where`, deterministic merge/order | PASS (locality mutation rows, rerun rows, merge-order rows) |
 | Sampling recorded; effort = budget only | PASS (`c11.sampling.*`, `c11.effort.*` rows) |
 | No E2–E7 linkage, terms/candidates/global index, filename dependence | PASS (source + `nm` isolation; `c11.isolation.*` rows) |

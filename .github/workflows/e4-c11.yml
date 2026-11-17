@@ -243,7 +243,11 @@ jobs:
               exit 1
             fi
             # Every required check group must be present: a missing group is a
-            # silently weakened gate, which is worse than a failing one.
+            # silently weakened gate, which is worse than a failing one.  The
+            # membership test is an awk decision on the file, not `grep -q` on
+            # a `cut` pipeline: `grep -q` exits at its first match and `pipefail`
+            # would then see SIGPIPE from `cut`, spuriously reporting a missing
+            # group on a large TSV.
             for prefix in \
               c11.constants.section47 c11.constants.section45 c11.constants.section48 \
               c11.constants.section49 c11.constants.section410 c11.constants.limits \
@@ -261,15 +265,18 @@ jobs:
               c11.effort.budget c11.effort.values c11.locality.mutation \
               c11.merge.order c11.verify_period.api c11.errors.invalid c11.errors.io \
               c11.isolation.includes c11.isolation.environment c11.isolation.no_terms ; do
-              if ! cut -f1 "$TSV" | grep -qx "$prefix"; then
+              if ! awk -F'\t' -v p="$prefix" '$1 == p { found = 1 } END { exit !found }' "$TSV"; then
                 echo "FAIL: required check group missing from the C11 evidence: $prefix"
                 exit 1
               fi
             done
             # No empty column anywhere: an evidence row with a blank expected or
-            # actual value is not evidence.
-            if awk -F'\t' 'NF != 8 || $1 == "" || $4 == "" || $5 == "" || $6 == ""' "$TSV" | grep -q .; then
+            # actual value is not evidence.  Same reasoning as above: the awk
+            # process decides on its own exit status rather than piping into
+            # `grep -q`.
+            if awk -F'\t' 'NF != 8 || $1 == "" || $4 == "" || $5 == "" || $6 == "" { print; bad = 1 } END { exit !bad }' "$TSV" > /tmp/c11_bad_rows.txt; then
               echo "FAIL: a C11 evidence row has a missing or empty column"
+              head -20 /tmp/c11_bad_rows.txt
               exit 1
             fi
             # Log hygiene: the log is the artefact a reviewer reads, so it may not
