@@ -29,13 +29,17 @@ this document.
 
 The authoritative CI run on this branch is `MARP E4 C10 SEGMENT CI`:
 
+* run **[44088507598](https://github.com/nexuss0781/MARP/actions/runs/44088507598)**
+  at commit `d8cd883` — the final commit of this work, which carries this report.
+  `success`, both jobs (`C10 independence and E4 authority boundary (source
+  level)`, `C10 build, tests, sanitizers, evidence`).
 * run **[44087728894](https://github.com/nexuss0781/MARP/actions/runs/44087728894)**
-  at commit `90a394149a82` — `success`, both jobs
-  (`C10 independence and E4 authority boundary (source level)`,
-  `C10 build, tests, sanitizers, evidence`).
-* The eleven pre-existing workflows are green at the same commit, including
-  `MARP E4 C09 PROVENANCE CI` (run `44087728830`), which is the regression check
-  for the one additive header edit of §2.
+  at commit `90a394149a82` — the commit that carries the implementation, tests,
+  gate and evidence. Also `success`, both jobs; the second run is green with this
+  report in the tree, so the report cannot have changed anything the gate checks.
+* The eleven pre-existing workflows are green at the same commits, including
+  `MARP E4 C09 PROVENANCE CI` (runs `44087728830` and `44088507326`), which is the
+  regression check for the one additive header edit of §2.
 
 The claim is also mechanically checkable rather than only a pasted ID: the
 workflow diffs the committed TSV, log and manifest against a freshly generated
