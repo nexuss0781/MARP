@@ -170,13 +170,26 @@ jobs:
             n=0
             while IFS= read -r diag; do
               [ -n "$diag" ] || continue
-              echo "::error::$diag"
+              # GitHub caps annotation messages at 255 characters; a long GCC
+              # diagnostic line would be dropped whole, so relay a truncated
+              # copy (the file:line:col prefix plus the warning text start is
+              # what identifies the diagnostic) and keep the full log in the
+              # artifact uploaded by the next step.
+              echo "::error::${diag:0:240}"
               n=$((n + 1))
               [ "$n" -lt 40 ] || break
             done < /tmp/c11_build.log
             exit "$rc"
           fi
           echo "PASS: C11 built warning-free under -Werror"
+
+      - name: Upload C11 build log (failure diagnostics)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c11-build-log
+          path: /tmp/c11_build.log
+          if-no-files-found: ignore
 
       - name: Verify C11 binary isolation (source grep + nm on built objects)
         run: |-
