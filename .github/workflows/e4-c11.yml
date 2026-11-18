@@ -1,0 +1,445 @@
+name: MARP E4 C11 PROBE CI
+
+# Isolated workflow for C11 PROBE (E4 MEASURE sub-component 3 of 3).
+#
+# Builds only E1 + C09 + C10 + C11 through engine/Makefile.c11, proves the E4
+# authority boundary (no E2-E7 linkage, no term-shaped type, no file name,
+# clock, locale, or randomness), runs the C11 GoogleTest suite, verifies the
+# committed evidence manifest, regenerates the evidence and requires it to be
+# byte-identical, repeats the run independently, checks reproducibility/merge
+# determinism, validates the evidence schema and log hygiene, and checks that no
+# earlier component's committed evidence moved.
+#
+# This workflow does NOT claim E4-G.  The integrated E4-G gate remains, and the
+# E4-G prompt says so.
+
+on:
+  push:
+    branches: [h2-gates, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  c11-independence:
+    name: C11 independence and E4 authority boundary (source level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject E2-E7, harness, oracle, and Stage 1/2 engine includes in C11
+        run: |-
+          set -euo pipefail
+          # Explicit file list, never a glob: `engine/src/e4` also holds C09 and
+          # C10, and `include/mapr/e4` holds their headers.  A glob would make
+          # this check fail on every other E4 sub-component.
+          C11_FILES="include/mapr/e4/e4_probe.hpp
+          engine/src/e4/e4_probe.cpp"
+          echo "Scanning the C11 file list for forbidden includes..."
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e2|e3|e5|e6|e7)/|marp/harness/|marp/oracle|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq|dag|math_core|chunk_analyzer|crypto|dedup_index|deflate_frontend|hwprobe|noise_detector|profile|thread_pool))' $C11_FILES; then
+            echo "FAIL: forbidden include found in the C11 library"
+            exit 1
+          fi
+          # C11's only permitted `mapr/` includes are E1's SHA-256 (for the BM
+          # digest), the shared E4 measure header (Policy, MeasureCode, Source),
+          # C10's segment header (Segment), and its own header.
+          if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*\"mapr/' $C11_FILES \
+             | grep -vE '\"mapr/(e1_sha256)\.hpp\"|\"mapr/e4/e4_(measure|segment|probe)\.hpp\"'; then
+            echo "FAIL: C11 includes a mapr/ header outside {E1 sha256, C09 measure, C10 segment, itself}"
+            exit 1
+          fi
+          echo "PASS: C11 includes only frozen E1, C09, C10, and the standard library"
+
+      - name: Reject file, name, clock, locale, and randomness access in C11
+        run: |-
+          set -euo pipefail
+          C11_FILES="include/mapr/e4/e4_probe.hpp
+          engine/src/e4/e4_probe.cpp"
+          # Comments are stripped first: the header documents the *absence* of
+          # each facility, and a documentation sentence is not a dependency.
+          if sed -E 's://.*::' $C11_FILES \
+             | grep -nE '(std::filesystem|fstream|std::chrono|std::time|gmtime|localtime|getenv|std::locale|setlocale|std::random_device|rand\(|srand|getpid|extension\(|filename\(|\.path\()'; then
+            echo "FAIL: environment, clock, locale, randomness, or file-name access in C11"
+            exit 1
+          fi
+          echo "PASS: C11 reads bytes only"
+
+      - name: Reject term surfaces in C11 (E4-I6, O8.11)
+        run: |-
+          set -euo pipefail
+          # C11 proposes observations only; it must not emit terms, candidates,
+          # nodes or atoms, and must not name any term-shaped type.  The Observation
+          # struct is C11's own subject, so it is not a forbidden token here.
+          if grep -nE '(struct[[:space:]]+Ir|class[[:space:]]+Dag|struct[[:space:]]+Candidate|struct[[:space:]]+Atom|struct[[:space:]]+Node)' \
+              include/mapr/e4/e4_probe.hpp engine/src/e4/e4_probe.cpp; then
+            echo "FAIL: term-shaped token in the C11 surface"
+            exit 1
+          fi
+          if grep -nE '^[[:space:]]*(MeasureResult|Result)<(Ir|Dag|Candidate|Atom|Node)>' \
+              include/mapr/e4/e4_probe.hpp; then
+            echo "FAIL: a C11 entry point returns a term-shaped type"
+            exit 1
+          fi
+          echo "PASS: C11 returns observations and names no term"
+
+      - name: Reject non-C++ artefacts under C11 paths
+        run: |-
+          set -euo pipefail
+          if find include/mapr/e4/e4_probe.hpp engine/src/e4/e4_probe.cpp \
+                    engine/src/e4/c11_gate.cpp engine/tests/e4/e4_c11_probe_test.cpp \
+                    -type f \( -name '*.py' -o -name '*.sh' \) 2>/dev/null | grep -q .; then
+            echo "FAIL: script file found under a C11 path"
+            exit 1
+          fi
+          echo "PASS: C++20 only under C11 paths"
+
+      - name: Confirm every earlier evidence manifest still verifies
+        run: |-
+          set -euo pipefail
+          # Enumerated from the tree so a component directory added later is
+          # covered automatically; C11's own manifest is checked in the build job.
+          count=0
+          for sums in specs_and_reports/v2/evidence/*/SHA256SUMS; do
+            case "$sums" in
+              */C11/SHA256SUMS) continue ;;
+            esac
+            sha256sum -c "$sums"
+            echo "OK: $sums"
+            count=$((count + 1))
+          done
+          if [ "$count" -lt 13 ]; then
+            echo "FAIL: expected at least 13 prior evidence manifests, found $count"
+            exit 1
+          fi
+          echo "PASS: $count prior evidence manifests still verify (no regression)"
+
+  build-test-evidence:
+    name: C11 build, tests, sanitizers, evidence
+    runs-on: ubuntu-latest
+    needs: [c11-independence]
+    timeout-minutes: 50
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify commit
+        run: |-
+          set -euo pipefail
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Branch: ${{ github.ref_name }}"
+
+      - name: Install dependencies (C++20 toolchain + GoogleTest)
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ cmake pkg-config
+          cd /tmp
+          git clone --depth 1 https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j4
+          sudo make install
+          sudo ldconfig
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/googletest.conf
+          sudo ldconfig
+
+      - name: Record toolchain
+        run: |-
+          set -euo pipefail
+          g++ --version | head -1
+          echo "::notice::compiler=$(g++ -dumpfullversion -dumpversion)"
+
+      - name: Build C11 (strict -Werror, -O2)
+        run: |-
+          # Actions runs `run:` blocks with `bash -e`.  Turn that off so a failed
+          # make reaches the diagnostic relay instead of aborting the step.
+          set +e
+          set -uo pipefail
+          echo "::notice::toolchain: $(make --version | head -1); $(g++ --version | head -1)"
+          cd engine
+          make -f Makefile.c11 c11-clean
+          make -f Makefile.c11 c11-all -j4 2>&1 | tee /tmp/c11_build.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            # A build failure must be readable from the check-run annotations:
+            # the CI log archive is not always reachable from a reviewing client,
+            # while the annotation API always is.
+            echo "::error::C11 build failed (make exit $rc)"
+            n=0
+            while IFS= read -r diag; do
+              [ -n "$diag" ] || continue
+              echo "::error::$diag"
+              n=$((n + 1))
+              [ "$n" -lt 40 ] || break
+            done < /tmp/c11_build.log
+            exit "$rc"
+          fi
+          echo "PASS: C11 built warning-free under -Werror"
+
+      - name: Verify C11 binary isolation (source grep + nm on built objects)
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c11 c11-isolation
+          echo "Defined symbols in the C11 library object:"
+          nm -C obj/c11/e4/e4_probe.o | grep -E ' [TtWw] ' | sort
+          echo "Checking the C11 test binary does not link E2-E7 or Stage 1/2 code..."
+          if nm -C bin/e4_c11_tests | grep -E 'marp::v2::(Ir|Dag|Candidate|Atom|Node|discover|induce|select|encode|decode|validate)\b|marp::harness::|mapr::(ContainerReader|ContainerWriter|Encoder|Decoder)'; then
+            echo "FAIL: forbidden symbol linked into the C11 test binary"
+            exit 1
+          fi
+          echo "PASS: binary isolation verified"
+
+      - name: Snapshot committed evidence and verify manifest
+        run: |-
+          set -euo pipefail
+          cp specs_and_reports/v2/gates/C11-PROBE.tsv /tmp/committed-C11-PROBE.tsv
+          cp specs_and_reports/v2/logs/C11-PROBE.log /tmp/committed-C11-PROBE.log
+          cp specs_and_reports/v2/evidence/C11/SHA256SUMS /tmp/committed-C11-SHA256SUMS
+          sha256sum -c specs_and_reports/v2/evidence/C11/SHA256SUMS
+          ./engine/bin/c11_gate --root . --verify
+          echo "PASS: committed C11 evidence manifest verified before regeneration"
+
+      - name: Run C11 GoogleTest suite
+        run: |-
+          set -euo pipefail
+          cd engine
+          ./bin/e4_c11_tests --gtest_color=no
+
+      - name: Determinism (reproducibility, merge, and effort suites, repeated)
+        run: |-
+          set -euo pipefail
+          # The suite's C11Reproducibility/C11Merge/C11Effort cases compare
+          # repeated probes and the serial merge order; this step makes the
+          # requirement explicit at the job level, so a suite edit that dropped a
+          # case could not silently drop the check.
+          cd engine
+          ./bin/e4_c11_tests --gtest_color=no \
+            --gtest_filter='C11Reproducibility.*:C11Merge.*:C11Effort.*' \
+            --gtest_repeat=2 | tee /tmp/c11_determinism.log
+          if ! grep -qE '^\[  PASSED  \]' /tmp/c11_determinism.log; then
+            echo "FAIL: determinism cases did not pass"
+            exit 1
+          fi
+          if grep -qE '^\[  FAILED  \]' /tmp/c11_determinism.log; then
+            echo "FAIL: determinism cases reported a failure"
+            exit 1
+          fi
+          echo "PASS: observations are reproducible and merge deterministically"
+
+      - name: Generate C11 evidence and require byte-for-byte match
+        run: |-
+          set -euo pipefail
+          ./engine/bin/c11_gate --root .
+          diff -u /tmp/committed-C11-PROBE.tsv specs_and_reports/v2/gates/C11-PROBE.tsv
+          diff -u /tmp/committed-C11-PROBE.log specs_and_reports/v2/logs/C11-PROBE.log
+          diff -u /tmp/committed-C11-SHA256SUMS specs_and_reports/v2/evidence/C11/SHA256SUMS
+          echo "PASS: committed C11 evidence is byte-for-byte identical to CI output"
+
+      - name: Validate C11 evidence schema, verdicts, and required checks
+        run: |-
+          # The checks run in a captured subshell so that `-e` still aborts on the
+          # first failure (a skipped check -s would silently weaken the gate),
+          # while the failure text is relayed as annotations, because the CI log
+          # archive is not always reachable from a reviewing client.
+          set +e
+          set -uo pipefail
+          TSV=specs_and_reports/v2/gates/C11-PROBE.tsv
+          LOG=specs_and_reports/v2/logs/C11-PROBE.log
+          SUMS=specs_and_reports/v2/evidence/C11/SHA256SUMS
+          out=$(
+            set -euo pipefail
+            header=$(head -1 "$TSV")
+            want=$'check\tcorpus\titem_id\tinput_sha256\texpected\tactual\tverdict\tlog'
+            if [ "$header" != "$want" ]; then
+              echo "FAIL: C11 TSV header is not the v2 eight-column header"
+              exit 1
+            fi
+            rows=$(($(wc -l < "$TSV") - 1))
+            if [ "$rows" -lt 600 ]; then
+              echo "FAIL: expected at least 600 evidence rows, found $rows"
+              exit 1
+            fi
+            fails=$(grep -cP '\tFAIL\t' "$TSV" || true)
+            blocked=$(grep -cP '\tBLOCKED\t' "$TSV" || true)
+            if [ "$fails" -ne 0 ] || [ "$blocked" -ne 0 ]; then
+              echo "FAIL: $fails FAIL and $blocked BLOCKED rows in the C11 evidence"
+              grep -P '\t(FAIL|BLOCKED)\t' "$TSV" | head -20
+              exit 1
+            fi
+            passes=$(grep -cP '\tPASS\t' "$TSV" || true)
+            if [ "$passes" -ne "$rows" ]; then
+              echo "FAIL: $passes PASS rows for $rows rows"
+              exit 1
+            fi
+            # Every required check group must be present: a missing group is a
+            # silently weakened gate, which is worse than a failing one.
+            for prefix in \
+              c11.fixed.ilog2.kat c11.fixed.ilog2.kat_complete c11.fixed.ilog2.monotone \
+              c11.fixed.ilog2.powers_of_two c11.fixed.ilog2.reference \
+              c11.fixed.h0.empty c11.fixed.h0.known c11.fixed.h0.reference \
+              c11.bm.kat c11.bm.kat_zero_plane c11.bm.plane_budget c11.bm.stride_budget \
+              c11.probe.structure c11.probe.fields c11.probe.h0 c11.probe.h1 c11.probe.h2 \
+              c11.probe.runs c11.probe.period c11.probe.repeat16 c11.probe.skew \
+              c11.probe.bitcomplexity c11.probe.affinefit c11.probe.quadraticfit \
+              c11.probe.stride c11.probe.changepoint c11.probe.fits \
+              c11.sampling.path c11.constants.sampling_effort_caps \
+              c11.period.perfect c11.period.p_equals_n c11.period.forged_rejected \
+              c11.change.emitted_at_boundaries c11.change.absent_off_boundary \
+              c11.order.reproducible c11.order.merge c11.effort.budget_and_values \
+              c11.errors.effort c11.errors.io c11.errors.segment c11.errors.limit \
+              c11.errors.verify c11.names.independent \
+              c11.isolation.includes c11.isolation.environment c11.isolation.no_terms \
+              c11.isolation.pure_bytes c11.isolation.return_types ; do
+              if ! cut -f1 "$TSV" | grep -qx "$prefix"; then
+                echo "FAIL: required check group missing from the C11 evidence: $prefix"
+                exit 1
+              fi
+            done
+            # No empty column anywhere: an evidence row with a blank expected or
+            # actual value is not evidence.
+            if awk -F'\t' 'NF != 8 || $1 == "" || $4 == "" || $5 == "" || $6 == ""' "$TSV" | grep -q .; then
+              echo "FAIL: a C11 evidence row has a missing or empty column"
+              exit 1
+            fi
+            # Log hygiene: the log is the artefact a reviewer reads, so it may not
+            # carry a host name, a date, a compiler version, a pid, a timing, or an
+            # absolute path — any of those would make the evidence unreproducible.
+            if grep -niE '(hostname|^host:|^date|^compiler|^pid|elapsed|seconds|wall clock|user@|/home/|/tmp/)' "$LOG"; then
+              echo "FAIL: environment-dependent text in the C11 log"
+              exit 1
+            fi
+            log_rows=$(grep -cE '^\[(c11\.|summary:)' "$LOG" || true)
+            if [ "$log_rows" -lt 100 ]; then
+              echo "FAIL: expected at least 100 log rows, found $log_rows"
+              exit 1
+            fi
+            summary_rows=$(grep -c '^\[summary:' "$LOG" || true)
+            if [ "$summary_rows" -lt 40 ]; then
+              echo "FAIL: expected a summary block of at least 40 checks, found $summary_rows"
+              exit 1
+            fi
+            sha256sum -c "$SUMS"
+            echo "PASS: C11 evidence schema, verdicts, required checks, and log hygiene verified"
+            exit 0
+            2>&1 )
+          rc=$?
+          printf '%s\n' "$out"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::C11 evidence validation failed (exit $rc)"
+            n=0
+            while IFS= read -r diag; do
+              [ -n "$diag" ] || continue
+              case "$diag" in
+                PASS:*) ;;
+                *) echo "::error::$diag"; n=$((n + 1)); [ "$n" -lt 30 ] || break ;;
+              esac
+            done < <(printf '%s\n' "$out" | tail -n 30)
+            exit "$rc"
+          fi
+
+      - name: Determinism (independent repeat run reproduces byte-identical evidence)
+        run: |-
+          set -euo pipefail
+          ./engine/bin/c11_gate --root . --out-root /tmp/c11_repeat
+          diff -u /tmp/committed-C11-PROBE.tsv /tmp/c11_repeat/specs_and_reports/v2/gates/C11-PROBE.tsv
+          diff -u /tmp/committed-C11-PROBE.log /tmp/c11_repeat/specs_and_reports/v2/logs/C11-PROBE.log
+          diff -u /tmp/committed-C11-SHA256SUMS /tmp/c11_repeat/specs_and_reports/v2/evidence/C11/SHA256SUMS
+          rm -rf /tmp/c11_repeat
+          echo "PASS: repeat run produced byte-identical C11 evidence"
+
+      - name: AddressSanitizer + UBSan C11 unit tests and gate run
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |-
+          set -euo pipefail
+          cd engine
+          make -f Makefile.c11 c11-test-san -j4
+          ./bin/c11_gate_san --root .. --out-root /tmp/c11_san_repro
+          diff -u /tmp/committed-C11-PROBE.tsv /tmp/c11_san_repro/specs_and_reports/v2/gates/C11-PROBE.tsv
+          diff -u /tmp/committed-C11-PROBE.log /tmp/c11_san_repro/specs_and_reports/v2/logs/C11-PROBE.log
+          diff -u /tmp/committed-C11-SHA256SUMS /tmp/c11_san_repro/specs_and_reports/v2/evidence/C11/SHA256SUMS
+          rm -rf /tmp/c11_san_repro
+          echo "PASS: ASan+UBSan unit tests and gate run reproduced committed C11 evidence"
+
+      - name: No-regression check (frozen E1/E2/E3/H1-H4 and earlier evidence untouched)
+        run: |-
+          set -euo pipefail
+          # C11 is purely additive: it adds its own header, implementation, gate,
+          # tests and workflow, and touches no frozen file and no earlier evidence.
+          # The one shared header it reads (e4_measure.hpp) was already extended by
+          # C10's `Limit = 7`; C11 adds nothing to it.
+          if ! git diff --quiet -- include/mapr/e1_bigint.hpp \
+                include/mapr/e1_crc32.hpp \
+                include/mapr/e1_gear.hpp \
+                include/mapr/e1_length.hpp \
+                include/mapr/e1_sha256.hpp \
+                include/mapr/e1_types.hpp \
+                include/mapr/e2 \
+                include/mapr/e3 \
+                engine/src/e1_bigint.cpp \
+                engine/src/e1_crc32.cpp \
+                engine/src/e1_gear.cpp \
+                engine/src/e1_length.cpp \
+                engine/src/e1_sha256.cpp \
+                engine/src/e2 engine/src/e3 harness \
+                engine/src/e4/e4_provenance.cpp \
+                engine/src/e4/e4_segment.cpp \
+                include/mapr/e4/e4_measure.hpp \
+                include/mapr/e4/e4_segment.hpp \
+                specs_and_reports/v2/gates/E0-G.tsv \
+                specs_and_reports/v2/gates/E1-G.tsv \
+                specs_and_reports/v2/gates/H1-FIXTURES.tsv \
+                specs_and_reports/v2/gates/H3-ORACLE.tsv \
+                specs_and_reports/v2/gates/H4-FUZZ.tsv \
+                specs_and_reports/v2/gates/C03-TERM.tsv \
+                specs_and_reports/v2/gates/C04-CANON.tsv \
+                specs_and_reports/v2/gates/C05-EVAL.tsv \
+                specs_and_reports/v2/gates/C06-DAG.tsv \
+                specs_and_reports/v2/gates/C07-WIRE.tsv \
+                specs_and_reports/v2/gates/C08-LEGACY.tsv \
+                specs_and_reports/v2/gates/E2-G.tsv \
+                specs_and_reports/v2/gates/E3-G.tsv \
+                specs_and_reports/v2/gates/C09-PROVENANCE.tsv \
+                specs_and_reports/v2/gates/C10-SEGMENT.tsv \
+                specs_and_reports/v2/logs/C09-PROVENANCE.log \
+                specs_and_reports/v2/logs/C10-SEGMENT.log; then
+            echo "FAIL: frozen component or earlier evidence modified"
+            exit 1
+          fi
+          # C09 and C10 must still be green at this commit, their manifests must
+          # verify, and every earlier manifest must verify too.
+          cd engine
+          make -f Makefile.c09 c09-all -j4 > /tmp/c09_rebuild.log 2>&1 || {
+            echo "::error::C09 no longer builds at this commit"
+            tail -20 /tmp/c09_rebuild.log
+            exit 1
+          }
+          make -f Makefile.c10 c10-all -j4 > /tmp/c10_rebuild.log 2>&1 || {
+            echo "::error::C10 no longer builds at this commit"
+            tail -20 /tmp/c10_rebuild.log
+            exit 1
+          }
+          ./bin/e4_c09_tests --gtest_color=no | tail -3
+          ./bin/c09_gate --root .. --verify
+          ./bin/e4_c10_tests --gtest_color=no | tail -3
+          ./bin/c10_gate --root .. --verify
+          cd ..
+          for sums in specs_and_reports/v2/evidence/*/SHA256SUMS; do
+            sha256sum -c "$sums" > /dev/null
+          done
+          echo "PASS: C09 and C10 still green, all evidence manifests verify, frozen components untouched"
+
+      - name: Upload C11 evidence artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e4-c11-evidence
+          path: |
+            specs_and_reports/v2/gates/C11-PROBE.tsv
+            specs_and_reports/v2/logs/C11-PROBE.log
+            specs_and_reports/v2/evidence/C11/SHA256SUMS
+          retention-days: 30

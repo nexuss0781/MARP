@@ -1,0 +1,173 @@
+# MARP v2 — E4 MEASURE — C11 PROBE isolated build.
+#
+# Authority boundary (SPECS/COMPONENTS/e4-measure/SPECS.md §2.2, §10, §12.1):
+#   * C11 depends on frozen E1 (`BigInt`, `Sha256`), on C09 (`Source`,
+#     `Policy`, `MeasureCode`, `MeasureResult`), and on C10 (`Segment`, the
+#     fixed-point helpers, the §4.5 change-point constants).
+#   * C11 MUST NOT link E2, E3, E5, E6, E7, any Stage 1/2 engine object, any
+#     other harness, or any E4 sub-component other than C09 and C10.
+#   * `probe()` returns observations only; no term-, candidate-, node-, or
+#     atom-shaped type appears in the library, the gate, or the tests, and no
+#     call reaches E5's global dictionary (Repeat16 is within-range only).
+#
+# The independent references used by the gate are written inside
+# `src/e4/c11_gate.cpp` from the text of §4.2, §4.5, §4.8, and §4.9: a
+# separate `ilog2_q24`, separate entropy formulas, a naive Berlekamp–Massey,
+# a naive O(N²) Repeat16 and Period, and a transcribed §4.5 change-point
+# scan.  They are a reference for the *gate*, never a dependency of the
+# library.
+#
+# Nothing here is reachable from engine/Makefile or from any other component's
+# makefile; adding C11 changes no existing rule.
+
+CXX ?= g++
+C11_WARN := -std=c++20 -pedantic -Wall -Wextra -Werror \
+            -Wconversion -Wshadow -Wnull-dereference \
+            -Wdouble-promotion -Wformat=2
+C11_INC  := -I. -I../include
+
+C11_CXXFLAGS ?= $(C11_WARN) -O2 $(C11_INC)
+C11_SANFLAGS := $(C11_WARN) -O1 -g -fno-omit-frame-pointer \
+                -fsanitize=address,undefined -fno-sanitize-recover=all $(C11_INC)
+
+# GoogleTest: the project's existing discovery order (explicit root, then the
+# prebuilt tree, then the system install), so local and CI builds use the same
+# flags as C04–C10.
+ifeq ($(C11_GTEST_ROOT),)
+  C11_GTEST_ROOT := /tmp/gtest-install
+endif
+ifneq ($(wildcard $(C11_GTEST_ROOT)/lib/libgtest.a),)
+  C11_GTEST_CFLAGS := -isystem $(C11_GTEST_ROOT)/include
+  C11_GTEST_LIBS := -L$(C11_GTEST_ROOT)/lib -lgtest -lgtest_main
+else ifneq ($(wildcard /tmp/googletest/googletest/include),)
+  C11_GTEST_CFLAGS := -isystem /tmp/googletest/googletest/include
+  C11_GTEST_LIBS := -L/tmp/googletest/build/lib -lgtest -lgtest_main
+else
+  C11_GTEST_CFLAGS := -isystem /usr/local/include
+  C11_GTEST_LIBS := -L/usr/local/lib -lgtest -lgtest_main
+endif
+
+# --- E1 (frozen) -----------------------------------------------------------
+C11_E1_SRCS := src/e1_bigint.cpp src/e1_sha256.cpp src/e1_gear.cpp
+C11_E1_OBJS := $(patsubst src/%.cpp,obj/c11/%.o,$(C11_E1_SRCS))
+
+# --- C09 (dependency) ------------------------------------------------------
+C11_C09_SRC := src/e4/e4_provenance.cpp
+C11_C09_OBJ := obj/c11/e4/e4_provenance.o
+
+# --- C10 (dependency) ------------------------------------------------------
+C11_C10_SRC := src/e4/e4_segment.cpp
+C11_C10_OBJ := obj/c11/e4/e4_segment.o
+
+# --- C11 library -----------------------------------------------------------
+C11_LIB_SRC := src/e4/e4_probe.cpp
+C11_LIB_OBJ := obj/c11/e4/e4_probe.o
+C11_LIB_HDR := ../include/mapr/e4/e4_probe.hpp
+C11_DEP_HDR := ../include/mapr/e4/e4_measure.hpp ../include/mapr/e4/e4_segment.hpp
+
+# --- gate ------------------------------------------------------------------
+C11_GATE_SRC := src/e4/c11_gate.cpp
+C11_GATE_OBJ := obj/c11_gate/c11_gate.o
+
+# --- tests -----------------------------------------------------------------
+C11_TEST_SRC := tests/e4/e4_c11_probe_test.cpp
+C11_TEST_OBJ := obj/c11_tests/e4_c11_probe_test.o
+
+C11_LIB_SRCS := $(C11_C09_SRC) $(C11_C10_SRC) $(C11_LIB_SRC)
+C11_ALL_SRCS := $(C11_E1_SRCS) $(C11_LIB_SRCS)
+
+.PHONY: c11-all c11-gate c11-test c11-test-san c11-evidence c11-verify-evidence \
+        c11-isolation c11-check c11-clean
+
+c11-all: bin/c11_gate bin/e4_c11_tests
+
+obj/c11/e4/%.o: src/e4/%.cpp $(C11_LIB_HDR) $(C11_DEP_HDR) ../include/mapr/e1_gear.hpp \
+                ../include/mapr/e1_bigint.hpp ../include/mapr/e1_sha256.hpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C11_CXXFLAGS) -c $< -o $@
+
+obj/c11/e1_%.o: src/e1_%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(C11_CXXFLAGS) -c $< -o $@
+
+$(C11_GATE_OBJ): $(C11_GATE_SRC) $(C11_LIB_HDR) $(C11_DEP_HDR)
+	@mkdir -p $(dir $@)
+	$(CXX) $(C11_CXXFLAGS) -c $< -o $@
+
+$(C11_TEST_OBJ): $(C11_TEST_SRC) $(C11_LIB_HDR) $(C11_DEP_HDR)
+	@mkdir -p $(dir $@)
+	$(CXX) $(C11_CXXFLAGS) $(C11_GTEST_CFLAGS) -c $< -o $@
+
+bin/c11_gate: $(C11_E1_OBJS) $(C11_C09_OBJ) $(C11_C10_OBJ) $(C11_LIB_OBJ) $(C11_GATE_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C11_CXXFLAGS) -o $@ $^ -pthread
+
+bin/e4_c11_tests: $(C11_E1_OBJS) $(C11_C09_OBJ) $(C11_C10_OBJ) $(C11_LIB_OBJ) $(C11_TEST_OBJ)
+	@mkdir -p bin
+	$(CXX) $(C11_CXXFLAGS) -o $@ $^ $(C11_GTEST_LIBS) -pthread
+
+bin/e4_c11_tests_san: $(C11_E1_SRCS) $(C11_LIB_SRCS) $(C11_TEST_SRC) $(C11_LIB_HDR) $(C11_DEP_HDR)
+	@mkdir -p bin
+	$(CXX) $(C11_SANFLAGS) $(C11_GTEST_CFLAGS) -o $@ \
+	  $(C11_ALL_SRCS) $(C11_TEST_SRC) $(C11_GTEST_LIBS) -pthread
+
+bin/c11_gate_san: $(C11_ALL_SRCS) $(C11_GATE_SRC) $(C11_LIB_HDR) $(C11_DEP_HDR)
+	@mkdir -p bin
+	$(CXX) $(C11_SANFLAGS) -o $@ $(C11_ALL_SRCS) $(C11_GATE_SRC) -pthread
+
+c11-gate: bin/c11_gate
+
+c11-test: bin/e4_c11_tests
+	./bin/e4_c11_tests --gtest_color=no
+
+c11-test-san: bin/e4_c11_tests_san bin/c11_gate_san
+	./bin/e4_c11_tests_san --gtest_color=no
+	@mkdir -p /tmp/c11_san_evid
+	./bin/c11_gate_san --root .. --out-root /tmp/c11_san_evid
+	@rm -rf /tmp/c11_san_evid
+
+# Serial-identical merge, measured rather than asserted: the determinism and
+# merge suites are re-run in isolation so that repeated execution of the
+# recording-order-sensitive checks is exercised end to end.
+c11-shuffled: bin/e4_c11_tests
+	./bin/e4_c11_tests --gtest_color=no --gtest_filter='C11Reproducibility.*:C11Merge.*:C11Effort.*'
+
+c11-evidence: bin/c11_gate
+	./bin/c11_gate --root ..
+
+c11-verify-evidence: bin/c11_gate
+	./bin/c11_gate --root .. --verify
+
+# Static isolation: the C11 library may not name any other component, may not
+# reach a file/name/clock/locale/random facility, and may not mention a term
+# (probe is C11's own subject here, so it is not a forbidden token for this
+# component).  No std::thread: probes are per-segment and the merge is serial.
+c11-isolation: $(C11_E1_OBJS) $(C11_C09_OBJ) $(C11_C10_OBJ) $(C11_LIB_OBJ)
+	@echo "Checking C11 library includes against the E4 authority boundary..."
+	@if grep -nE '^[[:space:]]*#[[:space:]]*include[[:space:]]*[\"<](mapr/(e2|e3|e5|e6|e7)/|marp/harness/|marp/oracle|mapr/(container|encoder|decoder|pipeline|mau_translate|bitio|bitseq|dag|math_core|chunk_analyzer|crypto|dedup_index|deflate_frontend|hwprobe|noise_detector|profile|thread_pool))' \
+	    src/e4/e4_probe.cpp ../include/mapr/e4/e4_probe.hpp; then \
+	  echo "FAIL: forbidden include in the C11 library"; exit 1; \
+	fi
+	@echo "Checking C11 library for file/name/clock/locale/random access..."
+	@if sed -E 's://.*::' src/e4/e4_probe.cpp ../include/mapr/e4/e4_probe.hpp \
+	   | grep -nE '(std::filesystem|fstream|std::chrono|std::time|gmtime|localtime|getenv|std::locale|setlocale|std::random_device|rand\(|srand|getpid|extension\(|filename\(|\.path\()'; then \
+	  echo "FAIL: environment, clock, locale, randomness, or file-name access in the C11 library"; exit 1; \
+	fi
+	@echo "Checking the C11 library for term surfaces (E4-I6, O8.11)..."
+	@if grep -nE '(struct[[:space:]]+Ir|class[[:space:]]+Dag|struct[[:space:]]+Candidate|struct[[:space:]]+Atom|struct[[:space:]]+Node)' \
+	    src/e4/e4_probe.cpp ../include/mapr/e4/e4_probe.hpp; then \
+	  echo "FAIL: term-shaped token in the C11 library"; exit 1; \
+	fi
+	@echo "Checking C11 objects for component symbols via nm..."
+	@nm -C $(C11_LIB_OBJ) > /tmp/c11_nm.txt
+	@if grep -E 'marp::v2::(Ir|Dag|Candidate|CandidateSet|Atom|Node|discover|induce|select|encode|decode|validate)' /tmp/c11_nm.txt; then \
+	  rm -f /tmp/c11_nm.txt; echo "FAIL: forbidden symbol in e4_probe.o"; exit 1; \
+	fi
+	@rm -f /tmp/c11_nm.txt
+	@echo "C11 isolation checks PASS."
+
+c11-check: c11-all c11-isolation c11-test c11-verify-evidence
+
+c11-clean:
+	rm -rf obj/c11 obj/c11_gate obj/c11_tests
+	rm -f bin/c11_gate bin/e4_c11_tests bin/e4_c11_tests_san bin/c11_gate_san
