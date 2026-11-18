@@ -131,3 +131,28 @@ integrated gate remain.
 | No regression | 2026-11-17 | Additive: no frozen E1/E2/E3 header or source, no `harness/**` file, no `e4_provenance.cpp`, and no earlier gate TSV or log changed. All 13 `evidence/*/SHA256SUMS` manifests verify. |
 | CI | 2026-11-17 | `MARP E4 C10 SEGMENT CI` run `44087728894` green at commit `90a394149a82` on `arena/2d9a5dd9-marp`: independence, strict `-Werror` build, isolation, 24/24 GoogleTest, determinism at 1/2/3/4/8 workers, byte-for-byte evidence regeneration, schema/verdict/check/log-hygiene validation, independent repeat, ASan+UBSan, no-regression. All eleven pre-existing workflows green at the same commit, C09 among them. |
 | Report | 2026-11-17 | `REPORT/E4/C10-SEGMENT-REPORT.md` — readings (§5, thirteen decisions), limitations and the C11/E4-G handoff (§6), acceptance checklist (§7). |
+
+## E4 MEASURE — C11 PROBE (2026-11-18)
+
+C11 `PROBE` is the third of three E4 sub-components: exact, deterministic,
+fixed-point observations per segment. It is built from frozen E1
+(`BigInt`, `Sha256`, the gear table) and C09 (`Provenance`, `Source`,
+`MeasureCode`) through C10 (`Segment`, `ilog2_q24`, `h0_q24`), with its own
+makefile, test suite, gate binary and workflow. **E4-G is not claimed**: the
+integrated gate remains.
+
+| item | date | evidence |
+|---|---|---|
+| Surface | 2026-11-18 | `include/mapr/e4/e4_probe.hpp`: `ProbeKind` (12 kinds), `Observation` (full §4.7 field set, unused fields zeroed), `Policy`, `kStrideSetAll/Low`, `kStrideImprovementQ24`, `kSampleExactMaxBytes`, `kSampleWindowCount/Bytes`, `kBitComplexityMaxBytes`, `probe`, `verify_period`, `merge_observations`. |
+| Probes | 2026-11-18 | §4.8: H0/H1/H2 (Q24.24 entropies), Runs, Period (smallest p, verified only on full check), Repeat16 (exact 16-byte keys), Skew (planes 0..7), BitComplexity (Berlekamp–Massey GF(2) per plane, SHA-256 digest), AffineFit/QuadraticFit (exact predicates), Stride (best of the effort's set, improvement >= 2^23, ties smallest), ChangePoint (§4.5 boundary). |
+| Fixed point | 2026-11-18 | `ilog2_q24` by 24 exact squarings of a 62-bit mantissa in `unsigned __int128`; H0 from exact 128-bit sums with one final floor. No FP, no locale. Gate `c11.fixed.ilog2.*` covers 14 KATs, 64 powers of two, monotonicity, completeness, and an independent reference. |
+| Sampling | 2026-11-18 | §4.9: H2/Repeat16 exact at or below 2 MiB; above that 16 windows of 64 KiB at `floor(j*(N-65536)/15)`, counts aggregated, `sampled=true`, `sample_count=16`, `param=65536`. Sample path recorded, never claims full-range. |
+| Effort | 2026-11-18 | §4.10: effort selects the stride set, the BM plane count and H2/Repeat16 presence; never changes value exactness. Effort outside 0..9 → `Invalid`. Gate runs at effort 5. |
+| Stride reading | 2026-11-18 | §4.8 names no s-vs-N constraint; with s > N/2 some residue classes hold ≤1 sample and the floored-log plug-in returns H_s = 0 trivially, making large strides "win" on random data. Implementation, gate reference and test reference all require s ≤ N/2 (≥2 samples per class). Recorded as an implementation constraint on the degeneracy; smallest admissible stride still wins ties. |
+| Gate evidence | 2026-11-18 | `engine/bin/c11_gate --root ..` → `rows=651 pass=651 blocked=0 fail=0`, `RESULT: PASS`. 48 check groups across `c11.fixed.*`, `c11.bm.*`, `c11.probe.*`, `c11.sampling.path`, `c11.period.*`, `c11.change.*`, `c11.order.*`, `c11.effort.*`, `c11.errors.*`, `c11.names.independent`, `c11.isolation.*`. `specs_and_reports/v2/gates/C11-PROBE.tsv` SHA-256 in `evidence/C11/SHA256SUMS`; log 79 deterministic lines, fixed banner, no host/date/compiler/pid/timing. |
+| Determinism | 2026-11-18 | Observations depend only on `where` bytes and recorded params; merge by segment begin, then `ProbeKind` ordinal, then `param` — a serial ordered concatenation. `c11.order.*` and `c11.names.independent` (five labels, one 256 KiB slice, byte-identical observations) hold. |
+| Sanitizers | 2026-11-18 | `make -f Makefile.c11 c11-test-san`: 52/52 GoogleTest cases under ASan+UBSan, then a sanitizer gate run reproducing the committed evidence byte for byte. UBSan found a real defect this way: `bm_digest` shifted a 32-bit `l` by 32 in the LE64 packing, which is undefined; the library, gate reference and test reference now widen to 64-bit before the shift. |
+| Isolation | 2026-11-18 | `c11-isolation`: source `grep` clean (no E2–E7, no harness/oracle, no clock/locale/random/file-name), no term-shaped token, `nm` on `e4_probe.o` shows only C11's symbols; `static_assert`s pin the return types. |
+| No regression | 2026-11-18 | Purely additive: no frozen E1/E2/E3 header or source, no `harness/**` file, no C09/C10 file, and no earlier gate TSV or log changed. All 14 `evidence/*/SHA256SUMS` manifests verify; the workflow re-builds and re-gates C09 and C10 green at the same commit. |
+| CI | 2026-11-18 | `MARP E4 C11 PROBE CI` (`.github/workflows/e4-c11.yml`): independence, strict `-Werror` build, isolation, 52/52 GoogleTest, reproducibility/merge/effort determinism, byte-for-byte evidence regeneration, schema/verdict/check/log-hygiene validation, independent repeat, ASan+UBSan, no-regression. CI toolchain is GCC 15.2.0 (ubuntu-latest); its path-based `-Wnull-dereference` falsely flagged the index-0 stores `c[0] = 1u; b[0] = 1u;` in `berlekamp_massey` (`e4_probe.cpp`) and `reference_bm` (`c11_gate.cpp`) — both now write through explicitly null-checked `data()` pointers (behaviour-preserving; the `n == 0` early return proves non-emptiness). |
+| Report | 2026-11-18 | `REPORT/E4/C11-PROBE-REPORT.md` — probe implementations (§3), evidence (§4), ten spec readings/decisions (§5), limitations and the E4-G handoff (§6), acceptance checklist (§7). |
