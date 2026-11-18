@@ -19,8 +19,9 @@ is not affected by this work. E4-G is not claimed complete by this document.
 | Branch | `arena/3ece593e-marp` |
 | Base commit | `b19483005613f36a2e95f8330daf4ed4201e0aba` (`h2-gates` HEAD at branch time) |
 | Local toolchain | `g++ (Debian 12.2.0-14+deb12u1) 12.2.0`, GNU Make 4.3, 2 vCPU |
-| CI toolchain | `ubuntu-latest`, GCC from `build-essential`, GoogleTest built from source at CI time |
+| CI toolchain | `ubuntu-latest`, GCC 15.2.0 (`build-essential`), GoogleTest built from source at CI time |
 | Build flags | `-std=c++20 -pedantic -Wall -Wextra -Werror -Wconversion -Wshadow -Wnull-dereference -Wdouble-promotion -Wformat=2 -O2` |
+| Toolchain note | GCC 15's path-based `-Wnull-dereference` cannot see through runtime-sized `std::vector` value-initialising constructors and falsely flagged the index-0 stores `c[0] = 1u; b[0] = 1u;` in `berlekamp_massey` (`engine/src/e4/e4_probe.cpp`) and `reference_bm` (`engine/src/e4/c11_gate.cpp`) as potential null dereferences. Both sites now write through explicitly null-checked `data()` pointers — a documented, behaviour-preserving pattern (the `n == 0` early return proves the vectors are non-empty). g++ 12.2.0 compiles both forms clean, so this is a GCC 15 analyzer false positive, not a defect. |
 | Sanitizer flags | same warnings, `-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all` |
 | Locally observed gate result | `rows=651 pass=651 blocked=0 fail=0` — `RESULT: PASS` |
 | Locally observed unit tests | 52/52 GoogleTest cases pass (plain and ASan+UBSan builds) |

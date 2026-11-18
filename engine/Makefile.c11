@@ -39,6 +39,10 @@ endif
 ifneq ($(wildcard $(C11_GTEST_ROOT)/lib/libgtest.a),)
   C11_GTEST_CFLAGS := -isystem $(C11_GTEST_ROOT)/include
   C11_GTEST_LIBS := -L$(C11_GTEST_ROOT)/lib -lgtest -lgtest_main
+else ifneq ($(wildcard .gtest-install/lib/libgtest.a),)
+  # Workspace-local GoogleTest build (survives /tmp wipes between sessions).
+  C11_GTEST_CFLAGS := -isystem $(CURDIR)/.gtest-install/include
+  C11_GTEST_LIBS := -L$(CURDIR)/.gtest-install/lib -lgtest -lgtest_main
 else ifneq ($(wildcard /tmp/googletest/googletest/include),)
   C11_GTEST_CFLAGS := -isystem /tmp/googletest/googletest/include
   C11_GTEST_LIBS := -L/tmp/googletest/build/lib -lgtest -lgtest_main

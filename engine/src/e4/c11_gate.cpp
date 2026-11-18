@@ -511,10 +511,19 @@ RefBm reference_bm(std::span<const u8> bits) {
     if (n == 0u) return out;
 
     // C(x) and B(x) as coefficient vectors indexed by degree; C[0] = B[0] = 1.
+    // GCC 15's path-based -Wnull-dereference cannot see through the
+    // runtime-sized value-initialising constructors below and falsely reports
+    // the index-0 stores as potential null dereferences (the vectors are
+    // provably non-empty: n >= 1 after the early return).  Writing through
+    // explicitly checked data pointers documents that invariant to the analyzer.
     std::vector<u8> c(static_cast<std::size_t>(n) + 2u, 0u);
     std::vector<u8> b(static_cast<std::size_t>(n) + 2u, 0u);
-    c[0] = 1u;
-    b[0] = 1u;
+    if (u8* pc = c.data()) {
+        pc[0] = 1u;
+    }
+    if (u8* pb = b.data()) {
+        pb[0] = 1u;
+    }
     u32 l = 0u;
     u64 m = 1u;
 

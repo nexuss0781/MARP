@@ -49,4 +49,4 @@ target/
 Cargo.lock
 
 # Local config
-*.local
+*.localengine/.gtest-install/
