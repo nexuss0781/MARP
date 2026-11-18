@@ -167,17 +167,16 @@ jobs:
             # the CI log archive is not always reachable from a reviewing client,
             # while the annotation API always is.
             echo "::error::C11 build failed (make exit $rc)"
-            n=0
+            # Relay only the compiler diagnostics: GitHub keeps a limited
+            # number of annotations per check run, and the exact warning
+            # line is what identifies the -Werror failure.  Echoing every
+            # log line (the make command echoes included) pushes the
+            # diagnostic past the cap and it is dropped whole.  The full
+            # build log is uploaded as an artifact by the next step.
             while IFS= read -r diag; do
-              [ -n "$diag" ] || continue
-              # GitHub caps annotation messages at 255 characters; a long GCC
-              # diagnostic line would be dropped whole, so relay a truncated
-              # copy (the file:line:col prefix plus the warning text start is
-              # what identifies the diagnostic) and keep the full log in the
-              # artifact uploaded by the next step.
-              echo "::error::${diag:0:240}"
-              n=$((n + 1))
-              [ "$n" -lt 40 ] || break
+              case "$diag" in
+                *error:*|*warning:*|*In function*) echo "::error::${diag:0:200}" ;;
+              esac
             done < /tmp/c11_build.log
             exit "$rc"
           fi
